@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Форма настроек</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<section aria-label="Настройки" style="box-sizing: border-box; min-height: 844px; padding: 24px 20px; background: #F7F8FA; font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px; color: #18212C">
+<div style="max-width: 560px; display: flex; flex-direction: column; gap: 18px">
+<div style="font-size: 18px; font-weight: 600">Напоминание о брошенной анкете</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="remind-hours" style="font-weight: 500">Через сколько часов напоминать</label>
+<input id="remind-hours" type="number" value="3" style="font: inherit; box-sizing: border-box; width: 120px; height: 40px; padding: 0 10px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="remind-text" style="font-weight: 500">Текст напоминания</label>
+<textarea id="remind-text" rows="4" style="font: inherit; line-height: 20px; box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C; resize: vertical">Вы не закончили анкету. Продолжим с того же места?</textarea>
+</div>
+<div><button type="button" style="font: inherit; font-weight: 600; height: 40px; padding: 0 16px; border: 0; border-radius: 6px; background: #1F4FBF; color: #FFFFFF">Сохранить</button></div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Список версий</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<section aria-label="Версии сценария" style="box-sizing: border-box; min-height: 844px; padding: 24px 20px; background: #F7F8FA; font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px; color: #18212C">
+<div style="max-width: 720px; display: flex; flex-direction: column; gap: 14px">
+<div style="font-size: 18px; font-weight: 600">Версии сценария</div>
+<div style="background: #FFFFFF; border: 1px solid #D9DEE5; border-radius: 8px; display: flex; flex-direction: column">
+<sc-for list="{{versions}}" as="version" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border-top: 1px solid #EDF0F4">
+<div style="font-weight: 600; width: 96px">Версия {{version.num}}</div>
+<div style="flex: 1 1 auto; color: #3A4656; font-size: 13px">{{version.when}}</div>
+<sc-if value="{{version.current}}" hint-placeholder-val="{{ false }}"><span style="font-size: 12px; font-weight: 600; background: #E4F4EE; color: #0B5B44; border-radius: 6px; padding: 3px 8px">Сейчас в боте</span></sc-if>
+<sc-if value="{{version.old}}" hint-placeholder-val="{{ true }}"><button type="button" style="font: inherit; font-size: 13px; font-weight: 500; height: 36px; padding: 0 12px; border: 1px solid #C8CFD9; border-radius: 6px; background: #FFFFFF; color: #1F4FBF">Вернуть</button></sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      versions: [
+        { num: 7, when: 'Сегодня, 12:10', current: true, old: false },
+        { num: 6, when: 'Вчера, 17:45', current: false, old: true },
+        { num: 5, when: 'Вчера, 11:02', current: false, old: true },
+        { num: 4, when: '28 октября, 19:30', current: false, old: true }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

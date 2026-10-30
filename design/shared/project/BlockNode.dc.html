@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Общий блок на схеме</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 190px; height: 64px; box-sizing: border-box; padding: 0 12px; background: {{bg}}; border: {{border}}; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-family: 'Golos Text', system-ui, sans-serif; color: {{ink}}">
+<div aria-hidden="true" style="position: absolute; left: -6px; top: 27px; width: 10px; height: 10px; box-sizing: border-box; border-radius: 5px; background: #FFFFFF; border: 2px solid #7C8796"></div>
+<div style="font-size: 11px; font-weight: 500; color: {{kindInk}}">{{kind}}</div>
+<div style="font-size: 13px; font-weight: 600">{{title}}</div>
+<div aria-hidden="true" style="position: absolute; right: -6px; top: 27px; width: 10px; height: 10px; box-sizing: border-box; border-radius: 5px; background: #7C8796; border: 2px solid #FFFFFF"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"title":{"editor":null,"default":"Сфера деятельности"},"kind":{"editor":null,"default":"Общий блок"},"$preview":{"width":190,"height":64}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const kind = this.props.kind ?? 'Общий блок';
+    const shared = kind === 'Общий блок';
+    return {
+      title: this.props.title ?? 'Сфера деятельности',
+      kind,
+      bg: shared ? '#18212C' : '#FFFFFF',
+      border: shared ? '0' : '1px solid #C8CFD9',
+      ink: shared ? '#FFFFFF' : '#18212C',
+      kindInk: shared ? '#C8CFD9' : '#3A4656'
+    };
+  }
+}
+</script>
+</body>
+</html>

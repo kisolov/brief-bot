@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Список заявок</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<section aria-label="Список заявок" style="width: 840px; min-height: 844px; box-sizing: border-box; padding: 20px; background: #F7F8FA; display: flex; flex-direction: column; gap: 14px; font-family: 'Golos Text', system-ui, sans-serif; color: #18212C">
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+<div style="font-size: 18px; font-weight: 600; margin-right: 8px">Заявки</div>
+<button type="button" style="font: inherit; font-size: 13px; font-weight: 600; padding: 6px 12px; border: 1px solid #1F4FBF; border-radius: 6px; background: #E3EBFB; color: #1A459F">Все</button>
+<button type="button" style="font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid #C8CFD9; border-radius: 6px; background: #FFFFFF; color: #3A4656">Полные</button>
+<button type="button" style="font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid #C8CFD9; border-radius: 6px; background: #FFFFFF; color: #3A4656">Брошенные</button>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #D9DEE5; border-radius: 8px; overflow-x: auto">
+<table style="width: 100%; border-collapse: collapse; font-size: 13px">
+<thead><tr style="text-align: left; color: #546070"><th scope="col" style="padding: 10px 12px; font-weight: 500">Когда</th><th scope="col" style="padding: 10px 12px; font-weight: 500">Клиент</th><th scope="col" style="padding: 10px 12px; font-weight: 500">Запрос</th><th scope="col" style="padding: 10px 12px; font-weight: 500">Статус</th></tr></thead>
+<tbody>
+<sc-for list="{{leads}}" as="lead" hint-placeholder-count="5">
+<tr style="background: {{lead.bg}}; border-top: 1px solid #EDF0F4"><td style="padding: 12px; color: #3A4656; white-space: nowrap">{{lead.when}}</td><td style="padding: 12px; font-weight: 500">{{lead.client}}</td><td style="padding: 12px">{{lead.topic}}</td><td style="padding: 12px"><span style="font-size: 12px; font-weight: 600; border-radius: 6px; padding: 3px 8px; white-space: nowrap; background: {{lead.statusBg}}; color: {{lead.statusInk}}">{{lead.status}}</span></td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":840,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const full = { status: 'Полная', statusBg: '#E4F4EE', statusInk: '#0B5B44' };
+    const partial = { status: 'Брошена на шаге 9', statusBg: '#FBEBD9', statusInk: '#8A4300' };
+    return {
+      leads: [
+        { when: 'Сегодня, 14:12', client: '[Имя клиента 1]', topic: 'Новый сайт, товары', bg: '#EFF3FC', ...full },
+        { when: 'Сегодня, 11:40', client: '[Имя клиента 2]', topic: 'Продвижение сайта', bg: '#FFFFFF', ...full },
+        { when: 'Сегодня, 09:05', client: '@telegram_user', topic: 'Новый сайт, услуги', bg: '#FFFFFF', ...partial },
+        { when: 'Вчера, 18:27', client: '[Имя клиента 3]', topic: 'Доработать сайт', bg: '#FFFFFF', ...full }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

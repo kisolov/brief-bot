@@ -1,0 +1,37 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-30T11:00:00Z"},
+  "title": "Редактор brief-bot",
+  "launch": {"view": "canvas", "page": "screens"},
+  "pages": [
+    {"id": "screens", "name": "Экраны"},
+    {"id": "components", "name": "Компоненты"}
+  ],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 900, "title": "Сценарий: выбран шаг", "page": "screens", "expand": "fill", "is_interactive": true},
+    "PublishErrors.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 900, "title": "Публикация остановлена", "page": "screens", "expand": "fill", "is_interactive": true},
+    "Leads.dc.html": {"x": 0, "y": 1020, "w": 1440, "h": 900, "title": "Заявки", "page": "screens", "expand": "fill", "is_interactive": true},
+    "Settings.dc.html": {"x": 1520, "y": 1020, "w": 1440, "h": 900, "title": "Настройки", "page": "screens", "expand": "fill", "is_interactive": true},
+    "Versions.dc.html": {"x": 3040, "y": 1020, "w": 1440, "h": 900, "title": "Версии", "page": "screens", "expand": "fill", "is_interactive": true},
+    "AppHeader.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 56, "page": "components"},
+    "GraphTabs.dc.html": {"x": 0, "y": 136, "w": 1440, "h": 44, "page": "components"},
+    "StepNode.dc.html": {"x": 0, "y": 260, "w": 190, "h": 134, "page": "components"},
+    "BlockNode.dc.html": {"x": 270, "y": 260, "w": 190, "h": 64, "page": "components"},
+    "StepPalette.dc.html": {"x": 540, "y": 260, "w": 144, "h": 800, "page": "components"},
+    "ScenarioGraph.dc.html": {"x": 764, "y": 260, "w": 960, "h": 800, "page": "components"},
+    "StepPanel.dc.html": {"x": 1804, "y": 260, "w": 336, "h": 800, "page": "components"},
+    "ErrorsPanel.dc.html": {"x": 2220, "y": 260, "w": 336, "h": 800, "page": "components"},
+    "LeadsTable.dc.html": {"x": 2636, "y": 260, "w": 840, "h": 844, "page": "components"},
+    "LeadDetail.dc.html": {"x": 3556, "y": 260, "w": 600, "h": 844, "page": "components"},
+    "SettingsForm.dc.html": {"x": 4236, "y": 260, "w": 1440, "h": 844, "page": "components"},
+    "VersionsList.dc.html": {"x": 5756, "y": 260, "w": 1440, "h": 844, "page": "components"}
+  },
+  "order": [
+    "AppHeader.dc.html", "GraphTabs.dc.html", "StepNode.dc.html", "BlockNode.dc.html", "StepPalette.dc.html",
+    "ScenarioGraph.dc.html", "StepPanel.dc.html", "ErrorsPanel.dc.html", "LeadsTable.dc.html", "LeadDetail.dc.html",
+    "SettingsForm.dc.html", "VersionsList.dc.html",
+    "Main.dc.html", "PublishErrors.dc.html", "Leads.dc.html", "Settings.dc.html", "Versions.dc.html"
+  ],
+  "notes": {},
+  "designSystems": []
+}

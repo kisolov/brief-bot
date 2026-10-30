@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Новые шаги</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<aside aria-label="Новые шаги" style="width: 144px; height: 800px; box-sizing: border-box; padding: 14px 10px; background: #FFFFFF; border-right: 1px solid #D9DEE5; display: flex; flex-direction: column; gap: 8px; font-family: 'Golos Text', system-ui, sans-serif; color: #18212C">
+<div style="font-size: 12px; font-weight: 600; color: #3A4656; line-height: 16px">Перетащите шаг на схему</div>
+<sc-for list="{{items}}" as="item" hint-placeholder-count="6">
+<button type="button" style="font: inherit; font-size: 12px; font-weight: 500; text-align: left; line-height: 15px; min-height: 44px; padding: 6px 10px; border: 0; border-radius: 6px; background: {{item.tint}}; color: {{item.ink}}">{{item.label}}</button>
+</sc-for>
+</aside>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":144,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      items: [
+        { label: 'Один выбор', tint: '#E3EBFB', ink: '#1A459F' },
+        { label: 'Несколько ответов', tint: '#DDF2EF', ink: '#0B5F58' },
+        { label: 'Несколько + поле', tint: '#EBE5F9', ink: '#4E36A0' },
+        { label: 'Текст', tint: '#FBEBD9', ink: '#8A4300' },
+        { label: 'Файл', tint: '#F9E2EE', ink: '#8E1F5E' },
+        { label: 'Сообщение', tint: '#E8EBEF', ink: '#3A4656' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Шаг на схеме</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 190px; height: {{height}}px; box-sizing: border-box; background: #FFFFFF; border: {{border}}; border-radius: 8px; font-family: 'Golos Text', system-ui, sans-serif; color: #18212C; box-shadow: {{shadow}}">
+<div aria-hidden="true" style="position: absolute; left: -6px; top: 7px; width: 10px; height: 10px; box-sizing: border-box; border-radius: 5px; background: #FFFFFF; border: 2px solid #7C8796"></div>
+<div style="height: 26px; box-sizing: border-box; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: {{tint}}; color: {{ink}}; border-radius: 6px 6px 0 0; font-size: 11px; font-weight: 600">
+<span>{{typeLabel}}</span>
+<sc-if value="{{errorNum}}" hint-placeholder-val="{{ false }}"><span style="background: #B3261E; color: #FFFFFF; border-radius: 8px; padding: 0 6px; line-height: 16px">{{errorNum}}</span></sc-if>
+</div>
+<div style="height: 46px; box-sizing: border-box; padding: 6px 10px 0; font-size: 12.5px; line-height: 17px; font-weight: 600; overflow: hidden">{{title}}</div>
+<sc-for list="{{rows}}" as="row" hint-placeholder-count="2">
+<div style="position: relative; height: 28px; box-sizing: border-box; padding: 0 10px; display: flex; align-items: center; font-size: 12px; color: {{row.color}}; border-top: 1px solid #EDF0F4">
+<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{row.label}}</span>
+<sc-if value="{{row.port}}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="position: absolute; right: -6px; top: 9px; width: 10px; height: 10px; box-sizing: border-box; border-radius: 5px; background: #7C8796; border: 2px solid #FFFFFF"></span></sc-if>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"stepType":{"editor":"enum","options":["choice","multi","multi_input","text","file","info"],"default":"choice"},"state":{"editor":"enum","options":["normal","selected","error"],"default":"normal"},"title":{"editor":null,"default":"Нужно ли подключать оплату на сайте?"},"options":{"editor":null,"default":"Да|Нет"},"errorNum":{"editor":null,"default":""},"$preview":{"width":190,"height":134}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const types = {
+      choice: { label: 'Один выбор', tint: '#E3EBFB', ink: '#1A459F' },
+      multi: { label: 'Несколько ответов', tint: '#DDF2EF', ink: '#0B5F58' },
+      multi_input: { label: 'Несколько + поле', tint: '#EBE5F9', ink: '#4E36A0' },
+      text: { label: 'Текст', tint: '#FBEBD9', ink: '#8A4300' },
+      file: { label: 'Файл', tint: '#F9E2EE', ink: '#8E1F5E' },
+      info: { label: 'Сообщение', tint: '#E8EBEF', ink: '#3A4656' }
+    };
+    const type = types[this.props.stepType ?? 'choice'];
+    const state = this.props.state ?? 'normal';
+    const rows = String(this.props.options ?? 'Да|Нет').split('|').filter(Boolean).map((label) => {
+      const collapsed = label.startsWith('ещё');
+      return { label, port: !collapsed, color: collapsed ? '#546070' : '#18212C' };
+    });
+    const borders = {
+      normal: '1px solid #C8CFD9',
+      selected: '2px solid #1F4FBF',
+      error: '2px solid #B3261E'
+    };
+    return {
+      title: this.props.title ?? 'Нужно ли подключать оплату на сайте?',
+      typeLabel: type.label,
+      tint: type.tint,
+      ink: type.ink,
+      rows,
+      height: 26 + 46 + rows.length * 28 + 6,
+      border: borders[state],
+      shadow: state === 'selected' ? '0 0 0 3px rgba(31,79,191,.16)' : '0 1px 2px rgba(24,33,44,.08)',
+      errorNum: this.props.errorNum || ''
+    };
+  }
+}
+</script>
+</body>
+</html>

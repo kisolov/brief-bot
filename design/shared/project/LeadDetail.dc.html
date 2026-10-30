@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Карточка заявки</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+a{color:#1F4FBF}a:hover{color:#163A8E}
+</style>
+</helmet>
+<article aria-label="Карточка заявки" style="width: 600px; min-height: 844px; box-sizing: border-box; padding: 20px; background: #FFFFFF; border-left: 1px solid #D9DEE5; display: flex; flex-direction: column; gap: 16px; font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px; color: #18212C">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 18px; font-weight: 600">[Имя клиента 1]</div>
+<div style="color: #3A4656">Новый сайт, товары. Сегодня, 14:12</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; font-size: 13px">
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="color: #546070">Телефон</span><span style="font-weight: 500">+7 999 999-99-99</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="color: #546070">Мессенджер</span><span style="font-weight: 500">Telegram</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="color: #546070">Удобное время</span><span style="font-weight: 500">День (12:00–17:00)</span></div>
+</div>
+<div style="border-top: 1px solid #EDF0F4; display: flex; flex-direction: column">
+<sc-for list="{{answers}}" as="answer" hint-placeholder-count="6">
+<div style="display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid #EDF0F4; font-size: 13px"><span style="color: #546070">{{answer.key}}</span><span>{{answer.value}}</span></div>
+</sc-for>
+</div>
+<a href="#" style="font-size: 14px; font-weight: 500; color: #1F4FBF">Скачать ТЗ</a>
+</article>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":600,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      answers: [
+        { key: 'Оплата на сайте', value: 'Да' },
+        { key: 'Расчёт доставки', value: 'Да' },
+        { key: 'Учёт остатков', value: 'Нет' },
+        { key: 'Функционал', value: 'Поиск, Личный кабинет, Купоны/промокоды' },
+        { key: 'Вариации товаров', value: 'Цвет, Размер' },
+        { key: 'Количество товаров', value: '100–1 000' },
+        { key: 'Разделы сайта', value: 'О компании, Контакты, Доставка и оплата, Отзывы' },
+        { key: 'Дизайн', value: 'Главное — просто современно и красиво' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

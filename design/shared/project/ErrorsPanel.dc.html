@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Ошибки публикации</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<aside aria-label="Ошибки публикации" style="width: 336px; height: 800px; box-sizing: border-box; padding: 16px; background: #FFFFFF; border-left: 1px solid #D9DEE5; display: flex; flex-direction: column; gap: 14px; font-family: 'Golos Text', system-ui, sans-serif; font-size: 13px; line-height: 19px; color: #18212C">
+<div style="font-size: 15px; font-weight: 600">Публикация остановлена</div>
+<div style="background: #E4F4EE; color: #0B5B44; border-radius: 6px; padding: 10px 12px">Бот продолжает работать на версии 7. Пользователи ничего не заметили.</div>
+<div style="font-weight: 500">Исправьте 2 ошибки</div>
+<button type="button" style="font: inherit; text-align: left; display: flex; gap: 10px; padding: 10px; background: #FFFFFF; border: 1px solid #E9B9B5; border-radius: 6px; color: #18212C">
+<span style="flex: none; width: 20px; height: 20px; border-radius: 10px; background: #B3261E; color: #FFFFFF; font-size: 12px; font-weight: 600; text-align: center; line-height: 20px">1</span>
+<span><b>Что будет приоритетом?</b><br>Кнопка "Каталог услуг" никуда не ведёт. Выберите следующий шаг.</span>
+</button>
+<button type="button" style="font: inherit; text-align: left; display: flex; gap: 10px; padding: 10px; background: #FFFFFF; border: 1px solid #E9B9B5; border-radius: 6px; color: #18212C">
+<span style="flex: none; width: 20px; height: 20px; border-radius: 10px; background: #B3261E; color: #FFFFFF; font-size: 12px; font-weight: 600; text-align: center; line-height: 20px">2</span>
+<span><b>Напишите, что хотите разместить</b><br>После ответа бот не знает, куда идти. Выберите следующий шаг.</span>
+</button>
+</aside>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":336,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

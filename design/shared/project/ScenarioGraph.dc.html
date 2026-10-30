@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Схема сценария</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 960px; height: 800px; overflow: hidden; background-color: #EEF1F5; background-image: radial-gradient(#C8CFD9 1px, transparent 1px); background-size: 20px 20px; font-family: 'Golos Text', system-ui, sans-serif; color: #18212C">
+<svg role="img" aria-label="Стрелки переходов между шагами" width="960" height="800" viewBox="0 0 960 800" style="position: absolute; left: 0; top: 0; fill: none; stroke: #7C8796; stroke-width: 1.5">
+<defs><marker id="edge-head" orient="auto" markerWidth="7" markerHeight="7" refX="5" refY="3" overflow="visible"><path d="M0 0 L6 3 L0 6 Z" fill="#7C8796" stroke="none"></path></marker></defs>
+<path d="M 214 126 L 263 126" marker-end="url(#edge-head)"></path>
+<path d="M 214 154 C 254 154 224 336 263 336" marker-end="url(#edge-head)"></path>
+<path d="M 214 182 C 254 182 224 490 263 490" marker-end="url(#edge-head)"></path>
+<path d="M 214 210 C 254 210 224 663 263 663" marker-end="url(#edge-head)"></path>
+<path d="M 214 238 C 254 238 224 747 263 747" marker-end="url(#edge-head)"></path>
+<path d="M 460 199 L 509 199" marker-end="url(#edge-head)"></path>
+<path d="M 460 227 C 500 227 470 372 509 372" marker-end="url(#edge-head)"></path>
+<path d="M 460 255 C 500 255 470 437 509 437" marker-end="url(#edge-head)"></path>
+<path d="M 460 283 C 500 283 470 619 509 619" marker-end="url(#edge-head)"></path>
+<path d="M 706 272 L 755 272" marker-end="url(#edge-head)"></path>
+<path d="M 706 300 C 746 300 716 272 755 272" marker-end="url(#edge-head)"></path>
+<path d="M 706 372 C 746 372 716 433 755 433" marker-end="url(#edge-head)"></path>
+</svg>
+<div style="position: absolute; left: 24px; top: 40px"><dc-import name="StepNode" step-type="choice" title="Главное меню" options="Заказать новый сайт|Доработать текущий сайт|Продвижение сайта|Примеры наших работ|Связаться с нами" hint-size="190px,218px"></dc-import></div>
+<div style="position: absolute; left: 270px; top: 113px"><dc-import name="StepNode" step-type="choice" title="Что вы хотите разместить на сайте?" options="Товары|Услуги|Товары и услуги|Иное" hint-size="190px,190px"></dc-import></div>
+<div style="position: absolute; left: 270px; top: 323px"><dc-import name="StepNode" step-type="choice" title="На какой платформе сделан ваш сайт?" options="WordPress|ещё 7 кнопок" hint-size="190px,134px"></dc-import></div>
+<div style="position: absolute; left: 270px; top: 477px"><dc-import name="StepNode" step-type="multi_input" title="Что вы хотите продвигать?" options="Сайт|ещё 8 кнопок" hint-size="190px,134px"></dc-import></div>
+<div style="position: absolute; left: 270px; top: 631px"><dc-import name="BlockNode" kind="Один выбор" title="Примеры наших работ" hint-size="190px,64px"></dc-import></div>
+<div style="position: absolute; left: 270px; top: 715px"><dc-import name="BlockNode" kind="Сообщение" title="Связаться с нами" hint-size="190px,64px"></dc-import></div>
+<div style="position: absolute; left: 516px; top: 186px"><dc-import name="StepNode" step-type="choice" title="Нужно ли подключать оплату на сайте?" options="Да|Нет" state="{{payState}}" hint-size="190px,134px"></dc-import></div>
+<div style="position: absolute; left: 516px; top: 340px"><dc-import name="BlockNode" title="Сфера деятельности" hint-size="190px,64px"></dc-import></div>
+<div style="position: absolute; left: 516px; top: 424px"><dc-import name="StepNode" step-type="choice" title="Что будет приоритетом?" options="Каталог товаров|Каталог услуг|ещё 2 кнопки" state="{{priorityState}}" error-num="{{priorityError}}" hint-size="190px,162px"></dc-import></div>
+<div style="position: absolute; left: 516px; top: 606px"><dc-import name="StepNode" step-type="text" title="Напишите, что хотите разместить" options="Ответ текстом" state="{{otherState}}" error-num="{{otherError}}" hint-size="190px,106px"></dc-import></div>
+<div style="position: absolute; left: 762px; top: 259px"><dc-import name="StepNode" step-type="choice" title="Нужен ли расчёт стоимости доставки?" options="Да|Нет" hint-size="190px,134px"></dc-import></div>
+<div style="position: absolute; left: 762px; top: 420px"><dc-import name="StepNode" step-type="choice" title="Какую структуру сайта вы рассматриваете?" options="Лендинг|ещё 3 кнопки" hint-size="190px,134px"></dc-import></div>
+<div style="position: absolute; left: 16px; bottom: 16px; display: flex; align-items: center; gap: 4px; background: #FFFFFF; border: 1px solid #C8CFD9; border-radius: 6px; padding: 3px; font-size: 13px">
+<button type="button" aria-label="Уменьшить" style="font: inherit; width: 30px; height: 30px; border: 0; background: transparent; color: #18212C">−</button>
+<span style="min-width: 40px; text-align: center; color: #3A4656">100%</span>
+<button type="button" aria-label="Увеличить" style="font: inherit; width: 30px; height: 30px; border: 0; background: transparent; color: #18212C">+</button>
+<button type="button" style="font: inherit; height: 30px; padding: 0 10px; border: 0; border-left: 1px solid #D9DEE5; background: transparent; color: #18212C">Разложить</button>
+</div>
+<div role="img" aria-label="Миникарта схемы" style="position: absolute; right: 16px; bottom: 16px; width: 150px; height: 96px; box-sizing: border-box; background: #FFFFFF; border: 1px solid #C8CFD9; border-radius: 6px; overflow: hidden">
+<div style="position: absolute; left: 8px; top: 10px; width: 16px; height: 22px; background: #C5D3F2"></div>
+<div style="position: absolute; left: 30px; top: 16px; width: 16px; height: 18px; background: #C5D3F2"></div>
+<div style="position: absolute; left: 30px; top: 40px; width: 16px; height: 14px; background: #C5D3F2"></div>
+<div style="position: absolute; left: 30px; top: 60px; width: 16px; height: 14px; background: #D5CBF0"></div>
+<div style="position: absolute; left: 52px; top: 22px; width: 16px; height: 14px; background: #C5D3F2"></div>
+<div style="position: absolute; left: 52px; top: 44px; width: 16px; height: 16px; background: #C5D3F2"></div>
+<div style="position: absolute; left: 74px; top: 28px; width: 16px; height: 14px; background: #C5D3F2"></div>
+<div style="position: absolute; left: 96px; top: 34px; width: 16px; height: 14px; background: #C5D3F2"></div>
+<div style="position: absolute; left: 118px; top: 44px; width: 16px; height: 26px; background: #18212C"></div>
+<div style="position: absolute; left: 4px; top: 4px; width: 92px; height: 84px; box-sizing: border-box; border: 1.5px solid #1F4FBF; border-radius: 3px"></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["selected","errors"],"default":"selected"},"$preview":{"width":960,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const errors = (this.props.mode ?? 'selected') === 'errors';
+    return {
+      payState: errors ? 'normal' : 'selected',
+      priorityState: errors ? 'error' : 'normal',
+      priorityError: errors ? '1' : '',
+      otherState: errors ? 'error' : 'normal',
+      otherError: errors ? '2' : ''
+    };
+  }
+}
+</script>
+</body>
+</html>
