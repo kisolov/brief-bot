@@ -15,6 +15,13 @@ export class ScenarioInvalid extends DomainError {
   }
 }
 
+/** Откат выполнен на сервере, но черновик и список версий перечитать не удалось. */
+export class RollbackNotRefreshed extends DomainError {
+  constructor() {
+    super('Откат выполнен, но экран не обновился')
+  }
+}
+
 /** Нет версии с таким номером. */
 export class VersionNotFound extends DomainError {
   constructor() {

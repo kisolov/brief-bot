@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import { useBrowseLeads } from '~/composables/useBrowseLeads'
 import { useDownloadLeadFile } from '~/composables/useDownloadLeadFile'
 import { useLoadLeads } from '~/composables/useLoadLeads'
 import { useLeadStore } from '~/stores/lead.store'
 
 const loadLeads = useLoadLeads()
 const download = useDownloadLeadFile()
+const { select, setFilter } = useBrowseLeads()
 const store = useLeadStore()
 const { visible, filter, selectedId, selected } = storeToRefs(store)
 
@@ -32,8 +34,8 @@ async function downloadFile(id: number) {
         :filter="filter"
         :selected-id="selectedId"
         :failure="failure"
-        @select="store.select"
-        @filter="store.setFilter"
+        @select="select"
+        @filter="setFilter"
       />
     </div>
     <LeadDetail :lead="selected" :file-error="fileError" @download="downloadFile" />

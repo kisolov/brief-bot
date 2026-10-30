@@ -131,6 +131,7 @@ th {
 }
 td {
   padding: 12px;
+  overflow-wrap: anywhere;
 }
 tbody tr {
   border-top: 1px solid var(--line-soft);
@@ -145,6 +146,8 @@ tbody tr.on {
 }
 .client {
   font-weight: 500;
+  /* без минимума `anywhere` сжимает столбец до обрыва посреди обычного имени */
+  min-width: 120px;
 }
 .badge {
   display: inline-block;

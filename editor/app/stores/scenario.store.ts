@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useContainer } from '~/container'
-import { DraftConflict, ScenarioInvalid } from '~/errors/scenario'
+import { SessionExpired } from '~/errors/base'
+import { DraftConflict, RollbackNotRefreshed, ScenarioInvalid } from '~/errors/scenario'
 import { NEXT_HANDLE } from '~/types/scenario'
 import type { GraphView, Issue, Option, Scenario, Step, StepType, Target, VersionInfo, When } from '~/types/scenario'
 import { convertStep } from '~/utils/stepType'
@@ -52,11 +53,22 @@ export const useScenarioStore = defineStore('scenario', () => {
 
   /** Список версий и бейдж «В боте»: не зависит от того, открыта ли схема. */
   async function loadVersions(): Promise<void> {
-    versions.value = await repository.getVersions()
-    activeVersion.value = versions.value.find((v) => v.active)?.number ?? null
+    const mine = ++versionsRequest
+    const list = await repository.getVersions()
+    // ответ опоздал: за это время ушёл более новый запрос
+    if (mine === versionsRequest) applyVersions(list)
+  }
+
+  /** Счётчик запросов списка версий: применяется только ответ самого свежего. */
+  let versionsRequest = 0
+
+  function applyVersions(list: VersionInfo[]): void {
+    versions.value = list
+    activeVersion.value = list.find((v) => v.active)?.number ?? null
   }
 
   async function load(): Promise<void> {
+    const mine = ++versionsRequest
     const [draft, list] = await Promise.all([repository.getDraft(), repository.getVersions()])
     // черновик может быть невалидным: пустые поля не должны ронять экран
     const { entry: e, blocks: b, steps: s, ...rest } = (draft.data ?? {}) as Partial<Scenario>
@@ -65,8 +77,7 @@ export const useScenarioStore = defineStore('scenario', () => {
     steps.value = s ?? {}
     extra.value = rest
     revision.value = draft.revision
-    versions.value = list
-    activeVersion.value = list.find((v) => v.active)?.number ?? null
+    if (mine === versionsRequest) applyVersions(list)
     draftMatchesActive.value = false
     selectedId.value = null
     issues.value = []
@@ -218,7 +229,13 @@ export const useScenarioStore = defineStore('scenario', () => {
   async function activate(n: number): Promise<void> {
     await queue.catch(() => undefined)
     await repository.activate(n)
-    await load()
+    try {
+      await load()
+    } catch (e) {
+      // 401 остаётся 401, прочее: откат на сервере уже сделан, а экран показывает старое
+      if (e instanceof SessionExpired) throw e
+      throw new RollbackNotRefreshed()
+    }
     draftMatchesActive.value = true
   }
 

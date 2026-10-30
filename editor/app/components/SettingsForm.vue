@@ -12,7 +12,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ save: [value: ReminderSettings] }>()
 
-// число из поля: пустое поле даёт NaN и не проходит проверку в store
+// v-model.number отдаёт пустое поле строкой: Number('') это 0, и проверка в store отклонит его как 0 часов
 const hours = ref<number>(props.reminder.hours)
 const text = ref(props.reminder.text)
 watch(

@@ -2,7 +2,7 @@ import { BackendUnavailable, DomainError, SessionExpired } from './base'
 import { InvalidLoginLink } from './auth'
 import { FileTooLarge, LeadNotFound } from './lead'
 import { SettingsInvalid } from './settings'
-import { DraftConflict, ScenarioInvalid, VersionNotFound } from './scenario'
+import { DraftConflict, RollbackNotRefreshed, ScenarioInvalid, VersionNotFound } from './scenario'
 
 /** Единственное место, где ошибка предметной области превращается в текст для человека. */
 export const LOGIN_HINT = 'Откройте редактор командой /editor в боте.'
@@ -28,6 +28,7 @@ export function mapScenarioError(e: unknown): string {
   if (e instanceof DraftConflict) return CONFLICT_TEXT
   if (e instanceof ScenarioInvalid) return 'Сценарий не прошёл проверку.'
   if (e instanceof VersionNotFound) return 'Такой версии нет.'
+  if (e instanceof RollbackNotRefreshed) return 'Откат выполнен, но обновить экран не удалось. Обновите страницу.'
   if (e instanceof BackendUnavailable) return 'Сервер не отвечает. Попробуйте позже.'
   if (e instanceof DomainError) return e.message
   return 'Что-то пошло не так.'

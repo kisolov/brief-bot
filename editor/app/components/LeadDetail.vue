@@ -84,6 +84,8 @@ defineEmits<{ download: [id: number] }>()
 }
 .val {
   font-weight: 500;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .rows {
   border-top: 1px solid var(--line-soft);
@@ -95,6 +97,8 @@ defineEmits<{ download: [id: number] }>()
   grid-template-columns: 200px minmax(0, 1fr);
   gap: 12px;
   padding: 9px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   border-bottom: 1px solid var(--line-soft);
   font-size: 13px;
 }

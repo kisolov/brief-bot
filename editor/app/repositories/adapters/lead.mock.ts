@@ -44,6 +44,7 @@ export function sampleLeads(now = new Date()): Lead[] {
         { key: 'Удобное время', value: 'Утро (9:00–12:00)' },
         { key: 'Что продвигаем', value: 'Интернет-магазин' },
         { key: 'География продвижения', value: 'По России' },
+        { key: 'Ссылка на сайт', value: `https://example.com/${'очень-длинный-адрес-без-пробелов/'.repeat(4)}index.html` },
       ],
     },
     {
@@ -75,7 +76,7 @@ export function sampleLeads(now = new Date()): Lead[] {
     },
     {
       id: 0,
-      branch: 'Новый сайт',
+      branch: 'Новый_сайт_с_очень_длинным_названием_направления_без_единого_пробела_для_проверки_переноса',
       username: null,
       status: 'partial',
       createdAt: ago(60 * 24 * 9),

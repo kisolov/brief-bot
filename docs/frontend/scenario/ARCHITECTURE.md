@@ -28,7 +28,7 @@
 
 | Композабл | Сценарий | Кто зовёт |
 |---|---|---|
-| [useLoadScenario](../../../editor/app/composables/useLoadScenario.ts) | открыть редактор: загрузить черновик, 401 ведёт на `/login`, иное возвращает текст ошибки | [index.vue](../../../editor/app/pages/index.vue) |
+| [useLoadScenario](../../../editor/app/composables/useLoadScenario.ts) | открыть редактор: загрузить черновик, один раз за сеанс (при `store.loaded` не читает заново, возврат на схему не затирает правки; перезагрузка только через `store.load()` после отката), 401 ведёт на `/login`, иное возвращает текст ошибки | [index.vue](../../../editor/app/pages/index.vue) |
 | [useScenarioLayout](../../../editor/app/composables/useScenarioLayout.ts) | вкладка графа, раскладка, выбор ноды, "Разложить" (очищает `pos` шагов вида), пометки ошибок на нодах, переход по ошибке (`jumpTo`) | index.vue |
 | [useEditStep](../../../editor/app/composables/useEditStep.ts) | править шаг: поля, подпись ответа (`setKey`), смена типа (`changeType`), кнопки, условие показа (`setAnswer`), позиция, удаление шага (начальный нельзя, шаг-начало блока с подтверждением) | [StepPanel](../../../editor/app/components/StepPanel.vue), index.vue |
 | [useAddStep](../../../editor/app/composables/useAddStep.ts) | добавить шаг: из палитры (в видимой части или в месте броска) или как цель кнопки "Новый шаг…" | [StepPanel](../../../editor/app/components/StepPanel.vue), index.vue |

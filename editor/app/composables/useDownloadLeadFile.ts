@@ -2,22 +2,31 @@ import { mapLeadsError } from '~/errors/presentation'
 import { useLeadStore } from '~/stores/lead.store'
 import { usePageGuard } from './usePageGuard'
 
+/** Через сколько отзывается ссылка на файл: браузер успевает начать скачивание. */
+const REVOKE_DELAY_MS = 1000
+
 /**
  * Сценарий «скачать ТЗ»: файл забирается запросом, чтобы ошибку (413) показать текстом,
- * и отдаётся браузеру как скачивание `tz-<id>`. Возвращает текст ошибки или `null`.
+ * и отдаётся браузеру как скачивание `tz-<id>`. Возвращает текст ошибки или `null`;
+ * ошибка запоздавшего ответа по уже не выбранной заявке не возвращается: карточка чужая.
  */
 export function useDownloadLeadFile() {
   const store = useLeadStore()
   const guard = usePageGuard(mapLeadsError)
 
-  return (id: number) =>
-    guard(async () => {
+  return async (id: number): Promise<string | null> => {
+    const error = await guard(async () => {
       const blob = await store.downloadFile(id)
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
       link.download = `tz-${id}`
+      // Firefox не кликает по якорю вне документа
+      document.body.appendChild(link)
       link.click()
-      URL.revokeObjectURL(url)
+      document.body.removeChild(link)
+      setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS)
     })
+    return error !== null && store.selectedId !== id ? null : error
+  }
 }
