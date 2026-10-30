@@ -1,0 +1,32 @@
+# Адрес из SITE_ADDRESS: <ip-с-дефисами>.sslip.io (Caddy сам выпустит сертификат)
+# либо http://localhost:порт для проверки без TLS.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		# В адресе /login лежит одноразовый токен: наружу его не отдаём.
+		Referrer-Policy "no-referrer"
+	}
+
+	# Access-лог не включён намеренно (по умолчанию Caddy его не пишет): строка запроса
+	# /login?token=... не должна попадать в логи. Не добавляйте сюда директиву log.
+
+	handle /api/* {
+		request_body {
+			max_size 5MB
+		}
+		reverse_proxy app:8000
+	}
+
+	handle /health {
+		reverse_proxy app:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

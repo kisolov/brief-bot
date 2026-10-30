@@ -1,0 +1,9 @@
+# Контекст сборки редактора — корень репозитория, пути от него.
+**
+!editor/
+!deploy/Caddyfile
+editor/node_modules
+editor/.nuxt
+editor/.output
+editor/dist
+editor/tests

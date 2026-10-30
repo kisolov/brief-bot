@@ -1,0 +1,81 @@
+# Рабочий стек: docker compose -f docker-compose.prod.yml up -d --build
+# Секреты только из .env рядом с этим файлом, см. docs/DEPLOY.md.
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: brief
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+      POSTGRES_DB: brief
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brief -d brief"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: ./backend
+    restart: unless-stopped
+    # Один экземпляр: два процесса открыли бы Telegram polling дважды.
+    environment:
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:?задайте TELEGRAM_TOKEN в .env}
+      TELEGRAM_MANAGER_CHAT_ID: ${TELEGRAM_MANAGER_CHAT_ID:?задайте TELEGRAM_MANAGER_CHAT_ID в .env}
+      TELEGRAM_INVITE_CODE: ${TELEGRAM_INVITE_CODE:?задайте TELEGRAM_INVITE_CODE в .env}
+      TELEGRAM_POLLING_ENABLED: ${TELEGRAM_POLLING_ENABLED:-true}
+      EDITOR_BASE_URL: ${EDITOR_BASE_URL:?задайте EDITOR_BASE_URL в .env}
+      POSTGRES_DSN: postgresql://brief:${POSTGRES_PASSWORD}@postgres:5432/brief
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  caddy:
+    build:
+      context: .
+      dockerfile: editor/Dockerfile
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?задайте SITE_ADDRESS в .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  pg_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
