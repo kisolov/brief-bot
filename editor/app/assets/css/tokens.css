@@ -1,0 +1,62 @@
+/* Токены редактора: значения сняты с артбордов design/shared/project/. */
+:root {
+  --font: 'Golos Text', system-ui, sans-serif;
+
+  --ink: #18212c;
+  --ink-2: #3a4656;
+  --ink-3: #546070;
+  --port: #7c8796;
+  --line: #d9dee5;
+  --line-strong: #c8cfd9;
+  --line-soft: #edf0f4;
+
+  --bg-canvas: #eef1f5;
+  --bg-bar: #f7f8fa;
+  --bg-card: #ffffff;
+
+  --accent: #1f4fbf;
+  --accent-ring: rgba(31, 79, 191, 0.16);
+  --danger: #b3261e;
+  --ok-ink: #0b6b4f;
+  --ok-bg: #e4f4ee;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow-node: 0 1px 2px rgba(24, 33, 44, 0.08);
+
+  /* Типы шагов: фон шапки и цвет подписи (StepNode.dc.html). */
+  --step-choice-tint: #e3ebfb;
+  --step-choice-ink: #1a459f;
+  --step-multi-tint: #ddf2ef;
+  --step-multi-ink: #0b5f58;
+  --step-multi_input-tint: #ebe5f9;
+  --step-multi_input-ink: #4e36a0;
+  --step-text-tint: #fbebd9;
+  --step-text-ink: #8a4300;
+  --step-file-tint: #f9e2ee;
+  --step-file-ink: #8e1f5e;
+  --step-info-tint: #e8ebef;
+  --step-info-ink: #3a4656;
+
+  /* Нода общего блока (BlockNode.dc.html). */
+  --block-bg: #18212c;
+  --block-kind: #c8cfd9;
+}
+
+html,
+body,
+#__nuxt {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  color: var(--ink);
+  background: var(--bg-canvas);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

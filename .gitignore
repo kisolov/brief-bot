@@ -8,3 +8,7 @@ node_modules/
 .nuxt/
 .output/
 .superpowers/
+editor/node_modules
+editor/.nuxt
+editor/.output
+editor/dist
