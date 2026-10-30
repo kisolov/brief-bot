@@ -111,7 +111,7 @@ FIX = [
     "Готово",
     "Ввести ссылку",
     "example.ru",
-    "Да, можно предложить и такой",
+    "Да, можно предложить и такой вариант",
     "Нет, пока не продвигаем",
     "Готово",
     "Нет никаких доступов",
@@ -292,7 +292,7 @@ def test_hub_category_label_follows_first_answer():
 
 def test_services_branch_has_no_design_question():
     result = play(SEED, [*START, *SERVICES[:-1]])
-    assert result.session.step == "ref_site"
+    assert result.session.step == "ref_site_s"
     assert "design" not in result.session.answers
 
 
@@ -323,8 +323,28 @@ def test_final_buttons_start_new_passage():
         s = result.session
         assert result.effects == (Effect.PROGRESS,)
         assert s.step == target and not s.finished and not s.reminded
-        assert s.answers == {} and s.history == () and s.returns == ()
+        assert s.answers == {} and s.returns == ()
+        assert s.history == (() if target == "menu" else ("menu",))
         assert result.screen.buttons, target
+
+
+def test_back_after_final_button_leads_to_menu():
+    done = play(SEED, START + BRANCHES["goods"])
+    works = step(
+        SEED,
+        done.session,
+        Event("button", step="fin_thanks", value=_option_id(done.screen, "Примеры наших работ")),
+    )
+    assert works.session.step == "works_sphere" and works.screen.can_back
+    back = step(SEED, works.session, Event("back", step="works_sphere"))
+    assert back.session.step == "menu"
+    assert back.session.answers == {} and back.session.history == ()
+    assert [b.id for b in back.screen.buttons][0] == "new"
+
+
+def test_thanks_shown_once_after_sections():
+    first = [sid for sid, s in SEED.steps.items() if s.text.startswith("Спасибо! Переходим")]
+    assert sorted(first) == ["design", "ref_site_s"]
 
 
 def _option_id(screen: Screen, label: str) -> str:
@@ -363,17 +383,19 @@ def _conditions(scenario: Scenario) -> list[tuple[str, tuple[str, ...]]]:
     found = set()
     for s in scenario.steps.values():
         if s.when:
-            found.add((s.when.step, s.when.any))
+            found.add((s.when.step, s.when.any, s.when.none))
         for o in s.options:
             if o.when:
-                found.add((o.when.step, o.when.any))
+                found.add((o.when.step, o.when.any, o.when.none))
     return sorted(found)
 
 
 def _state_key(session: Session, conditions) -> tuple:
     met = tuple(
-        step_id in session.answers and any(i in session.answers[step_id].ids for i in ids)
-        for step_id, ids in conditions
+        step_id in session.answers
+        and any(i in session.answers[step_id].ids for i in ids)
+        and not any(i in session.answers[step_id].ids for i in none)
+        for step_id, ids, none in conditions
     )
     return session.step, session.pending_input, session.returns, session.finished, met
 
@@ -423,9 +445,6 @@ def test_every_step_can_go_back():
         reached.add(result.session.step)
         after = result.session
         if after.finished or after.step in _NO_BACK_STEPS:
-            continue
-        if before.finished:
-            # Новый проход после финала начинается с чистой историей: "Назад" некуда.
             continue
         assert result.screen.can_back, f"нет кнопки Назад на шаге {after.step}"
 

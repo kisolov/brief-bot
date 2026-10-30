@@ -62,6 +62,8 @@ class Step:
     done_label: str | None = None
     # Конечный шаг с кнопками: вход в него завершает анкету, кнопка начинает новую.
     finish: bool = False
+    # Куда ведёт "Назад" на первом шаге нового прохода после finish-шага.
+    back_to: str | None = None
     # Координаты ноды в редакторе, движок их не читает.
     pos: tuple[float, float] | None = None
 

@@ -53,6 +53,8 @@ def validate_scenario(s: Scenario) -> list[Issue]:
                 )
             )
         issues.extend(_check_target(s, sid, None, step.next))
+        if step.back_to is not None and step.back_to not in s.steps:
+            issues.append(_missing_target(sid, None))
         # Шаг с условием пропускается по next, поэтому next нужен любому такому шагу.
         if step.next is None and (
             step.when is not None

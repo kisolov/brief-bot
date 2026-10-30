@@ -72,6 +72,7 @@ def _parse_step(sid: str, raw: Any) -> Step:
         validate=validate,
         done_label=_optional(raw, "done_label", str, where),
         finish=bool(_optional(raw, "finish", bool, where)),
+        back_to=_optional(raw, "back_to", str, where),
         pos=_parse_pos(raw.get("pos"), where),
     )
 
@@ -137,6 +138,8 @@ def _dump_step(step: Step) -> dict:
         out["done_label"] = step.done_label
     if step.finish:
         out["finish"] = True
+    if step.back_to is not None:
+        out["back_to"] = step.back_to
     if step.pos is not None:
         out["pos"] = list(step.pos)
     return out

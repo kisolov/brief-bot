@@ -143,20 +143,22 @@ def _restart(scenario: Scenario, session: Session, current: Step, option_id: str
     )
     if option is None or option.url is not None or option.next is None:
         return _same(scenario, session)
+    dest, returns = _resolve(scenario, {}, (), option.next)
+    if dest is None:
+        return _same(scenario, session)
+    # Первый шаг нового прохода получает "Назад" в back_to; снимки возвратов и ответов пустые.
+    seed = current.back_to is not None and dest != current.back_to
     fresh = replace(
         session,
-        history=(),
-        history_returns=(),
-        history_answers=(),
+        history=(current.back_to,) if seed else (),
+        history_returns=((),) if seed else (),
+        history_answers=((),) if seed else (),
         returns=(),
         answers={},
         pending_input=None,
         finished=False,
         reminded=False,
     )
-    dest, returns = _resolve(scenario, {}, (), option.next)
-    if dest is None:
-        return _same(scenario, session)
     terminal = _is_terminal(scenario.steps[dest])
     moved = replace(fresh, step=dest, returns=returns, finished=terminal)
     effect = Effect.FINISHED if terminal else Effect.PROGRESS

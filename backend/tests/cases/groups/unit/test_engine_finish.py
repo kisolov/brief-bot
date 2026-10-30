@@ -129,6 +129,32 @@ def test_final_button_to_text_step_and_ignored_events():
         assert same.session == r.session and same.effects == ()
 
 
+def test_back_to_seeds_history_of_new_passage():
+    sc, r = _finished()
+    sc = replace(sc, steps={**sc.steps, "thanks": replace(sc.steps["thanks"], back_to="menu")})
+    again = step(sc, r.session, Event("button", step="thanks", value="again"))
+    s = again.session
+    assert s.step == "name" and s.history == ("menu",)
+    assert s.history_returns == ((),) and s.history_answers == ((),) and s.answers == {}
+    assert again.screen.can_back
+    back = step(sc, s, Event("back", step="name"))
+    assert back.session.step == "menu" and back.session.history == ()
+    # Цель, равная back_to, историю не засевает.
+    home = step(sc, r.session, Event("button", step="thanks", value="home"))
+    assert home.session.history == ()
+
+
+def test_back_to_roundtrips_and_is_validated():
+    sc = _finish_scenario()
+    bad = replace(sc, steps={**sc.steps, "thanks": replace(sc.steps["thanks"], back_to="zzz")})
+    assert [i.code for i in validate_scenario(bad)] == ["missing_target"]
+    good = replace(sc, steps={**sc.steps, "thanks": replace(sc.steps["thanks"], back_to="menu")})
+    data = dump_scenario(good)
+    assert data["steps"]["thanks"]["back_to"] == "menu"
+    assert parse_scenario(data, 7) == good
+    assert "back_to" not in dump_scenario(sc)["steps"]["thanks"]
+
+
 def test_finish_step_options_validated():
     sc = _finish_scenario()
     assert validate_scenario(sc) == []
