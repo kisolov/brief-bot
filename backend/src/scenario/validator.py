@@ -8,10 +8,15 @@ from src.scenario.entities import RETURN, Call, Option, Scenario, Step, StepType
 _ID_RE = re.compile(r"[a-z0-9_]{1,24}")
 _CALLBACK_LIMIT = 64
 _LABEL_LIMIT = 40
+# Telegram считает длину сообщения в единицах UTF-16.
+_TEXT_LIMIT = 4096
 
 # Типы, где переход задаёт опция. У остальных переход только по next шага.
 _OPTION_NEXT_TYPES = (StepType.CHOICE, StepType.INFO)
 _OPTIONS_REQUIRED = (StepType.CHOICE, StepType.MULTI, StepType.MULTI_INPUT)
+# Ответ этих типов читает менеджер. Выбор в choice может быть просто навигацией.
+_ANSWER_TYPES = (StepType.TEXT, StepType.FILE, StepType.MULTI, StepType.MULTI_INPUT)
+_NO_FINISH_TYPES = (StepType.TEXT, StepType.FILE)
 
 
 @dataclass(frozen=True)
@@ -55,11 +60,7 @@ def validate_scenario(s: Scenario) -> list[Issue]:
         issues.extend(_check_target(s, sid, None, step.next))
         if step.back_to is not None and step.back_to not in s.steps:
             issues.append(_missing_target(sid, None))
-        # Шаг с условием пропускается по next, поэтому next нужен любому такому шагу.
-        if step.next is None and (
-            step.when is not None
-            or step.type in (StepType.TEXT, StepType.FILE, StepType.MULTI, StepType.MULTI_INPUT)
-        ):
+        if step.next is None and _needs_next(step):
             issues.append(
                 Issue(
                     "missing_next",
@@ -68,6 +69,7 @@ def validate_scenario(s: Scenario) -> list[Issue]:
                     "После ответа бот не знает, куда идти. Выберите следующий шаг.",
                 )
             )
+        issues.extend(_check_content(step))
         for opt in step.options:
             issues.extend(_check_option(s, step, opt))
 
@@ -82,7 +84,49 @@ def validate_scenario(s: Scenario) -> list[Issue]:
                     "Выберите существующий шаг.",
                 )
             )
+    issues.extend(_check_returns(s, reachable))
     return issues
+
+
+def _needs_next(step: Step) -> bool:
+    # Шаг с условием пропускается по next, поэтому next нужен любому такому шагу.
+    if step.when is not None or step.type in _ANSWER_TYPES:
+        return True
+    if step.type != StepType.INFO or step.finish:
+        return False
+    # Кнопка-ссылка не уводит с шага: без перехода человек на нём застрянет.
+    return all(o.next is None for o in step.options)
+
+
+def _check_content(step: Step) -> list[Issue]:
+    issues = _check_text(step.id, None, step.text)
+    if step.finish and step.type in _NO_FINISH_TYPES:
+        issues.append(
+            Issue(
+                "bad_finish",
+                step.id,
+                None,
+                "Завершать анкету может только шаг с сообщением или кнопками.",
+            )
+        )
+    if step.type in _ANSWER_TYPES and not (step.key or "").strip():
+        issues.append(Issue("missing_key", step.id, None, "Укажите, как подписать ответ в заявке."))
+    return issues
+
+
+def _check_text(sid: str, oid: str | None, text: str) -> list[Issue]:
+    if not text.strip():
+        return [Issue("empty_text", sid, oid, "У шага нет текста.")]
+    if len(text.encode("utf-16-le")) // 2 > _TEXT_LIMIT:
+        return [
+            Issue(
+                "text_too_long",
+                sid,
+                oid,
+                f"Текст длиннее {_TEXT_LIMIT} знаков, Telegram его не отправит.",
+            )
+        ]
+    return []
 
 
 def _check_option(s: Scenario, step: Step, opt: Option) -> list[Issue]:
@@ -92,6 +136,28 @@ def _check_option(s: Scenario, step: Step, opt: Option) -> list[Issue]:
         issues.append(_bad_id(sid, opt.id, "кнопки"))
     if opt.when and opt.when.step not in s.steps:
         issues.append(_when_unknown(sid, opt.id))
+    if not opt.label.strip():
+        issues.append(Issue("empty_label", sid, opt.id, "У кнопки нет подписи."))
+    if opt.url and not _is_http_url(opt.url):
+        issues.append(
+            Issue(
+                "bad_url",
+                sid,
+                opt.id,
+                "Адрес ссылки должен начинаться с http:// или https://.",
+            )
+        )
+    if opt.input is not None and step.type == StepType.MULTI:
+        issues.append(
+            Issue(
+                "input_on_multi",
+                sid,
+                opt.id,
+                'Свой текст доступен только у типа "Несколько + поле".',
+            )
+        )
+    if opt.input is not None and step.type == StepType.MULTI_INPUT:
+        issues.extend(_check_text(sid, opt.id, opt.input))
     if len(opt.label) > _LABEL_LIMIT:
         issues.append(
             Issue(
@@ -124,6 +190,10 @@ def _check_option(s: Scenario, step: Step, opt: Option) -> list[Issue]:
             )
         )
     return issues
+
+
+def _is_http_url(url: str) -> bool:
+    return url.startswith(("http://", "https://")) and not any(c.isspace() for c in url)
 
 
 def _check_target(s: Scenario, sid: str, oid: str | None, target: Target | None) -> list[Issue]:
@@ -190,12 +260,101 @@ def _reachable(s: Scenario) -> set[str]:
         if sid in seen or step is None:
             continue
         seen.add(sid)
-        targets = [step.next]
-        if step.type in _OPTION_NEXT_TYPES or step.finish:
-            targets.extend(o.next for o in step.options)
-        for t in targets:
-            stack.extend(_targets_of(s, t))
+        for _, target in _edges(step):
+            stack.extend(_targets_of(s, target))
     return seen
+
+
+def _edges(step: Step) -> list[tuple[str | None, Target]]:
+    """Переходы шага: id опции (None у next самого шага) и цель."""
+    found: list[tuple[str | None, Target | None]] = [(None, step.next)]
+    if step.type in _OPTION_NEXT_TYPES or step.finish:
+        found.extend((o.id, o.next) for o in step.options)
+    return [(oid, target) for oid, target in found if target is not None]
+
+
+def _check_returns(s: Scenario, reachable: set[str]) -> list[Issue]:
+    """Ищет @return там, где стек возврата может быть пуст: бот бы застрял на шаге.
+
+    Стек пуст от входа в сценарий и после кнопки под финалом: она начинает новый проход.
+    Внутрь блока обход не идёт: там возврат есть, если блок вызван с then.
+    """
+    issues: list[Issue] = []
+    stack: list[str] = [s.entry]
+
+    def visit(sid: str, oid: str | None, target: Target) -> None:
+        if target == RETURN:
+            issues.append(_dead_end(sid, oid))
+        elif not isinstance(target, Call):
+            stack.append(target)
+        elif target.then is not None and target.then != RETURN:
+            stack.append(target.then)
+        elif target.block in s.blocks and _can_return(s, s.blocks[target.block]):
+            issues.append(_no_return_step(sid, oid))
+
+    for sid, step in s.steps.items():
+        if sid not in reachable or not step.finish:
+            continue
+        if step.back_to is not None:
+            stack.append(step.back_to)
+        for opt in step.options:
+            if opt.next is not None:
+                visit(sid, opt.id, opt.next)
+
+    seen: set[str] = set()
+    while stack:
+        sid = stack.pop()
+        step = s.steps.get(sid)
+        if sid in seen or step is None:
+            continue
+        seen.add(sid)
+        for oid, target in _edges(step):
+            visit(sid, oid, target)
+    # Финал мог попасть в обход дважды: проблема показывается один раз.
+    return list(dict.fromkeys(issues))
+
+
+def _can_return(s: Scenario, entry: str) -> bool:
+    """Дойдёт ли блок от шага entry до @return на своём уровне стека."""
+    seen: set[str] = set()
+    stack = [entry]
+    while stack:
+        sid = stack.pop()
+        step = s.steps.get(sid)
+        # Кнопка финала начинает новый проход, это уже не выход из блока.
+        if sid in seen or step is None or step.finish:
+            continue
+        seen.add(sid)
+        for _, target in _edges(step):
+            if target == RETURN:
+                return True
+            if not isinstance(target, Call):
+                stack.append(target)
+            elif target.then == RETURN:
+                return True
+            elif target.then is not None:
+                stack.append(target.then)
+            elif target.block in s.blocks:
+                stack.append(s.blocks[target.block])
+    return False
+
+
+def _no_return_step(sid: str, oid: str | None) -> Issue:
+    return Issue(
+        "missing_next",
+        sid,
+        oid,
+        "После блока бот не знает, куда идти. Выберите шаг возврата.",
+    )
+
+
+def _dead_end(sid: str, oid: str | None) -> Issue:
+    return Issue(
+        "missing_next",
+        sid,
+        oid,
+        "После ответа бот не знает, куда идти. Выберите следующий шаг.",
+    )
 
 
 def _targets_of(s: Scenario, target: Target | None) -> list[str]:

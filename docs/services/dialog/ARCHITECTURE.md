@@ -41,7 +41,7 @@
 
 | Функция | Делает |
 |---|---|
-| `new_session(scenario, chat_id)` | сессия на `entry`; если `entry` терминальный, сразу `finished` |
+| `new_session(scenario, chat_id)` | сессия на `entry`; если у `entry` стоит `finish`, сразу `finished` |
 | `step(scenario, session, event)` | применяет событие, возвращает `StepResult` |
 | `render(scenario, session)` | экран текущего шага; "Назад" добавляет движок |
 
@@ -53,13 +53,13 @@
 | `button` на `multi`/`multi_input` | отмечает или снимает опцию; `exclusive` снимает остальные, а любая другая снимает `exclusive`; порядок отметок как в сценарии; для `multi_input` отмеченная опция с `input` включает `pending_input` |
 | `button` на `info` с опциями | идёт по `option.next`, ответа не пишет |
 | `button` с `url` | игнорируется (ссылку открывает Telegram) |
-| `done` | `multi`/`multi_input`, а также `info` без опций со `next`: идёт по `step.next` |
+| `done` | `multi`/`multi_input`, а также `info` со `next` без видимых кнопок с переходом: идёт по `step.next` |
 | `text` | `text`-шаг: обрезает пробелы, проверяет `validate`, пишет `texts["value"]`, идёт по `next`. При `pending_input`: сохраняет текст опции |
 | `file` | `file`-шаг: пишет `file_id`, идёт по `next` |
 | `back` | см. [INVARIANTS](INVARIANTS.md) |
 | `start` | показывает текущий экран, состояние не меняется |
 
-Эффекты: `FINISHED`, когда вход в терминальный шаг или `@return` при пустом стеке закрыли анкету, или когда кнопка под финалом сразу привела в терминальный шаг; `PROGRESS` на остальных содержательных ходах. Событие, не изменившее состояния, возвращает прежний экран без эффектов.
+Эффекты: `FINISHED`, когда вход в `finish`-шаг закрыл анкету, в том числе сразу после кнопки под финалом; `PROGRESS` на остальных содержательных ходах. Событие, не изменившее состояния, возвращает прежний экран без эффектов.
 
 ## Порты и адаптеры
 
@@ -102,7 +102,7 @@
 | [GetReminderSettings](../../../backend/src/dialog/usecases/get_reminder_settings.py) `() -> ReminderSettings` | настройки напоминания для редактора (`GET /api/settings/reminder`) |
 | [SaveReminderSettings](../../../backend/src/dialog/usecases/save_reminder_settings.py) `(settings) -> ReminderSettings` | сохраняет настройки из редактора, один `INFO` с `hours`; границы значений проверяет DTO [ReminderSettingsDto](../../../backend/src/dialog/schema.py) (`hours` 1..168, `text` 1..1024 символа), домен их не проверяет |
 
-[build_lead](../../../backend/src/dialog/lead_builder.py)`(scenario, session, status, now) -> Lead`: чистая функция. `answers` в порядке записи, только с `key` и без `BRANCH_KEY`, значение через `answer_text`; `branch` это подпись последнего ответа с `BRANCH_KEY` (иначе пусто); `file_id` последнего ответа с файлом; `last_step` первая строка текста текущего шага до 100 символов. Пустые значения не пропускаются.
+[build_lead](../../../backend/src/dialog/lead_builder.py)`(scenario, session, status, now) -> Lead`: чистая функция. `answers` в порядке записи, только с `key` и без `BRANCH_KEY`, значение через `answer_text`; `branch` это подпись последнего ответа с `BRANCH_KEY`, кроме выбора, чья кнопка ведёт на другой шаг с `BRANCH_KEY`: "Связаться с нами" и "В главное меню" это навигация (иначе пусто); `file_id` последнего ответа с файлом; `last_step` первая строка текста текущего шага до 100 символов. Пустые значения не пропускаются.
 
 ## Telegram (bootstrap)
 

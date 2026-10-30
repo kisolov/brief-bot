@@ -106,9 +106,9 @@ def sample_scenario() -> Scenario:
             validate="phone",
             next="docs",
         ),
-        Step(id="docs", type=StepType.FILE, text="Пришлите файл", next="ready"),
+        Step(id="docs", type=StepType.FILE, text="Пришлите файл", key="Файл", next="ready"),
         Step(id="ready", type=StepType.INFO, text="Всё записали.", next=Call("final")),
-        Step(id="fin", type=StepType.INFO, text="Спасибо за заявку, {name}!"),
+        Step(id="fin", type=StepType.INFO, text="Спасибо за заявку, {name}!", finish=True),
     ]
     return Scenario(
         version=3,

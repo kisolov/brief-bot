@@ -29,7 +29,7 @@ def new_session(scenario: Scenario, chat_id: int) -> Session:
         chat_id=chat_id,
         version=scenario.version,
         step=scenario.entry,
-        finished=_is_terminal(first),
+        finished=first.finish,
     )
 
 
@@ -89,9 +89,6 @@ def render(scenario: Scenario, session: Session) -> Screen:
         Button(id=o.id, label=o.label, checked=o.id in checked, url=o.url)
         for o in _visible_options(current, session.answers)
     )
-    can_done = current.type in _MULTI_TYPES or (
-        current.type == StepType.INFO and not current.options and current.next is not None
-    )
     expects = (
         "text"
         if current.type == StepType.TEXT
@@ -103,7 +100,7 @@ def render(scenario: Scenario, session: Session) -> Screen:
         step=current.id,
         text=text,
         buttons=buttons,
-        can_done=can_done,
+        can_done=_can_done(current, session.answers),
         can_back=bool(session.history) and not current.no_back,
         expects=expects,
         done_label=_done_label(current),
@@ -127,10 +124,9 @@ def _on_button(scenario: Scenario, session: Session, current: Step, option_id: s
 
     answers = session.answers
     if current.type == StepType.CHOICE:
-        answers = {
-            **answers,
-            current.id: Answer(current.id, current.key, (option.label,), (option.id,)),
-        }
+        # Старый ответ убираем: порядок ключей это порядок последнего выбора.
+        answers = {k: v for k, v in answers.items() if k != current.id}
+        answers[current.id] = Answer(current.id, current.key, (option.label,), (option.id,))
     elif current.type != StepType.INFO:
         return _same(scenario, session)
     return _advance(scenario, session, answers, option.next)
@@ -159,15 +155,14 @@ def _restart(scenario: Scenario, session: Session, current: Step, option_id: str
         finished=False,
         reminded=False,
     )
-    terminal = _is_terminal(scenario.steps[dest])
+    terminal = scenario.steps[dest].finish
     moved = replace(fresh, step=dest, returns=returns, finished=terminal)
     effect = Effect.FINISHED if terminal else Effect.PROGRESS
     return StepResult(moved, render(scenario, moved), (effect,))
 
 
 def _on_done(scenario: Scenario, session: Session, current: Step) -> StepResult:
-    can = current.type in _MULTI_TYPES or (current.type == StepType.INFO and not current.options)
-    if not can or current.next is None:
+    if not _can_done(current, session.answers) or current.next is None:
         return _same(scenario, session)
     return _advance(scenario, session, session.answers, current.next)
 
@@ -289,9 +284,8 @@ def _advance(
 ) -> StepResult:
     dest, returns = _resolve(scenario, answers, session.returns, target)
     if dest is None:
-        # Анкета закончилась на текущем шаге: @return при пустом стеке.
-        done = replace(session, answers=answers, returns=returns, finished=True)
-        return StepResult(done, render(scenario, done), (Effect.FINISHED,))
+        # Защитная ветка: валидатор не пропускает @return при пустом стеке, шаг остаётся.
+        return _same(scenario, session)
 
     path = session.history + (session.step,)
     snaps = session.history_returns + (session.returns,)
@@ -300,7 +294,7 @@ def _advance(
         cut = path.index(dest)
         path, snaps, kept = path[:cut], snaps[:cut], kept[:cut]
 
-    terminal = _is_terminal(scenario.steps[dest])
+    terminal = scenario.steps[dest].finish
     moved = replace(
         session,
         step=dest,
@@ -348,10 +342,15 @@ def _same(scenario: Scenario, session: Session) -> StepResult:
     return StepResult(session, render(scenario, session), ())
 
 
-def _is_terminal(current: Step) -> bool:
-    if current.finish:
+def _can_done(current: Step, answers: dict[str, Answer]) -> bool:
+    """Нужна ли кнопка "Готово": у info её заменяют только кнопки с переходом, не ссылки."""
+    if current.next is None:
+        return False
+    if current.type in _MULTI_TYPES:
         return True
-    return current.type == StepType.INFO and not current.options and current.next is None
+    return current.type == StepType.INFO and all(
+        o.next is None for o in _visible_options(current, answers)
+    )
 
 
 def _done_label(current: Step) -> str:

@@ -1,9 +1,12 @@
 from collections import deque
+from datetime import UTC, datetime
 
 import pytest
 
 from src.dialog.engine import new_session, render, step
 from src.dialog.entities import BRANCH_KEY, Effect, Event, Screen, Session
+from src.dialog.lead_builder import build_lead
+from src.leads.entities import LeadStatus
 from src.scenario.entities import Scenario, StepType
 from src.scenario.seed import load_seed
 from src.scenario.validator import validate_scenario
@@ -185,6 +188,27 @@ def test_every_step_with_answer_has_key():
     }
     # Служебные шаги, ответ которых менеджеру не нужен: согласие и хаб разделов.
     assert keyless == {"privacy", "sec_hub"}
+
+
+def _branch(script: list[str]) -> str:
+    session = walk(SEED, [*START, *script])
+    return build_lead(SEED, session, LeadStatus.PARTIAL, datetime(2026, 10, 30, tzinfo=UTC)).branch
+
+
+def test_branch_ignores_navigation_buttons():
+    script = ["Связаться с нами", "В главное меню", "Заказать новый сайт"]
+    assert _branch(script) == "🌐 Заказать новый сайт"
+
+
+def test_branch_ignores_way_to_contacts():
+    assert _branch(["Связаться с нами"]) == ""
+    assert _branch(["Связаться с нами", "Продвижение сайта"]) == "📈 Продвижение сайта"
+
+
+def test_branch_takes_last_choice_after_returning_to_menu():
+    script = ["Примеры наших работ", "Спорт / отдых / тренеры", "Заказать услугу"]
+    assert _branch([*script, "В главное меню", "Продвижение сайта"]) == "📈 Продвижение сайта"
+    assert _branch([*script, "Доработать текущий сайт"]) == "🛠 Доработать текущий сайт"
 
 
 def test_phone_and_url_steps_validate():
@@ -464,10 +488,6 @@ def test_back_works_on_every_reached_state():
 
 
 def test_thanks_is_the_only_terminal_step():
-    terminals = [
-        sid
-        for sid, s in SEED.steps.items()
-        if s.finish or (s.type == StepType.INFO and not s.options and s.next is None)
-    ]
+    terminals = [sid for sid, s in SEED.steps.items() if s.finish]
     assert terminals == ["fin_thanks"]
     assert SEED.steps["fin_thanks"].finish

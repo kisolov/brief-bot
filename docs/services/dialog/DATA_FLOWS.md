@@ -11,7 +11,7 @@
   pending?   -> _on_pending (текст опции | back отменяет опцию)
   иначе      -> _on_button | _on_done | _on_back | _on_text | _on_file
                   -> _advance -> _resolve (Call / @return / пропуск по when)
-                       -> история + снимки, терминал? finished + FINISHED : PROGRESS
+                       -> история + снимки, finish? finished + FINISHED : PROGRESS
   -> StepResult(session, screen, effects)
 ```
 

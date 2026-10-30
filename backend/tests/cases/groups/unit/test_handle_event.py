@@ -115,6 +115,7 @@ async def test_finished_saves_full_lead_and_cancels_reminder(h):
         ("Дополнительно", "Логотип"),
         ("Ссылка", "example.ru"),
         ("Телефон", "+7 999 111-22-33"),
+        ("Файл", "файл"),
     ]
     assert len(h.notifier.sent) == 1
     assert await h.deadline() is None

@@ -27,10 +27,11 @@ def _none_scenario() -> Scenario:
             id="ask",
             type=StepType.TEXT,
             text="Ссылка?",
+            key="Ссылка",
             when=When("pick", ("b", "c"), ("a",)),
             next="end",
         ),
-        Step(id="end", type=StepType.INFO, text="Конец."),
+        Step(id="end", type=StepType.INFO, text="Конец.", finish=True),
     ]
     return Scenario(version=1, entry="pick", blocks={}, steps={s.id: s for s in steps})
 

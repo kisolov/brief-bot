@@ -4,7 +4,7 @@ from dataclasses import replace
 
 from src.dialog.engine import new_session, render, step
 from src.dialog.entities import Effect, Event, Session, StepResult, answer_text
-from src.scenario.entities import Call
+from src.scenario.entities import Call, Option, Scenario, When
 from src.scenario.validator import validate_scenario
 from tests.utils.sample_scenario import sample_scenario
 
@@ -312,11 +312,67 @@ def test_done_label_default_and_override():
     assert render(sc, replace(r.session)).done_label == "Хватит"
 
 
-def test_return_on_empty_stack_finishes():
+def test_return_on_empty_stack_keeps_step():
     sc = replace(S, steps={**S.steps, "name": replace(S.steps["name"], next="@return")})
-    r = step(sc, step(sc, new_session(sc, 1), _btn("privacy", "ok")).session, _text("Анна"))
-    assert r.session.finished is True
-    assert r.effects == (Effect.FINISHED,)
+    before = step(sc, new_session(sc, 1), _btn("privacy", "ok")).session
+    r = step(sc, before, _text("Анна"))
+    assert r.session == before
+    assert r.effects == ()
+    assert r.screen.step == "name"
+
+
+def _with(step_id: str, **fields) -> Scenario:
+    return replace(S, steps={**S.steps, step_id: replace(S.steps[step_id], **fields)})
+
+
+def test_info_without_finish_does_not_end_survey():
+    sc = _with("ready", next=None)
+    s = replace(new_session(sc, 1), step="docs")
+    r = step(sc, s, Event("file", value="F1"))
+    assert r.session.step == "ready"
+    assert r.session.finished is False
+    assert r.effects == (Effect.PROGRESS,)
+    assert new_session(replace(sc, entry="ready"), 1).finished is False
+
+
+def test_finish_step_as_entry_finishes_at_once():
+    assert new_session(replace(S, entry="fin"), 1).finished is True
+
+
+LINK = Option(id="site", label="Сайт", url="https://example.com")
+NAV = Option(id="go", label="Дальше", next="fin")
+
+
+def test_link_button_keeps_continue_on_info_with_next():
+    sc = _with("ready", options=(LINK,))
+    s = replace(new_session(sc, 1), step="ready")
+    assert render(sc, s).can_done is True
+    r = step(sc, s, Event("done", step="ready"))
+    assert r.session.step == "fin"
+
+
+def test_navigation_button_removes_continue_on_info():
+    sc = _with("ready", options=(LINK, NAV))
+    s = replace(new_session(sc, 1), step="ready")
+    assert render(sc, s).can_done is False
+    r = step(sc, s, Event("done", step="ready"))
+    assert r.session == s and r.effects == ()
+
+
+def test_hidden_navigation_button_does_not_remove_continue():
+    hidden = replace(NAV, when=When("privacy", ("nope",)))
+    sc = _with("ready", options=(hidden,))
+    s = replace(new_session(sc, 1), step="ready")
+    assert render(sc, s).can_done is True
+    assert step(sc, s, Event("done", step="ready")).session.step == "fin"
+
+
+def test_repeated_choice_moves_answer_to_the_end():
+    r = _run(*_to_hub(), _btn("hub", "go"))
+    assert list(r.session.answers)[-1] == "hub"
+    r = step(S, replace(r.session, step="branch"), _btn("branch", "old"))
+    assert list(r.session.answers)[-1] == "branch"
+    assert r.session.answers["branch"].ids == ("old",)
 
 
 def test_call_without_then_returns_one_level_up():
