@@ -5,10 +5,10 @@ import { useConnectSteps } from '~/composables/useConnectSteps'
 import { useEditStep } from '~/composables/useEditStep'
 import { useScenarioStore } from '~/stores/scenario.store'
 import { NEXT_HANDLE } from '~/types/scenario'
-import type { Option, Step, StepType, Target, When } from '~/types/scenario'
+import type { Option, Step, StepType, Target } from '~/types/scenario'
 import { STEP_TYPE_LABELS } from '~/utils/scenarioGraph'
 import { keyInfo } from '~/utils/stepKeys'
-import { canChangeType } from '~/utils/stepType'
+import { canChangeType, canFinish } from '~/utils/stepType'
 import { decodeTarget, encodeTarget, isConnected, stepLabel, targetChoices } from '~/utils/stepTargets'
 
 const props = defineProps<{ view: string }>()
@@ -21,8 +21,7 @@ const NEW_VALUE = '__new'
 
 const store = useScenarioStore()
 const { steps, selectedId, scenario, issues, conflict } = storeToRefs(store)
-const { updateStep, addOption, updateOption, removeOption, setCondition, canRemove, removeStep, setKey, changeType, setAnswer } =
-  useEditStep()
+const { updateStep, addOption, updateOption, removeOption, canRemove, removeStep, setKey, changeType } = useEditStep()
 const { connect, disconnect } = useConnectSteps()
 const addStep = useAddStep()
 
@@ -36,9 +35,13 @@ const stepChoices = computed(() => choices.value.filter((c) => c.value.startsWit
 
 const hasButtons = computed(() => type.value !== 'text' && type.value !== 'file')
 const multiButtons = computed(() => type.value === 'multi' || type.value === 'multi_input')
+const ownText = computed(() => type.value === 'multi_input')
 /** Кнопка ведёт сама только у выбора, сообщения и завершающего шага; у остальных переход один, у шага. */
 const buttonsLead = computed(() => type.value === 'choice' || type.value === 'info' || step.value?.finish === true)
 const hasKey = computed(() => type.value !== 'info')
+const keylessChoice = computed(() => type.value === 'choice' && !step.value?.key)
+/** Признак, уже стоящий у текста или файла, снимается: иначе ошибку публикации не исправить. */
+const finishLocked = computed(() => !canFinish(type.value) && step.value?.finish !== true)
 const showNext = computed(
   () => type.value !== 'choice' || step.value?.next !== undefined || step.value?.when !== undefined,
 )
@@ -134,24 +137,6 @@ function thenOf(target: Target | undefined): string {
   return typeof target === 'object' ? (target.then ?? '') : ''
 }
 
-// Условие показа
-const conditionSteps = computed(() =>
-  Object.entries(steps.value)
-    .filter(([sid, s]) => sid !== id.value && (s.options?.length ?? 0) > 0)
-    .map(([sid, s]) => ({ value: sid, label: stepLabel(s) })),
-)
-const when = computed<When | undefined>(() => step.value?.when)
-const whenOptions = computed(() => (when.value ? (steps.value[when.value.step]?.options ?? []) : []))
-
-function setWhenStep(sid: string) {
-  if (sid === '') return setCondition(id.value, undefined)
-  const first = steps.value[sid]?.options?.[0]?.id
-  setCondition(id.value, { step: sid, any: first ? [first] : [] })
-}
-
-/** Условие осталось только с "не отмечено": ждёт, пока человек выберет ответ. */
-const needsAnswer = computed(() => when.value !== undefined && when.value.any.length === 0)
-
 function onRemove() {
   removeStep(id.value)
 }
@@ -215,6 +200,7 @@ function onRemove() {
           </button>
         </div>
         <div v-if="info.duplicate" class="warn">Такая подпись уже есть, ответы смешаются в заявке.</div>
+        <div v-if="keylessChoice" class="note">Без подписи ответ не попадёт в заявку.</div>
       </template>
     </div>
 
@@ -266,11 +252,11 @@ function onRemove() {
           </label>
         </template>
         <template v-if="multiButtons">
-          <label class="check">
+          <label v-if="ownText" class="check">
             <input type="checkbox" :checked="o.input !== undefined" @change="setInputPrompt(o, checked($event))" />
             Человек вводит свой текст
           </label>
-          <label v-if="o.input !== undefined" class="sub">
+          <label v-if="ownText && o.input !== undefined" class="sub">
             Что спросить
             <input
               type="text"
@@ -284,6 +270,7 @@ function onRemove() {
             Снимает другие отметки
           </label>
         </template>
+        <WhenField :step-id="id" :option-id="o.id" :field-id="`when-${o.id}`" />
         <button type="button" class="link danger" @click="removeOption(id, o.id)">Удалить кнопку</button>
       </div>
       <button type="button" class="add" @click="addOption(id)">Добавить кнопку</button>
@@ -307,7 +294,12 @@ function onRemove() {
 
     <div class="field">
       <label class="check">
-        <input type="checkbox" :checked="step.finish === true" @change="updateStep(id, { finish: checked($event) || undefined })" />
+        <input
+          type="checkbox"
+          :checked="step.finish === true"
+          :disabled="finishLocked"
+          @change="updateStep(id, { finish: checked($event) || undefined })"
+        />
         Завершить анкету на этом шаге
       </label>
       <template v-if="step.finish">
@@ -319,29 +311,7 @@ function onRemove() {
       </template>
     </div>
 
-    <div class="field">
-      <label for="step-when">Когда показывать</label>
-      <select id="step-when" :value="when?.step ?? ''" @change="setWhenStep(text($event))">
-        <option value="">Всегда</option>
-        <option v-if="when && !steps[when.step]" :value="when.step">Шаг не найден</option>
-        <option v-for="c in conditionSteps" :key="c.value" :value="c.value">После вопроса: {{ c.label }}</option>
-      </select>
-      <template v-if="when && whenOptions.length">
-        <div class="caption small">Показывать, если отмечено</div>
-        <label v-for="o in whenOptions" :key="o.id" class="check">
-          <input type="checkbox" :checked="when.any.includes(o.id)" @change="setAnswer(id, 'any', o.id, checked($event))" />
-          {{ o.label }}
-        </label>
-        <div v-if="needsAnswer" class="warn">
-          Отметьте хотя бы один ответ в «Показывать, если отмечено», иначе шаг никогда не покажется.
-        </div>
-        <div class="caption small">И не отмечено</div>
-        <label v-for="o in whenOptions" :key="`n-${o.id}`" class="check">
-          <input type="checkbox" :checked="(when.none ?? []).includes(o.id)" @change="setAnswer(id, 'none', o.id, checked($event))" />
-          {{ o.label }}
-        </label>
-      </template>
-    </div>
+    <WhenField :step-id="id" field-id="step-when" />
 
     </fieldset>
     <div class="foot">
@@ -401,11 +371,6 @@ function onRemove() {
 .field > label,
 .caption {
   font-weight: 500;
-}
-.caption.small {
-  font-size: 12px;
-  color: var(--ink-2);
-  margin-top: 4px;
 }
 input[type='text'],
 select,
@@ -488,6 +453,9 @@ button:focus-visible {
 }
 .check input {
   margin: 2px 0 0;
+}
+.check input:disabled {
+  cursor: not-allowed;
 }
 .add {
   font: inherit;

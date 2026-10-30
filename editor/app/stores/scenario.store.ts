@@ -9,6 +9,8 @@ import { convertStep } from '~/utils/stepType'
 
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
 const ID_LENGTH = 8
+/** Пустой текст бот не отправит: шаг сразу получает черновой. */
+const NEW_STEP_TEXT = 'Новый шаг'
 
 /** Сервис сценария: хранит черновик как есть и отдаёт правки через действия. */
 export const useScenarioStore = defineStore('scenario', () => {
@@ -133,7 +135,7 @@ export const useScenarioStore = defineStore('scenario', () => {
   function addStep(type: StepType, afterId?: string, place?: { pos?: [number, number]; view?: GraphView }): string {
     const id = freshId('s_', new Set(Object.keys(steps.value)))
     if (!touch()) return id
-    const step: Step = { type, text: '' }
+    const step: Step = { type, text: NEW_STEP_TEXT }
     const after = afterId ? steps.value[afterId] : undefined
     if (after && typeof after.next === 'string') {
       step.next = after.next

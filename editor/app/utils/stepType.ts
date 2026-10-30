@@ -24,7 +24,8 @@ function withoutOptionKeys(options: Option[], ...keys: string[]): Option[] {
  * Шаг после смены типа без скрытых остатков прежнего типа: иначе кнопки и переходы, которых
  * на экране уже нет, остались бы в черновике, а шаги за ними публиковались бы.
  * `text`, `file`: без кнопок; `info` и `choice`: кнопки остаются; `multi`, `multi_input`: переход один,
- * у шага; `choice`: переход у кнопок; `validate` только у `text`; подписи ответа у `info` нет.
+ * у шага; `choice`: переход у кнопок; `validate` только у `text`; подписи ответа у `info` нет;
+ * свой текст `input` только у `multi_input`.
  */
 export function convertStep(step: Step, type: StepType): Conversion {
   const options = step.options ?? []
@@ -48,7 +49,8 @@ export function convertStep(step: Step, type: StepType): Conversion {
     } else {
       lostLinks = linked.length
     }
-    if (options.length) out.options = withoutOptionKeys(options, 'next')
+    const hidden = type === 'multi' ? ['next', 'input'] : ['next']
+    if (options.length) out.options = withoutOptionKeys(options, ...hidden)
     return { step: out, lostButtons, lostLinks }
   }
 
@@ -61,13 +63,14 @@ export function convertStep(step: Step, type: StepType): Conversion {
 }
 
 /**
- * Тип нельзя менять у шага, от которого зависит бот: завершающего анкету (`finish` либо `info`
- * без кнопок и `next`) и с подписью `name` или `Направление`. Смена потеряла бы переходы кнопок
- * или стёрла подпись, которую использует бот.
+ * Тип нельзя менять у шага, от которого зависит бот: завершающего анкету (`finish`) и с подписью
+ * `name` или `Направление`. Смена потеряла бы переходы кнопок или стёрла подпись, которую использует бот.
  */
 export function canChangeType(step: Step): boolean {
-  if (step.finish) return false
-  if (isReservedKey(step.key)) return false
-  const isEnd = step.type === 'info' && !(step.options?.length) && step.next === undefined
-  return !isEnd
+  return !step.finish && !isReservedKey(step.key)
+}
+
+/** Шаг с вводом ответа не завершает анкету: человеку некуда было бы ответить. */
+export function canFinish(type: StepType): boolean {
+  return type !== 'text' && type !== 'file'
 }

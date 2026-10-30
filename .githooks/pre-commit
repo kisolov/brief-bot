@@ -12,8 +12,9 @@ uv run pytest -m "not integration"
 staged="$(git diff --cached --name-only)"
 if grep -q '^editor/' <<<"$staged"; then
   cd "$root/editor"
-  if [[ ! -d node_modules ]]; then
-    echo "Выполните npm ci в editor" >&2
+  # Без .nuxt vitest падает на чтении tsconfig: причина должна быть видна сразу.
+  if [[ ! -d node_modules || ! -d .nuxt ]]; then
+    echo "Выполните npm ci и npx nuxt prepare в editor" >&2
     exit 1
   fi
   npx --no-install vitest run

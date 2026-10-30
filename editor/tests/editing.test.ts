@@ -15,7 +15,7 @@ import { useScenarioStore } from '~/stores/scenario.store'
 import type { Issue, Scenario } from '~/types/scenario'
 import { issueItems, locateIssue } from '~/utils/issues'
 import { keyInfo } from '~/utils/stepKeys'
-import { canChangeType, convertStep } from '~/utils/stepType'
+import { canChangeType, canFinish, convertStep } from '~/utils/stepType'
 import { decodeTarget, encodeTarget, isConnected, targetChoices } from '~/utils/stepTargets'
 
 const CONFLICT_TEXT = 'Сценарий изменён в другой вкладке. Обновите страницу.'
@@ -68,10 +68,11 @@ async function setup(revision = 3) {
   return { store, repo }
 }
 
-function stubRouter() {
+function stubRouter(path = '/') {
   const replace = vi.fn()
-  vi.stubGlobal('useRouter', () => ({ replace }))
-  return replace
+  const push = vi.fn()
+  vi.stubGlobal('useRouter', () => ({ replace, push, currentRoute: { value: { path } } }))
+  return Object.assign(replace, { push })
 }
 
 describe('правка схемы', () => {
@@ -209,6 +210,12 @@ describe('правка схемы', () => {
     const id = useAddStep()('info', { from: { step: 'menu', handle: 'a' } })
     expect(store.steps.menu!.options![0]!.next).toBe(id)
     expect(store.steps[id]!.type).toBe('info')
+  })
+
+  it('новый шаг создаётся с текстом, а не пустым', async () => {
+    const { store } = await setup()
+    const id = useAddStep()('text', { pos: [10, 20] })
+    expect(store.steps[id]!.text).toBe('Новый шаг')
   })
 })
 
@@ -437,6 +444,57 @@ describe('публикация', () => {
     expect(items[3]!.title).toBe('Сценарий')
   })
 
+  it('новые коды проверки ведут на шаг с ошибкой', async () => {
+    await setup(3)
+    const s = fixture()
+    const codes = ['empty_text', 'empty_label', 'text_too_long', 'bad_url', 'bad_finish', 'input_on_multi', 'missing_key']
+    const found = codes.map((code) => ({ code, stepId: 'pay', optionId: null, message: `текст ${code}` }))
+    for (const issue of found) expect(locateIssue(s, issue)).toEqual({ view: 'main', stepId: 'pay' })
+    expect(locateIssue(s, { ...found[0]!, stepId: 'sph' })).toEqual({ view: 'sphere', stepId: 'sph' })
+    expect(issueItems(s, found).map((i) => i.text)).toEqual(found.map((i) => i.message))
+  })
+
+  it('ошибки со страницы вне схемы ведут на схему и снимают выбор шага', async () => {
+    const router = stubRouter('/leads')
+    const { repo, store } = await setup(3)
+    store.select('pay')
+    vi.spyOn(repo, 'publish').mockRejectedValue(new ScenarioInvalid(issues))
+    await usePublishScenario()()
+    expect(router.push).toHaveBeenCalledWith('/')
+    expect(store.selectedId).toBeNull()
+    expect(store.issues).toEqual(issues)
+  })
+
+  it('незагруженный сценарий читается до перехода: схема не стирает ошибки', async () => {
+    const router = stubRouter('/settings')
+    const repo = new MockScenarioRepository({ data: fixture(), revision: 3 })
+    __setContainer({ scenarioRepository: repo })
+    setActivePinia(createPinia())
+    const store = useScenarioStore()
+    vi.spyOn(repo, 'publish').mockRejectedValue(new ScenarioInvalid(issues))
+    await usePublishScenario()()
+    expect(store.loaded).toBe(true)
+    expect(store.issues).toEqual(issues)
+    expect(router.push).toHaveBeenCalledWith('/')
+  })
+
+  it('на схеме публикация с ошибками никуда не ведёт', async () => {
+    const router = stubRouter('/')
+    const { repo, store } = await setup(3)
+    store.select('pay')
+    vi.spyOn(repo, 'publish').mockRejectedValue(new ScenarioInvalid(issues))
+    await usePublishScenario()()
+    expect(router.push).not.toHaveBeenCalled()
+    expect(store.selectedId).toBe('pay')
+  })
+
+  it('успешная публикация со страницы вне схемы остаётся на месте', async () => {
+    const router = stubRouter('/versions')
+    await setup(3)
+    await usePublishScenario()()
+    expect(router.push).not.toHaveBeenCalled()
+  })
+
   it('jumpTo переключает вкладку и выбирает шаг', async () => {
     const { store } = await setup(3)
     const { view, jumpTo } = useScenarioLayout()
@@ -612,13 +670,33 @@ describe('смена типа шага', () => {
     expect(store.steps.c).not.toHaveProperty('options')
   })
 
-  it('тип служебных шагов не меняется: завершающий, конец, name, Направление', async () => {
+  it('несколько ответов: свой текст снимается, он есть только у "Несколько + поле"', () => {
+    const m = { ...typed().steps.m!, type: 'multi_input' as const, options: [{ id: 'p', label: 'P', input: 'Что?', exclusive: true }] }
+    expect(convertStep(m, 'multi').step.options![0]).toEqual({ id: 'p', label: 'P', exclusive: true })
+    const back = { ...typed().steps.c!, type: 'info' as const, options: [{ id: 'p', label: 'P', input: 'Что?' }] }
+    expect(convertStep(back, 'multi_input').step.options![0]).toEqual({ id: 'p', label: 'P', input: 'Что?' })
+  })
+
+  it('сообщение без кнопок и перехода меняет тип: концом анкеты его делает только finish', async () => {
+    const { store } = await setupWith(typed())
+    expect(canChangeType(store.steps.z!)).toBe(true)
+    expect(useEditStep({ confirm: () => true }).changeType('z', 'text')).toBe(true)
+    expect(store.steps.z!.type).toBe('text')
+  })
+
+  it('завершать анкету могут все типы, кроме текста и файла', () => {
+    expect(canFinish('text')).toBe(false)
+    expect(canFinish('file')).toBe(false)
+    for (const type of ['choice', 'info', 'multi', 'multi_input'] as const) expect(canFinish(type)).toBe(true)
+  })
+
+  it('тип служебных шагов не меняется: завершающий, name, Направление', async () => {
     const data = typed()
     data.steps.nm = { type: 'text', text: 'Имя?', key: 'name', next: 'z' }
     data.steps.dir = { type: 'choice', text: 'Куда?', key: 'Направление', options: [{ id: 'a', label: 'A', next: 'z' }] }
     const { store } = await setupWith(data)
     const edit = useEditStep({ confirm: () => true })
-    for (const id of ['f', 'z', 'nm', 'dir']) {
+    for (const id of ['f', 'nm', 'dir']) {
       expect(canChangeType(store.steps[id]!)).toBe(false)
       expect(edit.changeType(id, 'multi')).toBe(false)
       expect(edit.changeType(id, 'info')).toBe(false)
@@ -626,7 +704,6 @@ describe('смена типа шага', () => {
     expect(store.steps.f!.options![0]!.next).toBe('z')
     expect(store.steps.nm!.key).toBe('name')
     expect(store.steps.dir!.key).toBe('Направление')
-    expect(store.steps.z!.type).toBe('info')
     expect(canChangeType(store.steps.p!)).toBe(true)
     expect(edit.changeType('p', 'text')).toBe(true)
   })
@@ -665,6 +742,48 @@ describe('условие показа', () => {
     useEditStep().setCondition('fin', { step: 'pick', any: ['p1'], none: ['p2'] })
     useEditStep().removeOption('pick', 'p1')
     expect(store.steps.fin!.when).toEqual({ step: 'pick', any: [], none: ['p2'] })
+  })
+})
+
+describe('условие показа кнопки', () => {
+  it('задаётся и снимается на кнопке, шаг не трогает', async () => {
+    const { store } = await setup()
+    const edit = useEditStep()
+    const before = store.steps.menu!.when
+    edit.setCondition('menu', { step: 'pick', any: ['p1'] }, 'b')
+    expect(store.steps.menu!.options![1]!.when).toEqual({ step: 'pick', any: ['p1'] })
+    expect(store.steps.menu!.when).toEqual(before)
+    edit.setCondition('menu', undefined, 'b')
+    expect(store.steps.menu!.options![1]).not.toHaveProperty('when')
+  })
+
+  it('отметки меняют условие кнопки, переход и ссылка остаются', async () => {
+    const { store } = await setup()
+    const edit = useEditStep()
+    edit.setCondition('menu', { step: 'pick', any: ['p1'] }, 'a')
+    edit.setAnswer('menu', 'none', 'p2', true, 'a')
+    edit.setAnswer('menu', 'any', 'p2', true, 'a')
+    const option = store.steps.menu!.options![0]!
+    expect(option.when).toEqual({ step: 'pick', any: ['p1', 'p2'], none: ['p2'] })
+    expect(option.next).toBe('pay')
+    edit.setCondition('menu', { step: 'pick', any: ['p1'] }, 'u')
+    expect(store.steps.menu!.options![2]!.url).toBe('https://example.com')
+  })
+
+  it('снятие последней отметки снимает условие кнопки', async () => {
+    const { store } = await setup()
+    const edit = useEditStep()
+    edit.setCondition('menu', { step: 'pick', any: ['p1'] }, 'b')
+    edit.setAnswer('menu', 'any', 'p1', false, 'b')
+    expect(store.steps.menu!.options![1]).not.toHaveProperty('when')
+  })
+
+  it('whenOf читает условие шага и кнопки', async () => {
+    await setup()
+    const { whenOf } = useEditStep()
+    expect(whenOf('menu', 'a')).toEqual({ step: 'pick', any: ['p1'] })
+    expect(whenOf('fin')).toEqual({ step: 'pick', any: ['p1', 'p2'], none: ['p2'] })
+    expect(whenOf('нет')).toBeUndefined()
   })
 })
 

@@ -115,9 +115,24 @@ try {
   await page.click('.palette .item.type-text')
   await page.waitForSelector('#step-text')
   check((await page.locator('.step-node').count()) === count + 1, 'шаг из палитры появился на схеме')
+  check((await page.inputValue('#step-text')) === 'Новый шаг', 'новый шаг создан с текстом')
+  check(await page.getByLabel('Завершить анкету на этом шаге').isDisabled(), 'текстовый шаг не завершает анкету')
   await page.click('.step-panel .remove')
   await page.waitForFunction((n) => document.querySelectorAll('.step-node').length === n, count)
   check(true, 'удаление шага убрало его со схемы')
+
+  // Свой текст только у "Несколько + поле", условие показа в карточке кнопки
+  await page.click('.palette .item.type-multi')
+  await page.waitForSelector('#step-text')
+  await page.click('.step-panel .add')
+  await page.waitForSelector('.step-panel .card')
+  check(await page.getByText('Человек вводит свой текст').count() === 0, 'у "Несколько ответов" нет своего текста')
+  check(await page.locator('.step-panel .card select[id^="when-"]').count() === 1, 'условие показа есть в карточке кнопки')
+  await page.selectOption('#step-type', 'multi_input')
+  await page.getByText('Человек вводит свой текст').waitFor()
+  check(true, 'у "Несколько + поле" есть свой текст')
+  await page.click('.step-panel .remove')
+  await page.waitForFunction((n) => document.querySelectorAll('.step-node').length === n, count)
 
   // Палитра: бросок создаёт шаг там, где отпустили; перетаскивание ноды сохраняет позицию
   const target = { x: 600, y: 300 }
@@ -143,6 +158,8 @@ try {
 
   await page.click('.graph-tabs .tab.main')
   await page.locator('.step-node', { hasText: 'Перед началом' }).first().dispatchEvent('click')
+  await page.getByText('Без подписи ответ не попадёт в заявку.').waitFor()
+  check(true, 'подсказка у выбора без подписи')
   const address = page.getByPlaceholder('https://').first()
   await address.waitFor()
   await address.fill('')
@@ -163,6 +180,13 @@ try {
   await page.waitForFunction(() => document.querySelector('#step-type')?.value === 'text')
   check((await page.getByText('Добавить кнопку').count()) === 0, 'после согласия кнопок у текстового шага нет')
 
+  // Публикация с ошибками со страницы "Заявки" ведёт на схему, где ошибки видны
+  await page.waitForSelector('.status:has-text("Черновик сохранён в")')
+  await page.click('nav .tab:has-text("Заявки")')
+  await page.waitForURL('**/leads')
+  await page.click('button.publish')
+  await page.waitForSelector('.errors-panel')
+  check(new URL(page.url()).pathname === '/', 'ошибки со страницы "Заявки" открывают схему')
 } finally {
   // версия 1 снова активна, черновик равен ей: следующий запуск начнётся с того же места
   await api('/scenario/versions/1/activate', 'POST').catch(() => undefined)

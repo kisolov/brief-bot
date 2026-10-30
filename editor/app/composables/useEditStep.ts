@@ -38,9 +38,16 @@ export function useEditStep(options: Options = {}) {
     store.removeOption(stepId, optionId)
   }
 
-  /** Условие показа шага; без `when` шаг показывается всегда. */
-  function setCondition(stepId: string, when: When | undefined): void {
-    store.updateStep(stepId, { when })
+  /** Условие показа шага или, если задан `optionId`, его кнопки. */
+  function whenOf(stepId: string, optionId?: string): When | undefined {
+    const step = store.steps[stepId]
+    return optionId === undefined ? step?.when : step?.options?.find((o) => o.id === optionId)?.when
+  }
+
+  /** Без `when` шаг или кнопка показываются всегда. */
+  function setCondition(stepId: string, when: When | undefined, optionId?: string): void {
+    if (optionId === undefined) store.updateStep(stepId, { when })
+    else store.updateOption(stepId, optionId, { when })
   }
 
   /**
@@ -71,14 +78,14 @@ export function useEditStep(options: Options = {}) {
    * Отметка в условии показа. Снятие последней отметки снимает условие целиком;
    * если задано "не отмечено", условие остаётся и панель просит выбрать ответ.
    */
-  function setAnswer(stepId: string, kind: 'any' | 'none', optionId: string, on: boolean): void {
-    const w = store.steps[stepId]?.when
+  function setAnswer(stepId: string, kind: 'any' | 'none', answerId: string, on: boolean, optionId?: string): void {
+    const w = whenOf(stepId, optionId)
     if (!w) return
-    const list = [...(w[kind] ?? []).filter((x) => x !== optionId), ...(on ? [optionId] : [])]
+    const list = [...(w[kind] ?? []).filter((x) => x !== answerId), ...(on ? [answerId] : [])]
     const next: When = { ...w, [kind]: list }
     if (kind === 'none' && !list.length) delete next.none
-    if (!next.any.length && !(next.none ?? []).length) return store.updateStep(stepId, { when: undefined })
-    store.updateStep(stepId, { when: next })
+    const empty = !next.any.length && !(next.none ?? []).length
+    setCondition(stepId, empty ? undefined : next, optionId)
   }
 
   /** Начальный шаг удалять нельзя: бот не знал бы, с чего начать. */
@@ -101,5 +108,5 @@ export function useEditStep(options: Options = {}) {
     return store.removeStep(id)
   }
 
-  return { updateStep, moveStep, addOption, updateOption, removeOption, setCondition, canRemove, removeStep, setKey, changeType, setAnswer }
+  return { updateStep, moveStep, addOption, updateOption, removeOption, whenOf, setCondition, canRemove, removeStep, setKey, changeType, setAnswer }
 }
