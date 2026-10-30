@@ -1,0 +1,37 @@
+[project]
+name = "brief-bot"
+version = "0.1.0"
+description = "Telegram-бот веб-студии и редактор сценария"
+requires-python = "==3.13.*"
+dependencies = [
+    "aiogram>=3.31.0",
+    "asyncpg>=0.32.0",
+    "dependency-injector>=4.49.1",
+    "fastapi>=0.162.0",
+    "pydantic-settings>=2.16.2",
+    "redis>=8.1.0",
+    "uvicorn>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1",
+    "ruff>=0.17.3",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+    "integration: тесты, которым нужны postgres и redis",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

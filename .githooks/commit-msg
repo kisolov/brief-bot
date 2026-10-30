@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Отклоняет коммит, если в сообщении есть Co-Authored-By или Claude (без учёта регистра).
+if grep -qiE 'co-authored-by|claude' "$1"; then
+    echo "commit-msg: в сообщении запрещены Co-Authored-By и Claude" >&2
+    exit 1
+fi
