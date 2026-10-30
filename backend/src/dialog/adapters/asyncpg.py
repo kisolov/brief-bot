@@ -3,6 +3,9 @@
 from src.dialog.entities import ReminderSettings
 from src.dialog.ports import SettingsRepository
 from src.shared.asyncpg_db import AsyncpgDatabase
+from src.shared.logger import get_logger
+
+logger = get_logger(__name__)
 
 REMINDER_KEY = "reminder"
 
@@ -14,12 +17,22 @@ class AsyncpgSettingsRepository(SettingsRepository):
     async def get_reminder(self) -> ReminderSettings:
         value = await self._pool.fetchval("SELECT value FROM settings WHERE key = $1", REMINDER_KEY)
         defaults = ReminderSettings()
-        if not isinstance(value, dict):
+        if value is None:
             return defaults
-        return ReminderSettings(
-            hours=value.get("hours", defaults.hours),
-            text=value.get("text", defaults.text),
+        hours = value.get("hours") if isinstance(value, dict) else None
+        text = value.get("text") if isinstance(value, dict) else None
+        valid = (
+            isinstance(hours, int)
+            and not isinstance(hours, bool)
+            and hours > 0
+            and isinstance(text, str)
+            and text.strip() != ""
         )
+        if not valid:
+            # Испорченная запись не должна ронять ход пользователя: работаем по умолчанию.
+            logger.warning("Reminder settings are corrupted, defaults used")
+            return defaults
+        return ReminderSettings(hours=hours, text=text)
 
     async def save_reminder(self, settings: ReminderSettings) -> None:
         await self._pool.execute(

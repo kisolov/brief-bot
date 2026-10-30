@@ -16,6 +16,7 @@
 | Пользователь заблокировал бота (`TelegramForbiddenError`) или чата нет (`TelegramBadRequest "chat not found"`) при напоминании | [TelegramChatGateway](../../../backend/src/bootstrap/telegram/gateway.py) бросает `ChatBlocked`; `SendReminders` пишет `INFO`, напоминание не считается отправленным. Частичная заявка менеджеру и `reminded = True` уже записаны | [send_reminders.py](../../../backend/src/dialog/usecases/send_reminders.py) |
 | Сбой обработки одного чата в `SendReminders` (заявка, redis, отправка) | `logger.error("Reminder failed")` с `chat_id` и трассировкой; остальные чаты обрабатываются. Запись уже снята с очереди, повтора нет | там же |
 | Сбой всего прохода напоминаний (например, redis недоступен в `due`) | [run_reminders](../../../backend/src/bootstrap/jobs/reminders.py): `logger.error("Reminder pass failed")`, цикл продолжается через 60 с. `CancelledError` завершает задачу | там же |
+| Запись `settings.reminder` испорчена (не объект, `hours` не целое больше нуля, `text` не непустая строка) | [AsyncpgSettingsRepository](../../../backend/src/dialog/adapters/asyncpg.py): `logger.warning("Reminder settings are corrupted, defaults used")`, возвращаются значения по умолчанию; ход пользователя не падает | там же |
 | Нет опубликованной версии сценария | `NotFound` из `ScenarioService.current`; `EnsureSeeded` в `lifespan` этого не допускает на чистой базе | |
 
 ## Остаточные случаи

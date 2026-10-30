@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
@@ -16,7 +17,7 @@ from src.dialog.ports import ChatGateway
 from src.dialog.services import DialogService
 from src.dialog.usecases.handle_event import HandleEvent
 from src.dialog.usecases.resume_or_restart import ResumeOrRestart
-from src.dialog.usecases.send_reminders import SendReminders
+from src.dialog.usecases.send_reminders import BATCH_LIMIT, SendReminders
 from src.leads.adapters.memory import InMemoryLeadRepository, MockManagerNotifier
 from src.leads.entities import LeadStatus
 from src.leads.services import LeadService
@@ -121,13 +122,19 @@ async def test_reminder_sent_once(h):
     assert len(h.notifier.sent) == 1
 
 
-async def test_blocked_user_removed_without_error(h):
+async def test_blocked_user_removed_without_error(h, caplog):
     await h.answer_name()
     h.gateway.blocked.add(CHAT)
 
-    sent = await h.remind(LATER)
+    with caplog.at_level("INFO"):
+        sent = await h.remind(LATER)
 
     assert sent == 0
+    # Блокировка это штатный случай: ни одной ошибки, одна запись INFO.
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+    skipped = [r for r in caplog.records if r.message == "Reminder skipped: chat blocked"]
+    assert len(skipped) == 1 and skipped[0].levelno == logging.INFO
+    assert skipped[0].chat_id == CHAT
     assert h.gateway.sent == []
     assert await h.reminders.due(LATER, 10) == []
 
@@ -263,3 +270,87 @@ async def test_job_survives_failure_and_stops_on_cancel():
         await task
 
     assert calls >= 2
+
+
+async def test_send_failure_keeps_flag_and_partial_lead(h):
+    await h.answer_name()
+    h.gateway.broken.add(CHAT)
+
+    sent = await h.remind(LATER)
+
+    assert sent == 0
+    session = await h.sessions.get(CHAT)
+    assert session is not None and session.reminded
+    leads = await h.lead_repo.list(None)
+    assert len(leads) == 1 and leads[0].status is LeadStatus.PARTIAL
+    # Повтора нет: запись снята, флаг стоит.
+    h.gateway.broken.clear()
+    await h.reminders.schedule(CHAT, NOW)
+    assert await h.remind(LATER) == 0
+    assert h.gateway.sent == []
+
+
+async def test_lead_failure_sends_nothing_and_keeps_flag_false(h):
+    await h.answer_name()
+
+    async def boom(lead):
+        raise RuntimeError("база недоступна")
+
+    h.remind._leads.save_partial = boom  # type: ignore[method-assign]
+
+    sent = await h.remind(LATER)
+
+    assert sent == 0
+    assert h.gateway.sent == []
+    session = await h.sessions.get(CHAT)
+    assert session is not None and not session.reminded
+
+
+async def _finish_from_branch(h) -> None:
+    await h.handle(CHAT, "anna", Event("button", step="branch", value="old"))
+    await h.handle(CHAT, "anna", Event("button", step="promo_now", value="paid"))
+    await h.handle(CHAT, "anna", Event("button", step="sphere", value="shop"))
+    await h.handle(CHAT, "anna", Event("button", step="extras", value="logo"))
+    await h.handle(CHAT, "anna", Event("done", step="extras"))
+    await h.handle(CHAT, "anna", Event("text", step="promo_link", value="example.ru"))
+    await h.handle(CHAT, "anna", Event("text", step="contact", value="+7 999 111-22-33"))
+    await h.handle(CHAT, "anna", Event("file", step="docs", value="FILE1"))
+    await h.handle(CHAT, "anna", Event("done", step="ready"))
+
+
+async def test_finish_after_reminder_upgrades_partial_to_full(h):
+    await h.answer_name()
+    await h.remind(LATER)
+
+    await _finish_from_branch(h)
+
+    leads = await h.lead_repo.list(None)
+    assert len(leads) == 1
+    assert leads[0].status is LeadStatus.FULL
+    assert h.reminders._deadlines == {}
+    assert len(h.notifier.sent) == 2  # частичная и полная
+    assert len(h.gateway.sent) == 1
+
+
+async def test_continue_after_reminder_never_reminds_again(h):
+    await h.answer_name()
+    await h.remind(LATER)
+
+    screen = await h.resume(CHAT, "continue")
+    assert screen.step == "branch"
+    await h.handle(CHAT, "anna", Event("button", step="branch", value="old"))
+
+    assert h.reminders._deadlines == {}
+    assert await h.remind(NOW + timedelta(days=365)) == 0
+    assert len(h.gateway.sent) == 1
+
+
+async def test_batch_limit_is_respected(h):
+    for chat in range(CHAT, CHAT + BATCH_LIMIT + 1):
+        await h.answer_name(chat)
+
+    assert await h.remind(LATER) == BATCH_LIMIT
+    assert len(h.gateway.sent) == BATCH_LIMIT
+    # Лишний чат остался в очереди и уходит со следующим проходом.
+    assert await h.remind(LATER) == 1
+    assert len({chat for chat, _ in h.gateway.sent}) == BATCH_LIMIT + 1

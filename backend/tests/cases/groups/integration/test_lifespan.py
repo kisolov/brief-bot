@@ -1,5 +1,6 @@
 """Запуск приложения на настоящих postgres и redis, без опроса Telegram."""
 
+import asyncio
 import json
 import uuid
 from collections.abc import AsyncIterator
@@ -93,3 +94,55 @@ async def test_missing_setting_fails_before_database(monkeypatch):
     with pytest.raises(ValidationError, match="manager_chat_id"):
         async with app.router.lifespan_context(app):
             pass
+
+
+def _env(monkeypatch, schema_dsn: str, polling: bool) -> None:
+    monkeypatch.setenv("TELEGRAM_TOKEN", "123456:TEST-token")
+    monkeypatch.setenv("TELEGRAM_MANAGER_CHAT_ID", "1")
+    monkeypatch.setenv("TELEGRAM_INVITE_CODE", "invite")
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true" if polling else "false")
+    monkeypatch.setenv("POSTGRES_DSN", schema_dsn)
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:56379/15")
+
+
+async def test_reminder_job_not_started_without_polling(monkeypatch, schema_dsn):
+    _env(monkeypatch, schema_dsn, polling=False)
+    started = []
+
+    async def fake_job(send_reminders):
+        started.append(send_reminders)
+
+    monkeypatch.setattr("src.bootstrap.app.run_reminders", fake_job)
+    app = create_app(Container())
+
+    async with app.router.lifespan_context(app):
+        await asyncio.sleep(0.05)
+
+    assert started == []
+
+
+async def test_reminder_job_runs_with_polling_and_is_cancelled(monkeypatch, schema_dsn):
+    _env(monkeypatch, schema_dsn, polling=True)
+    started: list[object] = []
+    cancelled: list[bool] = []
+
+    async def fake_job(send_reminders):
+        started.append(send_reminders)
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.append(True)
+            raise
+
+    async def fake_poll(dispatcher, bot):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr("src.bootstrap.app.run_reminders", fake_job)
+    monkeypatch.setattr("src.bootstrap.app._poll", fake_poll)
+    app = create_app(Container())
+
+    async with app.router.lifespan_context(app):
+        await asyncio.sleep(0.05)
+        assert len(started) == 1
+
+    assert cancelled == [True]
