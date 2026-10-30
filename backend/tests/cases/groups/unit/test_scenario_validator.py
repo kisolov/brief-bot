@@ -258,6 +258,7 @@ def test_when_unknown_step_on_step_and_option():
                 type=StepType.CHOICE,
                 text="?",
                 when=When(step="ghost", any=("x",)),
+                next="a",
                 options=(
                     Option(id="y", label="Y", next="a", when=When(step="ghost2", any=("x",))),
                 ),
@@ -280,3 +281,41 @@ def test_result_order_follows_step_order():
         ("missing_next", "b"),
         ("missing_next", "c"),
     ]
+
+
+def test_missing_next_on_step_with_when():
+    s = _scenario(
+        [
+            Step(
+                id="a",
+                type=StepType.CHOICE,
+                text="?",
+                options=(Option(id="y", label="Да", next="b"),),
+            ),
+            Step(
+                id="b",
+                type=StepType.CHOICE,
+                text="?",
+                when=When("a", ("y",)),
+                options=(Option(id="z", label="Да", next="end"),),
+            ),
+            _end(),
+        ]
+    )
+    assert _codes(s) == [("missing_next", "b", None)]
+
+
+def test_when_step_with_next_is_valid():
+    s = _scenario(
+        [
+            Step(
+                id="a",
+                type=StepType.TEXT,
+                text="?",
+                when=When("a", ("y",)),
+                next="end",
+            ),
+            _end(),
+        ]
+    )
+    assert validate_scenario(s) == []
