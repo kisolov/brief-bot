@@ -69,6 +69,8 @@ async def _edit(message: Message, screen: Screen) -> None:
 async def _clear_keyboard(message: Message) -> None:
     try:
         await message.edit_reply_markup(reply_markup=None)
-    except TelegramBadRequest:
+    except TelegramBadRequest as exc:
+        if "message is not modified" in exc.message:
+            return
         # Старое сообщение могло исчезнуть или не редактироваться: новый экран важнее.
         logger.warning("Keyboard removal failed", exc_info=True)

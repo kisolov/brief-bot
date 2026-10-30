@@ -214,3 +214,20 @@ async def test_error_handler_replies_without_details(caplog):
     assert record.chat_id == 42
     assert record.exc_info is not None
     assert "+7 999" not in record.getMessage()
+
+
+async def test_keyboard_clear_not_modified_is_silent(caplog):
+    message = _message()
+    message.edit_reply_markup.side_effect = _bad_request("Bad Request: message is not modified")
+
+    with caplog.at_level("WARNING"):
+        await update_screen(message, Screen(step="s", text="t", edit=False))
+
+    message.answer.assert_awaited_once()
+    assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
+
+def test_message_event_command_is_empty_text():
+    assert message_event(SimpleNamespace(text="/help", document=None, photo=None)) == Event(
+        "text", value=""
+    )

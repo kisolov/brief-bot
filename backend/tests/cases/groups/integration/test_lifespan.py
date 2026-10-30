@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 
 import asyncpg
 import pytest
+from pydantic import ValidationError
 
 from src.bootstrap.app import create_app
 from src.bootstrap.di import Container
@@ -78,3 +79,17 @@ async def test_lifespan_without_polling(monkeypatch, schema_dsn):
         # Миграции и сид отработали: опубликованный сценарий читается.
         scenario = await (await container.scenario_service()).current()
         assert scenario.version == 1
+
+
+async def test_missing_setting_fails_before_database(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_TOKEN", "123456:TEST-token")
+    monkeypatch.setenv("TELEGRAM_INVITE_CODE", "invite")
+    monkeypatch.delenv("TELEGRAM_MANAGER_CHAT_ID", raising=False)
+    # Недоступный адрес: любое обращение к базе дало бы другую ошибку.
+    monkeypatch.setenv("POSTGRES_DSN", "postgresql://x:x@127.0.0.1:1/x")
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "false")
+    app = create_app(Container())
+
+    with pytest.raises(ValidationError, match="manager_chat_id"):
+        async with app.router.lifespan_context(app):
+            pass

@@ -19,8 +19,11 @@ ERROR_TEXT = "Что-то пошло не так. Попробуйте ещё р
 
 
 def message_event(message: Any) -> Event:
-    """Текст, документ или фото (наибольший размер) в Event; прочее это пустой текст."""
+    """Текст, документ или фото (наибольший размер) в Event; прочее и команды это пустой текст."""
     if message.text:
+        # Команда не ответ анкеты: пустой текст заставит движок повторить экран.
+        if message.text.startswith("/"):
+            return Event("text", value="")
         return Event("text", value=message.text)
     if message.document is not None:
         return Event("file", value=message.document.file_id)

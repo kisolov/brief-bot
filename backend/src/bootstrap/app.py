@@ -31,14 +31,16 @@ async def _poll(dispatcher: Dispatcher, bot: Bot) -> None:
 def create_app(container: Container = default_container) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        await container.init_resources()
+        # Настройки первыми: неверная конфигурация падает до подключения к базам.
+        settings = container.telegram_settings()
         polling: asyncio.Task[None] | None = None
         try:
+            await container.init_resources()
             db = await container.asyncpg_db()
             await apply_migrations(db.pool, MIGRATIONS_DIR)
             ensure_seeded = await container.ensure_seeded()
             await ensure_seeded()
-            if container.telegram_settings().polling_enabled:
+            if settings.polling_enabled:
                 dispatcher = await container.dispatcher()
                 bot = await container.bot()
                 polling = asyncio.create_task(_poll(dispatcher, bot))
