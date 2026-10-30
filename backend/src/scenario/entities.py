@@ -1,6 +1,7 @@
 """Модель сценария: шаги, опции, переходы и условия."""
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
@@ -74,3 +75,18 @@ class Scenario:
     entry: str
     blocks: dict[str, str]
     steps: dict[str, Step]
+
+
+@dataclass(frozen=True)
+class Draft:
+    """Черновик редактора: сырой JSON, может быть невалидным; revision растёт при сохранении."""
+
+    data: dict
+    revision: int
+
+
+@dataclass(frozen=True)
+class VersionInfo:
+    number: int
+    published_at: datetime
+    active: bool

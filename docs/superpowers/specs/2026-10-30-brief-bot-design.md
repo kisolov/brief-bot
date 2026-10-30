@@ -146,7 +146,7 @@ step(scenario, session, event) -> (session, screen, effects)
 
 ## Хранение
 
-Postgres: `scenario_versions` (jsonb, номер, статус черновик или опубликован), `leads`, `admins`, `editor_tokens`, `settings`. Миграции: SQL-файлы и простой раннер.
+Postgres: `scenario_versions` (неизменяемые версии: jsonb, номер, признак активной), `scenario_draft` (одна строка: jsonb и `revision`, черновик может быть невалидным), `leads`, `admins`, `editor_tokens`, `settings`. Миграции: SQL-файлы и простой раннер.
 
 Redis: сессии и очередь напоминаний (`ZSET` по времени срабатывания).
 
