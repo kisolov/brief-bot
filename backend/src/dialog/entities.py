@@ -40,6 +40,9 @@ class Session:
     # Снимки returns, параллельные history: history_returns[i] это стек возврата в момент,
     # когда шаг history[i] был текущим. "Назад" восстанавливает его вместе с шагом.
     history_returns: tuple[tuple[str, ...], ...] = ()
+    # Снимки ключей answers, параллельные history: ключи на момент ухода с шага history[i],
+    # включая его собственный ответ. "Назад" оставляет в answers только их.
+    history_answers: tuple[tuple[str, ...], ...] = ()
     username: str | None = None
 
 

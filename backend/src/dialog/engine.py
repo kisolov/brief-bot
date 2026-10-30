@@ -159,13 +159,16 @@ def _on_file(scenario: Scenario, session: Session, current: Step, file_id: str) 
 def _on_back(scenario: Scenario, session: Session, current: Step) -> StepResult:
     if not session.history or current.no_back:
         return _same(scenario, session)
-    answers = {k: v for k, v in session.answers.items() if k != current.id}
+    # Остаются только ответы, что были на момент ухода с этого шага.
+    kept = set(session.history_answers[-1])
+    answers = {k: v for k, v in session.answers.items() if k in kept}
     moved = replace(
         session,
         step=session.history[-1],
         history=session.history[:-1],
         returns=session.history_returns[-1],
         history_returns=session.history_returns[:-1],
+        history_answers=session.history_answers[:-1],
         answers=answers,
     )
     return StepResult(moved, render(scenario, moved), (Effect.PROGRESS,))
@@ -252,9 +255,10 @@ def _advance(
 
     path = session.history + (session.step,)
     snaps = session.history_returns + (session.returns,)
+    kept = session.history_answers + (tuple(answers),)
     if dest in path:
         cut = path.index(dest)
-        path, snaps = path[:cut], snaps[:cut]
+        path, snaps, kept = path[:cut], snaps[:cut], kept[:cut]
 
     terminal = _is_terminal(scenario.steps[dest])
     moved = replace(
@@ -262,6 +266,7 @@ def _advance(
         step=dest,
         history=path,
         history_returns=snaps,
+        history_answers=kept,
         returns=returns,
         answers=answers,
         pending_input=None,

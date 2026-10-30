@@ -341,6 +341,48 @@ def test_answer_text():
     assert answer_text(_run(*_to_ready()).session.answers["docs"]) == "файл"
 
 
+def test_abandoned_branch_answer_dropped_on_back_to_branch():
+    r = _run(
+        *_to_hub(),
+        _btn("hub", "cat"),
+        _btn("cat", "a1"),
+        Event("done", step="cat"),
+        Event("back", step="hub"),
+    )
+    assert r.session.step == "branch"
+    assert "cat" not in r.session.answers
+    assert "hub" not in r.session.answers
+    r = step(S, r.session, _btn("branch", "old"))
+    assert "cat" not in r.session.answers
+
+
+def test_back_from_second_category_keeps_first():
+    r = _run(
+        *_to_hub(),
+        _btn("hub", "cat"),
+        _btn("cat", "a1"),
+        Event("done", step="cat"),
+        _btn("hub", "catb"),
+        _btn("cat_b", "b1"),
+    )
+    r = step(S, r.session, Event("back", step="cat_b"))
+    assert r.session.step == "hub"
+    assert r.session.answers["cat"].ids == ("a1",)
+    assert "cat_b" not in r.session.answers
+
+
+def test_back_to_step_before_hub_drops_category_and_hub_answers():
+    r = _run(*_to_hub(), _btn("hub", "cat"), _btn("cat", "a1"), Event("done", step="cat"))
+    r = step(S, r.session, Event("back", step="hub"))
+    assert r.session.step == "branch"
+    assert set(r.session.answers) == {"privacy", "name", "branch"}
+
+
+def test_history_answers_parallel_to_history():
+    r = _run(*_to_hub(), _btn("hub", "cat"), _btn("cat", "a1"), Event("done", step="cat"))
+    assert len(r.session.history_answers) == len(r.session.history)
+
+
 def test_session_roundtrips_json():
     r = _run(*_to_extras(), _btn("extras", "other"))
     json.dumps(dataclasses.asdict(r.session))

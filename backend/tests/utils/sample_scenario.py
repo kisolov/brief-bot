@@ -31,8 +31,17 @@ def sample_scenario() -> Scenario:
             text="Выберите раздел",
             options=(
                 Option(id="cat", label="Каталог", next="cat"),
+                Option(id="catb", label="Акции", next="cat_b"),
                 Option(id="go", label="Дальше", next="contact"),
             ),
+        ),
+        Step(
+            id="cat_b",
+            type=StepType.MULTI,
+            text="Что в акциях?",
+            key="Акции",
+            options=(Option(id="b1", label="Скидки"), Option(id="b2", label="Подарки")),
+            next="hub",
         ),
         Step(
             id="cat",
