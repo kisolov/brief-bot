@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from aiogram import Bot, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import CallbackQuery, ErrorEvent, Message
 
@@ -62,6 +62,9 @@ def build_router(
     issue_editor_link: IssueEditorLink,
 ) -> Router:
     router = Router()
+    # Анкета и ссылка на редактор живут только в личке: в группе их увидели бы все.
+    router.message.filter(F.chat.type == "private")
+    router.callback_query.filter(F.message.chat.type == "private")
 
     @router.message(CommandStart())
     async def on_start(message: Message) -> None:

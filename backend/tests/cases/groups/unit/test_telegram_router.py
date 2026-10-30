@@ -333,3 +333,49 @@ async def test_editor_does_not_touch_questionnaire_session(stand, container):
     assert await sessions.get(CHAT.id) == before
     assert before.answers == {}
     assert len(calls) == 1
+
+
+# --- только личные чаты ---
+
+
+def _group_message(kind: str, text: str, command: bool = False) -> Message:
+    entities = [MessageEntity(type="bot_command", offset=0, length=len(text))] if command else None
+    return Message(
+        message_id=1,
+        date=datetime.now(UTC),
+        chat=Chat(id=-100, type=kind),
+        from_user=USER,
+        text=text,
+        entities=entities,
+    )
+
+
+@pytest.mark.parametrize("kind", ["group", "supergroup"])
+@pytest.mark.parametrize(
+    ("text", "command"), [("/start", True), ("/editor", True), ("привет", False)]
+)
+async def test_group_messages_are_ignored(stand, container, kind, text, command):
+    _, _, calls, sessions = stand
+    await container.access_service().add_admin(USER.id)
+
+    await _feed(stand, Update(update_id=1, message=_group_message(kind, text, command)))
+
+    assert calls == []
+    assert await sessions.get(-100) is None
+    assert await sessions.get(USER.id) is None
+
+
+async def test_group_callback_is_ignored(stand):
+    _, _, calls, sessions = stand
+    query = CallbackQuery(
+        id="q",
+        from_user=USER,
+        chat_instance="c",
+        message=_group_message("supergroup", "экран"),
+        data="s:privacy:o:start",
+    )
+
+    await _feed(stand, Update(update_id=1, callback_query=query))
+
+    assert calls == []
+    assert await sessions.get(-100) is None
