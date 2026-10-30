@@ -11,7 +11,8 @@ const emit = defineEmits<{ select: [id: string]; relayout: [] }>()
 const { zoomIn, zoomOut, fitView, viewport, onNodesInitialized } = useVueFlow()
 const zoomPercent = computed(() => `${Math.round(viewport.value.zoom * 100)}%`)
 
-const START_SPAN = 900
+const START_SPAN = 520
+const START_ZOOM = 0.8
 const SMALL_GRAPH = 14
 
 // Маленькая схема вписывается целиком. У большой на экране начало сценария
@@ -21,7 +22,8 @@ function focus() {
   if (all.length <= SMALL_GRAPH) return fitView({ padding: 0.08, maxZoom: 1 })
   const left = Math.min(...all.map((n) => n.position.x))
   const start = all.filter((n) => n.position.x < left + START_SPAN).map((n) => n.id)
-  return fitView({ nodes: start, padding: 0.08, minZoom: 0.5, maxZoom: 1 })
+  // масштаб не меньше 80%: текст нод читается, остальное зумом и миникартой
+  return fitView({ nodes: start, padding: 0.08, minZoom: START_ZOOM, maxZoom: 1 })
 }
 
 // Ноды получают размеры после отрисовки: фокус ставится на каждую новую раскладку
@@ -115,6 +117,14 @@ function relayout() {
 
 <style>
 .scenario-graph .vue-flow__edge-path {
+  stroke: var(--port);
+  stroke-width: 1.5;
+}
+.scenario-graph .vue-flow__edge.back .vue-flow__edge-path {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.scenario-graph .vue-flow__edge.back.highlight .vue-flow__edge-path {
   stroke: var(--port);
   stroke-width: 1.5;
 }

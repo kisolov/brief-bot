@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { __setContainer } from '~/container'
@@ -43,6 +44,17 @@ describe('scenario store', () => {
     expect(Object.keys(store.steps)).toEqual(['menu', 'pay', 'sph'])
     expect(store.issues).toEqual([])
     expect(store.selectedId).toBeNull()
+  })
+
+  it('круг на настоящем сиде: load и toDraftData возвращают scenario.json без потерь', async () => {
+    const seed = JSON.parse(
+      readFileSync(new URL('../../backend/src/scenario/seed/scenario.json', import.meta.url), 'utf8'),
+    )
+    __setContainer({ scenarioRepository: new MockScenarioRepository() })
+    setActivePinia(createPinia())
+    const store = useScenarioStore()
+    await store.load()
+    expect(store.toDraftData()).toEqual(seed)
   })
 
   it('load подтягивает активную версию бота', async () => {

@@ -4,7 +4,7 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { useScenarioStore } from '~/stores/scenario.store'
 import type { GraphView } from '~/types/scenario'
 import { MAIN_VIEW, toFlow, viewTabs } from '~/utils/scenarioGraph'
-import { autoLayout } from '~/utils/scenarioLayout'
+import { autoLayout, markBackEdges } from '~/utils/scenarioLayout'
 
 /** Сценарий «смотреть схему»: вкладка графа, раскладка dagre, выбор ноды. */
 export function useScenarioLayout() {
@@ -17,7 +17,8 @@ export function useScenarioLayout() {
 
   function build(all: boolean) {
     const flow = toFlow(scenario.value, view.value)
-    laidOut.value = { nodes: autoLayout(flow.nodes, flow.edges, all), edges: flow.edges }
+    const placed = autoLayout(flow.nodes, flow.edges, all)
+    laidOut.value = { nodes: placed, edges: markBackEdges(placed, flow.edges) }
   }
 
   watch([scenario, view], () => build(false), { immediate: true })
@@ -25,7 +26,18 @@ export function useScenarioLayout() {
   const nodes = computed(() =>
     laidOut.value.nodes.map((n) => ({ ...n, selected: n.type === 'step' && n.id === selectedId.value })),
   )
-  const edges = computed(() => laidOut.value.edges)
+  // Обратные рёбра светлые; рёбра выбранной ноды подсвечиваются
+  const edges = computed(() =>
+    laidOut.value.edges.map((e) =>
+      e.class === 'back' && (e.source === selectedId.value || e.target === selectedId.value)
+        ? {
+            ...e,
+            class: 'back highlight',
+            markerEnd: typeof e.markerEnd === 'object' ? { ...e.markerEnd, color: '#7c8796' } : e.markerEnd,
+          }
+        : e,
+    ),
+  )
 
   function setView(next: GraphView) {
     view.value = next

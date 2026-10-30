@@ -35,6 +35,10 @@ export async function request<T>(
     const status = statusOf(e)
     if (status === 401) throw new SessionExpired()
     const mapped = status !== null ? map?.(status, bodyOf(e)) : null
+    if (!mapped) {
+      // только имя ошибки и статус: тело ответа и адрес с токеном в лог не идут
+      console.error('Сбой запроса к API', { error: e instanceof Error ? e.name : typeof e, status })
+    }
     throw mapped ?? new BackendUnavailable()
   }
 }

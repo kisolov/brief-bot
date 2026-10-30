@@ -15,10 +15,13 @@ export function useExchangeToken() {
   return async function exchangeToken(): Promise<string | null> {
     const raw = route.query.token
     const token = Array.isArray(raw) ? raw[0] : raw
+    // токен убираем из адреса при любой неудаче: ссылка одноразовая и не должна жить в истории
+    const dropToken = () => router.replace({ path: route.path, query: {} })
     if (!token) return mapAuthError(new InvalidLoginLink())
     try {
       await auth.exchange(token)
     } catch (e) {
+      await dropToken()
       return mapAuthError(e)
     }
     await router.replace('/')

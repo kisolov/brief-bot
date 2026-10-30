@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { toFlow, viewTabs } from '~/utils/scenarioGraph'
-import { autoLayout } from '~/utils/scenarioLayout'
+import { autoLayout, cycleEdgeIds, markBackEdges } from '~/utils/scenarioLayout'
 import type { Scenario } from '~/types/scenario'
 
 const scenario: Scenario = {
@@ -150,6 +150,61 @@ describe('toFlow', () => {
       for (const n of toFlow(seed, view).nodes) if (n.type === 'step') shown.add(n.id)
     }
     expect([...shown].sort()).toEqual(Object.keys(seed.steps).sort())
+  })
+
+  it('сид: каждая кнопка и переход шага с next даёт ребро хотя бы в одном виде', () => {
+    const seed = JSON.parse(
+      readFileSync(new URL('../../backend/src/scenario/seed/scenario.json', import.meta.url), 'utf8'),
+    ) as Scenario
+    const ids = new Set<string>()
+    for (const { view } of viewTabs(seed)) for (const e of toFlow(seed, view).edges) ids.add(e.id)
+    const missing: string[] = []
+    for (const [sid, step] of Object.entries(seed.steps)) {
+      for (const o of step.options ?? []) {
+        if (o.next !== undefined && !ids.has(`${sid}:${o.id}`)) missing.push(`${sid}:${o.id}`)
+      }
+      if (step.next !== undefined && !ids.has(`${sid}::next`)) missing.push(`${sid}::next`)
+    }
+    expect(missing).toEqual([])
+  })
+
+  it('вход в блок внутри вида блока рисуется BlockNode и ведёт на then', () => {
+    const s: Scenario = {
+      entry: 'a',
+      blocks: { outer: 'o1', inner: 'i1' },
+      steps: {
+        a: { type: 'info', text: 'A', next: { call: 'outer', then: 'a' } },
+        o1: { type: 'choice', text: 'O', options: [{ id: 'go', label: 'Go', next: { call: 'inner', then: 'o2' } }] },
+        o2: { type: 'info', text: 'O2', next: '@return' },
+        i1: { type: 'info', text: 'I', next: '@return' },
+      },
+    }
+    const { nodes, edges } = toFlow(s, 'outer')
+    const call = nodes.find((n) => n.type === 'block')!
+    expect(call.data.block).toBe('inner')
+    expect(edges.find((e) => e.source === 'o1' && e.sourceHandle === 'go')!.target).toBe(call.id)
+    expect(edges.find((e) => e.source === call.id)!.target).toBe('o2')
+    expect(nodes.some((n) => n.id === 'i1')).toBe(false)
+  })
+
+  it('обратные рёбра не ранжируют раскладку и помечаются светлыми', () => {
+    const s: Scenario = {
+      entry: 'a',
+      blocks: {},
+      steps: {
+        a: { type: 'info', text: 'A', next: 'b' },
+        b: { type: 'info', text: 'B', next: 'c' },
+        c: { type: 'choice', text: 'C', options: [{ id: 'again', label: 'Снова', next: 'a' }] },
+      },
+    }
+    const { nodes, edges } = toFlow(s, 'main')
+    expect([...cycleEdgeIds(nodes, edges)]).toEqual(['c:again'])
+    const placed = autoLayout(nodes, edges, true)
+    const x = (id: string) => placed.find((n) => n.id === id)!.position.x
+    expect(x('a')).toBeLessThan(x('b'))
+    expect(x('b')).toBeLessThan(x('c'))
+    const marked = markBackEdges(placed, edges)
+    expect(marked.filter((e) => e.class === 'back').map((e) => e.id)).toEqual(['c:again'])
   })
 
   it('сид: раскладка dagre LR не накладывает ноды друг на друга', () => {

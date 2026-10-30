@@ -7,8 +7,14 @@ cd "$root/backend"
 uv run ruff check .
 uv run pytest -m "not integration"
 
-# Тесты редактора идут, только если в коммит попали его файлы
-if git diff --cached --name-only | grep -q '^editor/'; then
+# Тесты редактора идут, только если в коммит попали его файлы.
+# Список файлов сначала в переменную: grep -q в конвейере под pipefail даёт ложный 141 (SIGPIPE).
+staged="$(git diff --cached --name-only)"
+if grep -q '^editor/' <<<"$staged"; then
   cd "$root/editor"
-  npx vitest run
+  if [[ ! -d node_modules ]]; then
+    echo "Выполните npm ci в editor" >&2
+    exit 1
+  fi
+  npx --no-install vitest run
 fi

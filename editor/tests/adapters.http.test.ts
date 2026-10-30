@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { HttpAuthRepository } from '~/repositories/adapters/auth.http'
 import { HttpScenarioRepository } from '~/repositories/adapters/scenario.http'
 import { InvalidLoginLink } from '~/errors/auth'
-import { SessionExpired } from '~/errors/base'
+import { BackendUnavailable, SessionExpired } from '~/errors/base'
 import { DraftConflict, ScenarioInvalid } from '~/errors/scenario'
 
 function failing(status: number, data?: unknown) {
@@ -44,6 +44,31 @@ describe('HttpScenarioRepository', () => {
     expect(client.mock.calls[0]![1]).toMatchObject({ method: 'PUT', body: { revision: 3 } })
     await repo.activate(2)
     expect(client.mock.calls[1]![0]).toBe('/api/scenario/versions/2/activate')
+  })
+})
+
+describe('логирование сбоев', () => {
+  it('нераспознанный сбой пишет имя ошибки без тела и токена', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const err = Object.assign(new Error('POST /api/auth/exchange?token=SECRET failed'), {
+      name: 'FetchError',
+      data: { secret: 'тело' },
+    })
+    const repo = new HttpAuthRepository(vi.fn().mockRejectedValue(err) as never)
+    await expect(repo.exchange('SECRET')).rejects.toBeInstanceOf(BackendUnavailable)
+    expect(spy).toHaveBeenCalledTimes(1)
+    const logged = JSON.stringify(spy.mock.calls[0])
+    expect(logged).toContain('FetchError')
+    expect(logged).not.toContain('SECRET')
+    expect(logged).not.toContain('тело')
+    spy.mockRestore()
+  })
+
+  it('распознанные статусы не шумят в консоли', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await new HttpScenarioRepository(failing(409) as never).saveDraft({ entry: 'a', blocks: {}, steps: {} }, 1).catch(() => {})
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
   })
 })
 
