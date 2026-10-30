@@ -1,6 +1,6 @@
 # leads
 
-Заявки: сохранение прохода анкеты (частичного или полного) и уведомление менеджера. Домен не знает про `dialog` и `scenario`: `Lead` собирает вызывающая сторона (`dialog`, Task 8), здесь сборки из `Session` нет. Usecase-слоя, DI и API пока нет.
+Заявки: сохранение прохода анкеты (частичного или полного) и уведомление менеджера. Домен не знает про `dialog` и `scenario`: `Lead` собирает вызывающая сторона, сборки из `Session` здесь нет. Usecase-слоя, DI и API пока нет.
 
 ## Сущности
 
@@ -21,7 +21,7 @@
 | `LeadRepository` | [AsyncpgLeadRepository](../../../backend/src/leads/adapters/asyncpg.py) | postgres, таблица `leads` ([001_init.sql](../../../backend/migrations/001_init.sql)) |
 | `LeadRepository` | [InMemoryLeadRepository](../../../backend/src/leads/adapters/memory.py) | тесты |
 | `ManagerNotifier` | [MockManagerNotifier](../../../backend/src/leads/adapters/memory.py) | тесты (`fail=True` имитирует сбой) |
-| `ManagerNotifier` | `TelegramManagerNotifier` (запланирован, Task 8, `adapters/telegram.py`) | менеджерский чат Telegram |
+| `ManagerNotifier` | `TelegramManagerNotifier` (запланирован, `adapters/telegram.py`) | менеджерский чат Telegram |
 
 ## Сервис и форматирование
 
@@ -29,7 +29,7 @@
 |---|---|---|
 | `LeadService` | [services.py](../../../backend/src/leads/services.py) | `save_partial`, `finish`: `upsert_open` с нужным статусом, затем уведомление; возвращают сохранённый `Lead`. `list(status)`, `get(id)` |
 | `format_lead` | [formatter.py](../../../backend/src/leads/formatter.py) | `Lead` в список частей текста для Telegram, каждая до 4096 символов |
-| `display_key` | [formatter.py](../../../backend/src/leads/formatter.py) | подпись ключа ответа для показа; единственное место, его же возьмёт схема API (Task 10) |
+| `display_key` | [formatter.py](../../../backend/src/leads/formatter.py) | подпись ключа ответа для показа; единственное место, его же возьмёт схема API (запланирована) |
 
 ## Хранение
 

@@ -5,7 +5,7 @@ import pytest
 
 from src.leads.adapters.memory import InMemoryLeadRepository, MockManagerNotifier
 from src.leads.entities import Lead, LeadAnswer, LeadStatus
-from src.leads.formatter import display_key, format_lead
+from src.leads.formatter import _split, display_key, format_lead
 from src.leads.services import LeadService
 from src.shared.exceptions import NotFound
 
@@ -131,17 +131,86 @@ def test_display_key():
     assert display_key("Телефон") == "Телефон"
 
 
-def test_format_splits_long_lead():
+def _units(text: str) -> int:
+    return len(text.encode("utf-16-le")) // 2
+
+
+def test_format_splits_long_lead_keeping_lines_intact():
     answers = tuple(LeadAnswer(f"k{i}", "x" * 500) for i in range(12))
-    parts = format_lead(_lead(answers=answers))
+    lead = _lead(answers=answers)
+    parts = format_lead(lead)
 
     assert len(parts) > 1
-    assert all(len(p) <= 4096 for p in parts)
-    assert "\n".join(parts).count("x") == 6000
+    assert all(_units(p) <= 4096 for p in parts)
+    expected = "\n".join(
+        ["Частичная заявка", "Направление: Сайт", "Telegram: @ivan", "Последний шаг: phone"]
+        + [f"k{i}: {'x' * 500}" for i in range(12)]
+    )
+    assert "\n".join(parts) == expected
 
 
 def test_format_hard_cuts_single_long_line():
     parts = format_lead(_lead(answers=(LeadAnswer("о проекте", "y" * 9000),)))
 
-    assert all(len(p) <= 4096 for p in parts)
+    assert all(_units(p) <= 4096 for p in parts)
     assert "".join(parts).count("y") == 9000
+
+
+def test_split_part_of_exactly_limit_stays_whole():
+    assert _split("a" * 4096) == ["a" * 4096]
+
+
+def test_split_one_over_limit_makes_two_parts():
+    parts = _split("a" * 4097)
+
+    assert [len(p) for p in parts] == [4096, 1]
+
+
+def test_split_line_boundary_at_limit():
+    parts = _split("a" * 4095 + "\nb")
+
+    assert parts == ["a" * 4095, "b"]
+
+
+def test_split_trailing_newline_gives_no_empty_part():
+    assert _split("a" * 4096 + "\n") == ["a" * 4096]
+
+
+def test_split_never_returns_blank_parts():
+    for text in ("a" * 4096 + "\n   ", "a" * 4096 + "\n\n\n", "a\n\n"):
+        assert all(p.strip() for p in _split(text))
+
+
+def test_split_keeps_empty_line_at_junction():
+    parts = _split("a" * 4096 + "\n\nb")
+
+    assert parts == ["a" * 4096, "\nb"]
+
+
+def test_split_emoji_counted_in_utf16_units():
+    parts = _split("A\n" + "\U0001f600" * 4000)
+
+    assert len(parts) > 1
+    assert all(_units(p) <= 4096 for p in parts)
+    assert "".join(parts).replace("\n", "").count("\U0001f600") == 4000
+
+
+def test_split_emoji_pair_not_torn_on_hard_cut():
+    parts = _split("\U0001f600" * 4000)
+
+    for p in parts:
+        p.encode("utf-16-le")  # неразорванная пара кодируется без суррогатов-сирот
+        assert _units(p) <= 4096
+    assert "".join(parts) == "\U0001f600" * 4000
+
+
+def test_format_multiline_value_and_empty_value():
+    lead = _lead(
+        username=None,
+        branch="",
+        status=LeadStatus.FULL,
+        last_step=None,
+        answers=(LeadAnswer("о проекте", "строка 1\nстрока 2"), LeadAnswer("Сайт", "")),
+    )
+
+    assert format_lead(lead) == ["Новая заявка\nо проекте: строка 1\nстрока 2\nСайт: "]
