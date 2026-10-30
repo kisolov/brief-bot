@@ -7,20 +7,21 @@ import { useScenarioStore } from '~/stores/scenario.store'
 import { NEXT_HANDLE } from '~/types/scenario'
 import type { Option, Step, StepType, Target, When } from '~/types/scenario'
 import { STEP_TYPE_LABELS } from '~/utils/scenarioGraph'
-import { decodeTarget, encodeTarget, stepLabel, targetChoices } from '~/utils/stepTargets'
+import { keyInfo } from '~/utils/stepKeys'
+import { decodeTarget, encodeTarget, isConnected, stepLabel, targetChoices } from '~/utils/stepTargets'
 
 const props = defineProps<{ view: string }>()
-const emit = defineEmits<{ allErrors: [] }>()
+const emit = defineEmits<{ allErrors: []; goto: [id: string] }>()
 
 const LABEL_LIMIT = 40
-const URL_PLACEHOLDER = 'https://'
 const INPUT_PLACEHOLDER = 'Напишите ваш вариант:'
 const URL_VALUE = '__url'
 const NEW_VALUE = '__new'
 
 const store = useScenarioStore()
-const { steps, selectedId, scenario, issues } = storeToRefs(store)
-const { updateStep, addOption, updateOption, removeOption, setCondition, canRemove, removeStep } = useEditStep()
+const { steps, selectedId, scenario, issues, conflict } = storeToRefs(store)
+const { updateStep, addOption, updateOption, removeOption, setCondition, canRemove, removeStep, setKey, changeType, setAnswer } =
+  useEditStep()
 const { connect, disconnect } = useConnectSteps()
 const addStep = useAddStep()
 
@@ -55,8 +56,20 @@ function checked(e: Event): boolean {
   return (e.target as HTMLInputElement).checked
 }
 
-function setKey(value: string) {
-  updateStep(id.value, { key: value === '' ? undefined : value })
+const info = computed(() => keyInfo(scenario.value, id.value))
+const connected = computed(() => isConnected(scenario.value, id.value))
+const usedInSteps = computed(() => info.value.usedIn.map((sid) => ({ id: sid, label: stepLabel(steps.value[sid]!) })))
+/** Текст, который человек ввёл, но правка не принята (подпись занята ботом): показывается вместе с подсказкой. */
+const keyRejected = ref<string | null>(null)
+
+function onKey(value: string) {
+  keyRejected.value = setKey(id.value, value) ? null : value
+}
+
+function onType(e: Event) {
+  const el = e.target as HTMLSelectElement
+  // отказ в вопросе оставляет прежний тип: список возвращается к нему
+  if (!changeType(id.value, el.value as StepType)) el.value = type.value
 }
 
 function targetValue(target: Target | undefined): string {
@@ -100,7 +113,7 @@ function optionValue(o: Option): string {
 
 function onOptionTarget(o: Option, value: string) {
   if (value === NEW_VALUE) return createTarget(o.id)
-  if (value === URL_VALUE) return updateOption(id.value, o.id, { url: URL_PLACEHOLDER })
+  if (value === URL_VALUE) return updateOption(id.value, o.id, { url: '' })
   const next = resolve(value, o.next)
   if (next === undefined) updateOption(id.value, o.id, { next: undefined, url: undefined })
   else connect(id.value, o.id, next)
@@ -134,23 +147,8 @@ function setWhenStep(sid: string) {
   setCondition(id.value, { step: sid, any: first ? [first] : [] })
 }
 
-function toggle(list: string[] | undefined, optionId: string, on: boolean): string[] {
-  const rest = (list ?? []).filter((x) => x !== optionId)
-  return on ? [...rest, optionId] : rest
-}
-
-function setWhenAny(optionId: string, on: boolean) {
-  const w = when.value
-  if (w) setCondition(id.value, { ...w, any: toggle(w.any, optionId, on) })
-}
-
-function setWhenNone(optionId: string, on: boolean) {
-  const w = when.value
-  if (!w) return
-  const none = toggle(w.none, optionId, on)
-  const { none: _old, ...rest } = w
-  setCondition(id.value, none.length ? { ...rest, none } : rest)
-}
+/** Условие осталось только с "не отмечено": ждёт, пока человек выберет ответ. */
+const needsAnswer = computed(() => when.value !== undefined && when.value.any.length === 0)
 
 function onRemove() {
   removeStep(id.value)
@@ -159,7 +157,7 @@ function onRemove() {
 
 <template>
   <aside v-if="step" class="step-panel" aria-label="Настройки шага">
-    <div class="body">
+    <fieldset class="body" :disabled="conflict">
     <div v-if="stepIssues.length" class="problems" role="alert">
       <div v-for="p in stepIssues" :key="p.number" class="problem">
         <span class="num">{{ p.number }}</span>
@@ -168,9 +166,11 @@ function onRemove() {
       <button type="button" class="link" @click="emit('allErrors')">Ко всем ошибкам</button>
     </div>
 
+    <div v-if="!connected" class="warn">Шаг пока не подключён. Бот его не покажет.</div>
+
     <div class="field inline">
       <label for="step-type">Тип шага</label>
-      <select id="step-type" :class="`type-${type}`" class="chip" :value="type" @change="updateStep(id, { type: text($event) as StepType })">
+      <select id="step-type" :class="`type-${type}`" class="chip" :value="type" @change="onType">
         <option v-for="c in typeChoices" :key="c.value" :value="c.value">{{ c.label }}</option>
       </select>
     </div>
@@ -182,7 +182,36 @@ function onRemove() {
 
     <div v-if="hasKey" class="field">
       <label for="step-key">Как подписать ответ в заявке</label>
-      <input id="step-key" type="text" :value="step.key ?? ''" @input="setKey(text($event))" />
+      <input
+        v-if="info.locked"
+        id="step-key"
+        type="text"
+        :value="info.label"
+        readonly
+        aria-describedby="step-key-hint"
+      />
+      <input
+        v-else
+        id="step-key"
+        type="text"
+        :value="keyRejected ?? step.key ?? ''"
+        aria-describedby="step-key-hint"
+        @input="onKey(text($event))"
+        @blur="keyRejected = null"
+      />
+      <div v-if="info.locked" id="step-key-hint" class="warn">Эту подпись использует бот, её нельзя изменить.</div>
+      <div v-else-if="keyRejected !== null" id="step-key-hint" class="warn">
+        Эту подпись использует бот, её нельзя занять.
+      </div>
+      <template v-else>
+        <div v-if="usedInSteps.length" id="step-key-hint" class="warn">
+          Эта подпись используется в тексте другого шага.
+          <button v-for="u in usedInSteps" :key="u.id" type="button" class="link" @click="emit('goto', u.id)">
+            {{ u.label }}
+          </button>
+        </div>
+        <div v-if="info.duplicate" class="warn">Такая подпись уже есть, ответы смешаются в заявке.</div>
+      </template>
     </div>
 
     <div v-if="type === 'text'" class="field">
@@ -222,7 +251,7 @@ function onRemove() {
           </label>
           <label v-if="o.url !== undefined" class="sub">
             Адрес ссылки
-            <input type="text" :value="o.url" @input="updateOption(id, o.id, { url: text($event) })" />
+            <input type="text" :value="o.url" placeholder="https://" @input="updateOption(id, o.id, { url: text($event) })" />
           </label>
           <label v-if="typeof o.next === 'object'" class="sub">
             После блока вернуться на
@@ -296,20 +325,23 @@ function onRemove() {
       <template v-if="when && whenOptions.length">
         <div class="caption small">Показывать, если отмечено</div>
         <label v-for="o in whenOptions" :key="o.id" class="check">
-          <input type="checkbox" :checked="when.any.includes(o.id)" @change="setWhenAny(o.id, checked($event))" />
+          <input type="checkbox" :checked="when.any.includes(o.id)" @change="setAnswer(id, 'any', o.id, checked($event))" />
           {{ o.label }}
         </label>
+        <div v-if="needsAnswer" class="warn">
+          Отметьте хотя бы один ответ в «Показывать, если отмечено», иначе шаг никогда не покажется.
+        </div>
         <div class="caption small">И не отмечено</div>
         <label v-for="o in whenOptions" :key="`n-${o.id}`" class="check">
-          <input type="checkbox" :checked="(when.none ?? []).includes(o.id)" @change="setWhenNone(o.id, checked($event))" />
+          <input type="checkbox" :checked="(when.none ?? []).includes(o.id)" @change="setAnswer(id, 'none', o.id, checked($event))" />
           {{ o.label }}
         </label>
       </template>
     </div>
 
-    </div>
+    </fieldset>
     <div class="foot">
-      <button type="button" class="remove" :disabled="!canRemove(id)" @click="onRemove">Удалить шаг</button>
+      <button type="button" class="remove" :disabled="!canRemove(id) || conflict" @click="onRemove">Удалить шаг</button>
       <div v-if="!canRemove(id)" class="note">Это первый шаг сценария, его удалить нельзя.</div>
     </div>
   </aside>
@@ -332,6 +364,10 @@ function onRemove() {
 }
 /* Прокручивается тело, кнопка удаления остаётся внизу на виду */
 .body {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -486,6 +522,10 @@ button:focus-visible {
 .remove:disabled {
   color: var(--ink-3);
   cursor: not-allowed;
+}
+.warn {
+  color: var(--danger);
+  line-height: 18px;
 }
 .note {
   font-size: 12px;

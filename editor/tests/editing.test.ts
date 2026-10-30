@@ -14,7 +14,9 @@ import { MockScenarioRepository } from '~/repositories/adapters/scenario.mock'
 import { useScenarioStore } from '~/stores/scenario.store'
 import type { Issue, Scenario } from '~/types/scenario'
 import { issueItems, locateIssue } from '~/utils/issues'
-import { decodeTarget, encodeTarget, targetChoices } from '~/utils/stepTargets'
+import { keyInfo } from '~/utils/stepKeys'
+import { convertStep } from '~/utils/stepType'
+import { decodeTarget, encodeTarget, isConnected, targetChoices } from '~/utils/stepTargets'
 
 const CONFLICT_TEXT = 'Сценарий изменён в другой вкладке. Обновите страницу.'
 const NETWORK_TEXT = 'Не удалось сохранить. Проверьте соединение.'
@@ -443,5 +445,229 @@ describe('публикация', () => {
     expect(store.selectedId).toBe('sph')
     jumpTo({ code: 'malformed', stepId: '', optionId: null, message: '' })
     expect(view.value).toBe('sphere')
+  })
+})
+
+async function setupWith(data: Scenario) {
+  const repo = new MockScenarioRepository({ data, revision: 1 })
+  __setContainer({ scenarioRepository: repo })
+  setActivePinia(createPinia())
+  const store = useScenarioStore()
+  await store.load()
+  return { store, repo }
+}
+
+function keyFixture(): Scenario {
+  return {
+    entry: 'a',
+    blocks: {},
+    steps: {
+      a: { type: 'text', text: 'Привет, {name}!', key: 'name', next: 'b' },
+      b: { type: 'text', text: 'Ветка', key: 'Направление', next: 'c' },
+      c: { type: 'text', text: 'Город', key: 'city', next: 'd' },
+      d: { type: 'text', text: 'Вы из {city}', key: 'city', next: 'e' },
+      e: { type: 'info', text: 'Конец' },
+      lone: { type: 'info', text: 'Сирота' },
+    },
+  }
+}
+
+describe('подпись ответа (key)', () => {
+  it('подписи, которые использует бот, заблокированы и показаны по-человечески', async () => {
+    const { store } = await setupWith(keyFixture())
+    const s = store.scenario
+    expect(keyInfo(s, 'a')).toMatchObject({ locked: true, label: 'Имя' })
+    expect(keyInfo(s, 'b')).toMatchObject({ locked: true, label: 'Направление' })
+    expect(keyInfo(s, 'c')).toMatchObject({ locked: false, label: 'city' })
+  })
+
+  it('нельзя сделать подпись равной name или Направление, заблокированную нельзя менять', async () => {
+    const { store } = await setupWith(keyFixture())
+    const { setKey } = useEditStep()
+    expect(setKey('c', 'name')).toBe(false)
+    expect(setKey('c', 'Направление')).toBe(false)
+    expect(setKey('a', 'other')).toBe(false)
+    expect(setKey('b', '')).toBe(false)
+    expect(store.steps.c!.key).toBe('city')
+    expect(store.steps.a!.key).toBe('name')
+    expect(setKey('c', 'town')).toBe(true)
+    expect(store.steps.c!.key).toBe('town')
+    expect(setKey('c', '')).toBe(true)
+    expect(store.steps.c).not.toHaveProperty('key')
+  })
+
+  it('предупреждает о подписи из текста другого шага и о дубле', async () => {
+    const { store } = await setupWith(keyFixture())
+    const s = store.scenario
+    expect(keyInfo(s, 'c').usedIn).toEqual(['d'])
+    expect(keyInfo(s, 'c').duplicate).toBe(true)
+    expect(keyInfo(s, 'd').usedIn).toEqual([])
+    expect(keyInfo(s, 'd').duplicate).toBe(true)
+    expect(keyInfo(s, 'e').duplicate).toBe(false)
+    // правка разрешена
+    expect(useEditStep().setKey('c', 'town')).toBe(true)
+  })
+
+  it('шаг без входящих стрелок помечен как неподключённый', async () => {
+    const { store } = await setupWith(keyFixture())
+    expect(isConnected(store.scenario, 'lone')).toBe(false)
+    expect(isConnected(store.scenario, 'a')).toBe(true)
+    expect(isConnected(store.scenario, 'c')).toBe(true)
+  })
+})
+
+describe('адрес ссылки', () => {
+  it('пустая строка остаётся строкой: режим ссылки не пропадает', async () => {
+    const { store } = await setup()
+    useEditStep().updateOption('menu', 'a', { url: '' })
+    const o = store.steps.menu!.options![0]!
+    expect(o.url).toBe('')
+    expect(o).not.toHaveProperty('next')
+    useEditStep().updateOption('menu', 'a', { url: 'https://x.y' })
+    expect(store.steps.menu!.options![0]!.url).toBe('https://x.y')
+    useEditStep().updateOption('menu', 'a', { url: '' })
+    expect(store.steps.menu!.options![0]!.url).toBe('')
+    useConnectSteps().connect('menu', 'a', 'pay')
+    expect(store.steps.menu!.options![0]).not.toHaveProperty('url')
+  })
+})
+
+describe('смена типа шага', () => {
+  function typed(): Scenario {
+    return {
+      entry: 'c',
+      blocks: {},
+      steps: {
+        c: {
+          type: 'choice',
+          text: 'Выбор',
+          key: 'k',
+          validate: 'phone',
+          options: [
+            { id: 'x', label: 'X', next: 'z', input: 'Что?', exclusive: true },
+            { id: 'y', label: 'Y', next: 'w' },
+          ],
+          next: 'z',
+        },
+        m: { type: 'multi', text: 'Мульти', options: [{ id: 'p', label: 'P', next: 'z' }, { id: 'q', label: 'Q', next: 'w' }] },
+        z: { type: 'info', text: 'Z' },
+        w: { type: 'info', text: 'W' },
+      },
+    }
+  }
+
+  it('текст и файл теряют кнопки, validate остаётся только у текста', () => {
+    const c = typed().steps.c!
+    const toText = convertStep(c, 'text')
+    expect(toText.step).not.toHaveProperty('options')
+    expect(toText.step.validate).toBe('phone')
+    expect(toText.lostButtons).toBe(2)
+    const toFile = convertStep(c, 'file')
+    expect(toFile.step).not.toHaveProperty('validate')
+    expect(toFile.step.key).toBe('k')
+  })
+
+  it('сообщение сохраняет кнопки, но без подписи ответа и проверки', () => {
+    const toInfo = convertStep(typed().steps.c!, 'info')
+    expect(toInfo.step.options).toHaveLength(2)
+    expect(toInfo.step).not.toHaveProperty('key')
+    expect(toInfo.step).not.toHaveProperty('validate')
+    expect(toInfo.lostButtons).toBe(0)
+    expect(toInfo.lostLinks).toBe(0)
+  })
+
+  it('несколько ответов: переходы кнопок уходят, у шага без next берётся next первой кнопки', () => {
+    const c = typed().steps.c!
+    const keep = convertStep(c, 'multi')
+    expect(keep.step.next).toBe('z')
+    expect(keep.step.options!.every((o) => !('next' in o))).toBe(true)
+    expect(keep.lostLinks).toBe(2)
+    const noNext = convertStep({ ...c, next: undefined }, 'multi_input')
+    expect(noNext.step.next).toBe('z')
+    expect(noNext.lostLinks).toBe(1)
+  })
+
+  it('выбор: снимаются input, exclusive и next шага', () => {
+    const m = { ...typed().steps.m!, next: 'z', options: [{ id: 'p', label: 'P', input: 'Что?', exclusive: true }] }
+    const out = convertStep(m, 'choice')
+    expect(out.step).not.toHaveProperty('next')
+    expect(out.step.options![0]).toEqual({ id: 'p', label: 'P' })
+    expect(out.lostLinks).toBe(1)
+  })
+
+  it('при потере кнопок или переходов спрашивает, отказ ничего не меняет', async () => {
+    const { store } = await setupWith(typed())
+    const ask = vi.fn(() => false)
+    useEditStep({ confirm: ask }).changeType('c', 'text')
+    expect(ask).toHaveBeenCalledTimes(1)
+    expect(ask.mock.calls[0]![0]).toContain('2')
+    expect(store.steps.c!.type).toBe('choice')
+    expect(store.steps.c!.options).toHaveLength(2)
+    useEditStep({ confirm: () => true }).changeType('c', 'text')
+    expect(store.steps.c!.type).toBe('text')
+    expect(store.steps.c).not.toHaveProperty('options')
+  })
+
+  it('без потерь смена типа идёт без вопроса', async () => {
+    const { store } = await setupWith(typed())
+    const ask = vi.fn(() => false)
+    expect(useEditStep({ confirm: ask }).changeType('z', 'file')).toBe(true)
+    expect(ask).not.toHaveBeenCalled()
+    expect(store.steps.z!.type).toBe('file')
+  })
+})
+
+describe('условие показа', () => {
+  it('снятие последней отметки снимает условие, если "не отмечено" пусто', async () => {
+    const { store } = await setup()
+    const edit = useEditStep()
+    edit.setCondition('fin', { step: 'pick', any: ['p1'] })
+    edit.setAnswer('fin', 'any', 'p1', false)
+    expect(store.steps.fin).not.toHaveProperty('when')
+  })
+
+  it('если "не отмечено" не пусто, условие остаётся с пустым any для выбора пользователя', async () => {
+    const { store } = await setup()
+    const edit = useEditStep()
+    edit.setCondition('fin', { step: 'pick', any: ['p1'], none: ['p2'] })
+    edit.setAnswer('fin', 'any', 'p1', false)
+    expect(store.steps.fin!.when).toEqual({ step: 'pick', any: [], none: ['p2'] })
+    edit.removeOption('pick', 'p2')
+    // none опустел, any пуст: условия больше нет
+    expect(store.steps.fin).not.toHaveProperty('when')
+  })
+
+  it('removeOption с живым none не снимает условие', async () => {
+    const { store } = await setup()
+    useEditStep().setCondition('fin', { step: 'pick', any: ['p1'], none: ['p2'] })
+    useEditStep().removeOption('pick', 'p1')
+    expect(store.steps.fin!.when).toEqual({ step: 'pick', any: [], none: ['p2'] })
+  })
+})
+
+describe('несохранённые правки', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  it('beforeunload останавливает закрытие, пока есть несохранённое', async () => {
+    stubRouter()
+    const handlers: Record<string, (e: unknown) => void> = {}
+    vi.stubGlobal('window', {
+      addEventListener: (name: string, fn: (e: unknown) => void) => (handlers[name] = fn),
+      removeEventListener: (name: string) => delete handlers[name],
+    })
+    const { store } = await setup()
+    const { stop } = useAutosaveDraft()
+    const event = { preventDefault: vi.fn(), returnValue: undefined as unknown }
+    handlers.beforeunload!(event)
+    expect(event.preventDefault).not.toHaveBeenCalled()
+    useEditStep().updateStep('pay', { text: 'правка' })
+    expect(store.dirty).toBe(true)
+    handlers.beforeunload!(event)
+    expect(event.preventDefault).toHaveBeenCalledTimes(1)
+    stop()
+    expect(handlers.beforeunload).toBeUndefined()
   })
 })

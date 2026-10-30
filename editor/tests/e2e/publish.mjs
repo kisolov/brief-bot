@@ -132,6 +132,37 @@ try {
   const fresh = Object.values(draft.data.steps).find((st) => st.type === 'file' && st.pos)
   check(Boolean(fresh), 'позиция нового шага записана в черновик (pos)')
 
+  // Защита от поломок: подпись бота, пустая ссылка, смена типа
+  // шаг с подписью name лежит в блоке "Финальные вопросы"
+  await page.click('.graph-tabs .tab:has-text("Финальные вопросы")')
+  await page.locator('.step-node', { hasText: 'Остался последний шаг' }).first().dispatchEvent('click')
+  await page.waitForSelector('#step-key')
+  check((await page.getAttribute('#step-key', 'readonly')) !== null, 'подпись бота только для чтения')
+  check((await page.inputValue('#step-key')) === 'Имя', 'подпись бота показана по-человечески')
+  check(await page.getByText('Эту подпись использует бот, её нельзя изменить.').isVisible(), 'подсказка про подпись бота')
+
+  await page.click('.graph-tabs .tab.main')
+  await page.locator('.step-node', { hasText: 'Перед началом' }).first().dispatchEvent('click')
+  const address = page.getByPlaceholder('https://').first()
+  await address.waitFor()
+  await address.fill('')
+  check(await address.isVisible(), 'поле адреса ссылки не исчезает после стирания')
+
+  await page.locator('.step-node', { hasText: 'Нужно ли подключать оплату' }).first().dispatchEvent('click')
+  await page.waitForSelector('#step-type')
+  let asked = ''
+  page.once('dialog', async (d) => {
+    asked = d.message()
+    await d.dismiss()
+  })
+  await page.selectOption('#step-type', 'text')
+  check(asked.includes('2'), 'при потере кнопок спрашивает с числом кнопок')
+  check((await page.inputValue('#step-type')) === 'choice', 'отказ оставил прежний тип')
+  page.once('dialog', (d) => d.accept())
+  await page.selectOption('#step-type', 'text')
+  await page.waitForFunction(() => document.querySelector('#step-type')?.value === 'text')
+  check((await page.getByText('Добавить кнопку').count()) === 0, 'после согласия кнопок у текстового шага нет')
+
 } finally {
   // версия 1 снова активна, черновик равен ей: следующий запуск начнётся с того же места
   await api('/scenario/versions/1/activate', 'POST').catch(() => undefined)

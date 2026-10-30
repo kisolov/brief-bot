@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru"><head><style>
+    .sc-placeholder{background:color-mix(in srgb,currentColor 8%,transparent);
+      border:1px solid color-mix(in srgb,currentColor 50%,transparent);
+      border-radius:2px;box-sizing:border-box;overflow:hidden}
+    @keyframes sc-shine{0%{background-position:100% 50%}100%{background-position:0% 50%}}
+    html.sc-dc-streaming .sc-placeholder,
+    html.sc-dc-streaming .sc-interp.sc-missing{position:relative;
+      background:color-mix(in srgb,currentColor 5%,transparent);
+      border-color:transparent}
+    html.sc-dc-streaming .sc-placeholder::before,
+    html.sc-dc-streaming .sc-interp.sc-missing::before{content:'';
+      position:absolute;inset:0;pointer-events:none;
+      background:linear-gradient(90deg,rgba(217,119,87,0) 25%,rgba(247,225,211,.95) 37%,rgba(217,119,87,0) 63%);
+      background-size:400% 100%;animation:sc-shine 1.4s ease infinite}
+    html.sc-dc-streaming .sc-placeholder:nth-child(n+9 of .sc-placeholder)::before,
+    html.sc-dc-streaming .sc-interp.sc-missing:nth-child(n+9 of .sc-interp.sc-missing)::before{animation:none;
+      background:color-mix(in srgb,currentColor 8%,transparent)}
+    .sc-placeholder-error{padding:4px 8px;font:11px/1.4 ui-monospace,monospace;
+      color:color-mix(in srgb,currentColor 70%,transparent);word-break:break-word}
+    .sc-interp.sc-missing{display:inline-block;width:2em;height:1em;overflow:hidden;
+      vertical-align:text-bottom;background:rgba(255,255,255,.3);border:1px solid rgba(0,0,0,.5);
+      border-radius:2px;box-sizing:border-box;color:transparent;
+      user-select:none}
+    .sc-interp.sc-unresolved{font-family:ui-monospace,monospace;font-size:.85em;
+      color:color-mix(in srgb,currentColor 50%,transparent);
+      background:color-mix(in srgb,currentColor 10%,transparent);border-radius:3px;
+      padding:0 3px}
+    .sc-host.sc-has-error{position:relative}
+    .sc-logic-error{position:absolute;top:8px;left:8px;z-index:2147483647;max-width:60ch;
+      padding:6px 10px;background:#b00020;color:#fff;font:12px/1.4 ui-monospace,monospace;
+      border-radius:4px;white-space:pre-wrap;pointer-events:none}
+    /* Mirrors PRINT_BASELINE_CSS in apps/web deck-stage-export.ts — keep both
+       in sync until dc-runtime regains a build step. */
+    @media print {
+      @page { margin: 0.5cm; }
+      figure, table { break-inside: avoid; }
+      #dc-root, #dc-root > .sc-host { height: auto; }
+      *, *::before, *::after {
+        print-color-adjust: exact; -webkit-print-color-adjust: exact;
+        backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+        animation-delay: -99s !important; animation-duration: .001s !important;
+        animation-iteration-count: 1 !important; animation-fill-mode: both !important;
+        animation-play-state: running !important; transition-duration: 0s !important;
+      }
+    }
+  </style>
+<meta charset="utf-8">
+<title>Панель шага: подпись бота</title>
+<style>x-dc{display:none!important}</style>
+<style data-dc-tpl="1">
+body{margin:0}
+</style><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&amp;display=swap" data-dc-tpl="1"><style data-dc-tpl="2">
+body{margin:0}
+</style></head>
+<body>
+<div id="dc-root"><div class="sc-host" data-sc-name="StepPanelName"><div data-dc-tpl="2" style="width: 336px; background: rgb(238, 241, 245);"><div class="sc-host" data-sc-name="StepPanel" data-dc-tpl="3"><aside data-dc-tpl="3" aria-label="Настройки шага" style="width: 336px; height: 800px; box-sizing: border-box; padding: 16px; background: rgb(255, 255, 255); border-left: 1px solid rgb(217, 222, 229); display: flex; flex-direction: column; gap: 12px; font-family: &quot;Golos Text&quot;, system-ui, sans-serif; font-size: 13px; color: rgb(24, 33, 44);"><fieldset data-dc-tpl="4" style="flex: 1 1 auto; min-height: 0px; overflow: hidden; display: flex; flex-direction: column; gap: 14px; border: 0px; margin: 0px; padding: 0px; min-width: 0px;"><div data-dc-tpl="79" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;"><label data-dc-tpl="80" for="step-type" style="font-weight: 500;">Тип шага</label><select data-dc-tpl="81" id="step-type" style="font-style: inherit; font-variant: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; font-size: 12px; font-weight: 600; height: 30px; padding: 0px 8px; border: 0px; border-radius: 6px; background: rgb(251, 235, 217); color: rgb(138, 67, 0);"><option data-dc-tpl="82">Текст</option></select></div><div data-dc-tpl="83" style="display: flex; flex-direction: column; gap: 6px;"><label data-dc-tpl="84" for="step-text" style="font-weight: 500;">Текст сообщения</label><textarea data-dc-tpl="85" id="step-text" rows="3" style="font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; font-size: 14px; line-height: 20px; box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid rgb(169, 179, 192); border-radius: 6px; color: rgb(24, 33, 44); resize: vertical;">Как вас зовут?</textarea></div><div data-dc-tpl="86" style="display: flex; flex-direction: column; gap: 6px;"><label data-dc-tpl="87" for="step-key" style="font-weight: 500;">Как подписать ответ в заявке</label><input data-dc-tpl="88" id="step-key" type="text" readonly="" value="Имя" style="font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 38px; padding: 0px 10px; border: 1px solid rgb(169, 179, 192); border-radius: 6px; color: rgb(24, 33, 44);"><div data-dc-tpl="89" style="color: rgb(179, 38, 30); line-height: 18px;">Эту подпись использует бот, её нельзя изменить.</div></div><div data-dc-tpl="90" style="display: flex; flex-direction: column; gap: 6px;"><label data-dc-tpl="91" for="step-validate" style="font-weight: 500;">Проверять ответ</label><select data-dc-tpl="92" id="step-validate" style="font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 38px; padding: 0px 8px; border: 1px solid rgb(169, 179, 192); border-radius: 6px; background: rgb(255, 255, 255); color: rgb(24, 33, 44);"><option data-dc-tpl="93">Не проверять</option></select></div><div data-dc-tpl="94" style="display: flex; flex-direction: column; gap: 6px;"><label data-dc-tpl="95" for="step-next" style="font-weight: 500;">Куда идти дальше</label><select data-dc-tpl="96" id="step-next" style="font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 38px; padding: 0px 8px; border: 1px solid rgb(169, 179, 192); border-radius: 6px; background: rgb(255, 255, 255); color: rgb(24, 33, 44);"><option data-dc-tpl="97">Какое направление вас интересует?</option></select></div><label data-dc-tpl="98" style="display: flex; align-items: flex-start; gap: 8px; line-height: 18px;"><input data-dc-tpl="99" type="checkbox" style="margin: 2px 0px 0px;">Завершить анкету на этом шаге</label><div data-dc-tpl="100" style="display: flex; flex-direction: column; gap: 6px;"><label data-dc-tpl="101" for="step-when" style="font-weight: 500;">Когда показывать</label><select data-dc-tpl="102" id="step-when" style="font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 38px; padding: 0px 8px; border: 1px solid rgb(169, 179, 192); border-radius: 6px; background: rgb(255, 255, 255); color: rgb(24, 33, 44);"><option data-dc-tpl="103">Всегда</option></select></div></fieldset><button data-dc-tpl="140" type="button" style="flex: 0 0 auto; font-style: inherit; font-variant: inherit; font-stretch: inherit; font-size: inherit; line-height: inherit; font-family: inherit; font-optical-sizing: inherit; font-size-adjust: inherit; font-kerning: inherit; font-feature-settings: inherit; font-variation-settings: inherit; font-language-override: inherit; font-weight: 500; height: 40px; border: 1px solid rgb(217, 222, 229); border-radius: 6px; background: rgb(255, 255, 255); color: rgb(179, 38, 30);">Удалить шаг</button></aside></div></div></div></div>
+
+
+
+</body></html>

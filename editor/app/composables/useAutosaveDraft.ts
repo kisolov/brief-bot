@@ -41,10 +41,20 @@ export function useAutosaveDraft() {
     { flush: 'sync' },
   )
 
+  // Закрытие вкладки с несохранённой правкой: браузер спрашивает, уходить ли
+  function guardUnload(event: { preventDefault: () => void; returnValue?: unknown }): void {
+    if (!dirty.value && !saving.value) return
+    event.preventDefault()
+    event.returnValue = ''
+  }
+  const hasWindow = typeof window !== 'undefined'
+  if (hasWindow) window.addEventListener('beforeunload', guardUnload as EventListener)
+
   function stop(): void {
     stopWatch()
     if (timer) clearTimeout(timer)
     timer = null
+    if (hasWindow) window.removeEventListener('beforeunload', guardUnload as EventListener)
   }
   if (getCurrentScope()) onScopeDispose(stop)
 

@@ -37,14 +37,26 @@ function dropStep(type: string, pos: [number, number]) {
 }
 
 /** Стрелку можно вести только от шага к шагу: блоки и заглушки это отражение переходов. */
+const hint = ref<string | null>(null)
+let hintTimer: ReturnType<typeof setTimeout> | null = null
+
 function connectNodes(source: string, handle: string, target: string) {
-  if (scenario.value.steps[source] && scenario.value.steps[target]) connect(source, handle, target)
+  if (!scenario.value.steps[source]) return
+  if (scenario.value.steps[target]) return connect(source, handle, target)
+  // блок и заглушка выбираются в списке панели: молчание выглядело бы как поломка
+  hint.value = 'Выберите шаг в панели справа.'
+  if (hintTimer) clearTimeout(hintTimer)
+  hintTimer = setTimeout(() => (hint.value = null), 5000)
 }
 
 /** Клик по ошибке: вкладка, выбранный шаг и схема, прокрученная к нему. */
 function openIssue(issue: Issue) {
   jumpTo(issue)
   if (scenario.value.steps[issue.stepId]) graph.value?.reveal(issue.stepId)
+}
+
+function goToStep(stepId: string) {
+  openIssue({ code: 'link', stepId, optionId: null, message: '' })
 }
 
 function reload() {
@@ -60,6 +72,7 @@ function reload() {
     <button type="button" class="reload" @click="reload">Обновить страницу</button>
   </p>
   <p v-if="notice" class="banner" role="alert">{{ notice }}</p>
+  <p v-if="hint" class="banner hint" role="status">{{ hint }}</p>
   <div class="work">
     <StepPalette :disabled="conflict" @add="addFromPalette" />
     <div class="graph">
@@ -77,7 +90,7 @@ function reload() {
         @drop="dropStep"
       />
     </div>
-    <StepPanel v-if="selectedId" :view="view" @all-errors="deselect" />
+    <StepPanel v-if="selectedId" :view="view" @all-errors="deselect" @goto="goToStep" />
     <ErrorsPanel v-else-if="items.length" :items="items" :version="activeVersion" @jump="openIssue" />
   </div>
 </template>
@@ -100,6 +113,9 @@ function reload() {
   color: var(--danger);
   background: var(--bg-card);
   border-bottom: 1px solid var(--line);
+}
+.hint {
+  color: var(--ink-2);
 }
 .reload {
   font: inherit;

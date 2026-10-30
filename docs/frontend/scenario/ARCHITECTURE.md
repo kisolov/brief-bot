@@ -22,7 +22,7 @@
 
 [scenario.store.ts](../../../editor/app/stores/scenario.store.ts): `steps`, `entry`, `blocks`, `selectedId`, `revision`, `issues`, `activeVersion`, `scenario` (сборка для схемы), `homes` (вид, где создан ещё не подключённый шаг), состояние сохранения (`edits`, `dirty`, `saving`, `savedAt`, `saveFailed`, `conflict`), `publishing`, `notice`.
 
-Действия правки, все неизменяемые: `updateStep`, `clearPositions`, `addStep`, `removeStep`, `addOption`, `updateOption`, `removeOption`, `connect` (без цели снимает переход). Каждая принятая правка увеличивает `edits`; при `conflict` правки не принимаются. Остальное: `load`, `select`, `setIssues`, `setNotice`, `blocksStartingAt`, `toDraftData`, `flush` (очередь сохранений), `publish` (дожать черновик, опубликовать, при 422 положить `issues`).
+Действия правки, все неизменяемые: `updateStep`, `changeStepType`, `clearPositions`, `addStep`, `removeStep`, `addOption`, `updateOption`, `removeOption`, `connect` (без цели снимает переход). Каждая принятая правка увеличивает `edits`; при `conflict` правки не принимаются. Остальное: `load`, `select`, `setIssues`, `setNotice`, `blocksStartingAt`, `toDraftData`, `flush` (очередь сохранений), `publish` (дожать черновик, опубликовать, при 422 положить `issues`).
 
 ## Композаблы
 
@@ -30,7 +30,7 @@
 |---|---|---|
 | [useLoadScenario](../../../editor/app/composables/useLoadScenario.ts) | открыть редактор: загрузить черновик, 401 ведёт на `/login`, иное возвращает текст ошибки | [index.vue](../../../editor/app/pages/index.vue) |
 | [useScenarioLayout](../../../editor/app/composables/useScenarioLayout.ts) | вкладка графа, раскладка, выбор ноды, "Разложить" (очищает `pos` шагов вида), пометки ошибок на нодах, переход по ошибке (`jumpTo`) | index.vue |
-| [useEditStep](../../../editor/app/composables/useEditStep.ts) | править шаг: поля, кнопки, условие показа, позиция, удаление шага (начальный нельзя, шаг-начало блока с подтверждением) | [StepPanel](../../../editor/app/components/StepPanel.vue), index.vue |
+| [useEditStep](../../../editor/app/composables/useEditStep.ts) | править шаг: поля, подпись ответа (`setKey`), смена типа (`changeType`), кнопки, условие показа (`setAnswer`), позиция, удаление шага (начальный нельзя, шаг-начало блока с подтверждением) | [StepPanel](../../../editor/app/components/StepPanel.vue), index.vue |
 | [useAddStep](../../../editor/app/composables/useAddStep.ts) | добавить шаг: из палитры (в видимой части или в месте броска) или как цель кнопки "Новый шаг…" | [StepPanel](../../../editor/app/components/StepPanel.vue), index.vue |
 | [useConnectSteps](../../../editor/app/composables/useConnectSteps.ts) | соединить шаги: стрелка на схеме и список "Куда ведёт" пишут один переход | StepPanel, index.vue |
 | [useAutosaveDraft](../../../editor/app/composables/useAutosaveDraft.ts) | сохранять черновик через 800 мс тишины; отдаёт текст статуса для шапки | [layouts/default.vue](../../../editor/app/layouts/default.vue) |
@@ -42,6 +42,8 @@
 |---|---|
 | [utils/scenarioGraph.ts](../../../editor/app/utils/scenarioGraph.ts) | `viewTabs`, `toFlow(сценарий, вид, homes)`: чистая функция, шаги и переходы в ноды и рёбра; `viewOfStep`, `stepIdsOf` |
 | [utils/stepTargets.ts](../../../editor/app/utils/stepTargets.ts) | пункты списка "Куда ведёт": шаги по первой строке текста, "Перейти в блок: ...", внутри блока "Вернуться из блока"; кодирование цели в значение списка |
+| [utils/stepKeys.ts](../../../editor/app/utils/stepKeys.ts) | подписи ответа: занятые ботом (`name`, `Направление`), `keyInfo` (блокировка, подпись для человека, использование в текстах, дубль) |
+| [utils/stepType.ts](../../../editor/app/utils/stepType.ts) | `convertStep`: шаг после смены типа и число потерянных кнопок и переходов |
 | [utils/issues.ts](../../../editor/app/utils/issues.ts) | `issueItems` (строки панели ошибок с номерами), `locateIssue` (вкладка и шаг для клика), `errorNumbers` (номера на нодах) |
 | [utils/scenarioLayout.ts](../../../editor/app/utils/scenarioLayout.ts) | `autoLayout`: dagre `LR`, без `all` не трогает шаги с `pos` |
 | [AppHeader](../../../editor/app/components/AppHeader.vue), [GraphTabs](../../../editor/app/components/GraphTabs.vue), [StepNode](../../../editor/app/components/StepNode.vue), [BlockNode](../../../editor/app/components/BlockNode.vue), [ScenarioGraph](../../../editor/app/components/ScenarioGraph.vue), [StepPalette](../../../editor/app/components/StepPalette.vue), [StepPanel](../../../editor/app/components/StepPanel.vue), [ErrorsPanel](../../../editor/app/components/ErrorsPanel.vue) | одноимённые артборды [макета](../../../design/shared/project); `BlockNode` рисует и вход в общий блок (тёмный), и заглушку-ссылку (светлый) |

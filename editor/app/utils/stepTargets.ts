@@ -45,3 +45,12 @@ export function targetChoices(s: Scenario, view: GraphView): TargetChoice[] {
   const back = view === MAIN_VIEW ? [] : [{ value: RETURN_TARGET, label: 'Вернуться из блока' }]
   return [...steps, ...blocks, ...back]
 }
+
+/** К шагу ведёт стрелка: начальный шаг, первый шаг блока, `next` шага или кнопки, `then` входа в блок. */
+export function isConnected(s: Scenario, id: string): boolean {
+  if (s.entry === id || Object.values(s.blocks ?? {}).includes(id)) return true
+  const hits = (t: Target | undefined) => t === id || (typeof t === 'object' && t.then === id)
+  return Object.entries(s.steps).some(
+    ([sid, step]) => sid !== id && (hits(step.next) || (step.options ?? []).some((o) => hits(o.next))),
+  )
+}

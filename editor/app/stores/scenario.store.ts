@@ -4,6 +4,7 @@ import { useContainer } from '~/container'
 import { DraftConflict, ScenarioInvalid } from '~/errors/scenario'
 import { NEXT_HANDLE } from '~/types/scenario'
 import type { GraphView, Issue, Option, Scenario, Step, StepType, Target, When } from '~/types/scenario'
+import { convertStep } from '~/utils/stepType'
 
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
 const ID_LENGTH = 8
@@ -119,6 +120,14 @@ export const useScenarioStore = defineStore('scenario', () => {
     return id
   }
 
+  /** Смена типа с чисткой того, чего новый тип не показывает; потери считает `convertStep`. */
+  function changeStepType(id: string, type: StepType): boolean {
+    const step = steps.value[id]
+    if (!step || step.type === type || !touch()) return false
+    steps.value = { ...steps.value, [id]: convertStep(step, type).step }
+    return true
+  }
+
   /** Блоки, чей первый шаг это `id`: удаление такого шага ломает блок. */
   function blocksStartingAt(id: string): string[] {
     return Object.entries(blocks.value)
@@ -158,7 +167,6 @@ export const useScenarioStore = defineStore('scenario', () => {
     const options = (step.options ?? []).map((o) => {
       if (o.id !== optionId) return o
       const rule: Partial<Option> = { ...patch }
-      if (rule.url === '') rule.url = undefined
       if (typeof rule.url === 'string') rule.next = undefined
       else if (rule.next !== undefined) rule.url = undefined
       return applyPatch(o, rule)
@@ -273,6 +281,7 @@ export const useScenarioStore = defineStore('scenario', () => {
     setIssues,
     setNotice,
     updateStep,
+    changeStepType,
     clearPositions,
     addStep,
     blocksStartingAt,
@@ -307,8 +316,10 @@ function applyPatch<T extends object>(base: T, patch: Partial<T>): T {
 
 function withoutAnswer(w: When, optionId: string): When | undefined {
   const any = w.any.filter((x) => x !== optionId)
-  if (!any.length) return undefined
-  return { ...w, any, ...(w.none ? { none: w.none.filter((x) => x !== optionId) } : {}) }
+  const none = (w.none ?? []).filter((x) => x !== optionId)
+  // без единой отметки "если отмечено" и без "не отмечено" условие теряет смысл
+  if (!any.length && !none.length) return undefined
+  return { ...w, any, ...(w.none ? { none } : {}) }
 }
 
 /** Применяет `fn` к условию шага и к условиям его кнопок; `undefined` снимает условие. */

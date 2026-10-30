@@ -104,6 +104,15 @@ def test_missing_next_on_option_uses_label():
     assert issues[0].message == 'Кнопка "Да" никуда не ведёт. Выберите следующий шаг.'
 
 
+def test_empty_url_counts_as_missing_next():
+    # Пустой адрес редактор оставляет, пока человек не ввёл ссылку: бот такую кнопку не покажет
+    site = Option(id="y", label="Сайт", url="")
+    s = _scenario([Step(id="a", type=StepType.CHOICE, text="?", options=(site,))])
+    issues = validate_scenario(s)
+    assert [(i.code, i.step_id, i.option_id) for i in issues] == [("missing_next", "a", "y")]
+    assert issues[0].message == 'Кнопка "Сайт" никуда не ведёт. Выберите следующий шаг.'
+
+
 def test_missing_next_on_text_step():
     s = _scenario([Step(id="a", type=StepType.TEXT, text="?")])
     issues = validate_scenario(s)

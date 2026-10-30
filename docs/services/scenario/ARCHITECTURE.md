@@ -84,7 +84,7 @@
 | `unknown_block` | `Call` на блок, которого нет |
 | `unreachable` | шаг недостижим от `entry` |
 | `no_options` | `choice`, `multi`, `multi_input` без кнопок |
-| `missing_next` | нет перехода там, где он нужен: у `text`, `file`, `multi`, `multi_input`, у любого шага с `when`, у кнопки `choice`/`info`/`finish`-шага без `next` и без `url` |
+| `missing_next` | нет перехода там, где он нужен: у `text`, `file`, `multi`, `multi_input`, у любого шага с `when`, у кнопки `choice`/`info`/`finish`-шага без `next` и без `url` (пустой `url` редактор хранит, пока человек не ввёл адрес, поэтому пустая строка не считается ссылкой) |
 | `when_unknown_step` | условие ссылается на несуществующий шаг |
 | `bad_id` | id шага или кнопки не `[a-z0-9_]{1,24}` |
 | `label_too_long` | подпись кнопки длиннее 40 знаков |

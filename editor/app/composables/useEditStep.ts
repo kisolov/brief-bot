@@ -1,6 +1,8 @@
 import { useScenarioStore } from '~/stores/scenario.store'
-import type { Option, Step, When } from '~/types/scenario'
+import type { Option, Step, StepType, When } from '~/types/scenario'
 import { blockLabel } from '~/utils/scenarioGraph'
+import { isReservedKey, keyInfo } from '~/utils/stepKeys'
+import { convertStep } from '~/utils/stepType'
 
 interface Options {
   /** Вопрос «Удалить?» человеку; по умолчанию окно браузера. */
@@ -41,6 +43,43 @@ export function useEditStep(options: Options = {}) {
     store.updateStep(stepId, { when })
   }
 
+  /**
+   * Подпись ответа. Ту, что использует бот (`name`, `Направление`), нельзя ни занять, ни сменить:
+   * иначе в Telegram появится буквальное `{name}`, а направление выпадет из заявки.
+   * Возвращает, применена ли правка.
+   */
+  function setKey(id: string, value: string): boolean {
+    if (keyInfo(store.scenario, id).locked || isReservedKey(value.trim())) return false
+    store.updateStep(id, { key: value === '' ? undefined : value })
+    return true
+  }
+
+  /** Смена типа чистит скрытое; если пропадают кнопки или переходы, сначала вопрос с числом. */
+  function changeType(id: string, type: StepType): boolean {
+    const step = store.steps[id]
+    if (!step || step.type === type) return false
+    const { lostButtons, lostLinks } = convertStep(step, type)
+    if (lostButtons || lostLinks) {
+      const what = lostButtons ? `кнопок: ${lostButtons}` : `переходов кнопок и шага: ${lostLinks}`
+      if (!confirm(`При смене типа пропадёт ${what}. Сменить тип?`)) return false
+    }
+    return store.changeStepType(id, type)
+  }
+
+  /**
+   * Отметка в условии показа. Снятие последней отметки снимает условие целиком;
+   * если задано "не отмечено", условие остаётся и панель просит выбрать ответ.
+   */
+  function setAnswer(stepId: string, kind: 'any' | 'none', optionId: string, on: boolean): void {
+    const w = store.steps[stepId]?.when
+    if (!w) return
+    const list = [...(w[kind] ?? []).filter((x) => x !== optionId), ...(on ? [optionId] : [])]
+    const next: When = { ...w, [kind]: list }
+    if (kind === 'none' && !list.length) delete next.none
+    if (!next.any.length && !(next.none ?? []).length) return store.updateStep(stepId, { when: undefined })
+    store.updateStep(stepId, { when: next })
+  }
+
   /** Начальный шаг удалять нельзя: бот не знал бы, с чего начать. */
   function canRemove(id: string): boolean {
     return id !== store.entry
@@ -61,5 +100,5 @@ export function useEditStep(options: Options = {}) {
     return store.removeStep(id)
   }
 
-  return { updateStep, moveStep, addOption, updateOption, removeOption, setCondition, canRemove, removeStep }
+  return { updateStep, moveStep, addOption, updateOption, removeOption, setCondition, canRemove, removeStep, setKey, changeType, setAnswer }
 }

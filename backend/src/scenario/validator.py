@@ -113,7 +113,8 @@ def _check_option(s: Scenario, step: Step, opt: Option) -> list[Issue]:
             )
         )
     issues.extend(_check_target(s, sid, opt.id, opt.next))
-    if opt.next is None and opt.url is None and (step.type in _OPTION_NEXT_TYPES or step.finish):
+    # Пустой адрес ссылки не считается переходом
+    if opt.next is None and not opt.url and (step.type in _OPTION_NEXT_TYPES or step.finish):
         issues.append(
             Issue(
                 "missing_next",
