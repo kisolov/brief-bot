@@ -34,6 +34,8 @@ Telegram-бот веб-студии: собирает бриф на сайт п�
 
 ## Что решено
 
+- Макет редактора утверждён: `design/shared/project/`, предпросмотр `design/preview/`.
+- Redis остаётся, Алексей подтвердил после обсуждения замены на Postgres.
 - Python вместо конструктора, редактор Nuxt + Vue Flow, API на FastAPI, Telegram на aiogram, Redis для состояния, Postgres для сценария и заявок.
 - Вход в редактор по одноразовой ссылке из команды `/editor`.
 - Деплой: VPS, Caddy, HTTPS через sslip.io.
