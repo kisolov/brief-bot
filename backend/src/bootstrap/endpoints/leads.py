@@ -38,9 +38,9 @@ async def download_file(
     id: int,
     usecase: DownloadLeadFile = Depends(Provide[Container.download_lead_file]),
 ) -> Response:
-    content = await usecase(id)
+    file = await usecase(id)
     return Response(
-        content=content,
+        content=file.content,
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="tz-{id}"'},
+        headers={"Content-Disposition": f'attachment; filename="{file.name}"'},
     )

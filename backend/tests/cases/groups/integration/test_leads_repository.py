@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -41,6 +41,18 @@ async def test_upsert_keeps_id_and_order_of_answers(repo):
     assert second.answers == answers
     assert second.created_at == first.created_at
     assert (await repo.get(first.id)) == second
+
+
+async def test_finish_of_partial_refreshes_created_at(repo):
+    first = await repo.upsert_open(_lead())
+    done = NOW + timedelta(days=1)
+
+    later = await repo.upsert_open(_lead(created_at=done))
+    assert later.created_at == first.created_at
+
+    full = await repo.upsert_open(_lead(status=LeadStatus.FULL, created_at=done))
+    assert full.id == first.id and full.created_at == done
+    assert (await repo.get(first.id)).created_at == done
 
 
 async def test_full_is_not_overwritten_and_new_pass_creates_new_row(repo):

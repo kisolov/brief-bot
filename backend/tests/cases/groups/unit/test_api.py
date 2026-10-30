@@ -247,6 +247,33 @@ async def test_lead_file_download(api, container):
     assert response.headers["content-disposition"] == f'attachment; filename="tz-{saved.id}"'
 
 
+@pytest.mark.parametrize(
+    ("name", "suffix"),
+    [
+        ("f.pdf", ".pdf"),
+        ("file_1.JPG", ".JPG"),
+        ("archive.tar.gz", ".gz"),
+        ("no_suffix", ""),
+        ("f.docxxxxxxxxxxx", ""),
+        ('f.p"df', ""),
+        ("f.pd f", ""),
+        ("f.файл", ""),
+        ("f.pdf\r\nX-Evil: 1", ""),
+    ],
+)
+async def test_lead_file_name_keeps_only_safe_suffix(api, container, name, suffix):
+    saved = await _lead(container, file_id="doc1")
+    gateway = container.mock_file_gateway()
+    gateway.files["doc1"] = b"PDFDATA"
+    gateway.names["doc1"] = name
+
+    response = await api.get(f"/api/leads/{saved.id}/file")
+
+    expected = f'attachment; filename="tz-{saved.id}{suffix}"'
+    assert response.headers["content-disposition"] == expected
+    assert "x-evil" not in response.headers
+
+
 async def test_lead_without_file_returns_404(api, container):
     saved = await _lead(container)
 

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useContainer } from '~/container'
-import type { Lead, LeadFilter } from '~/types/lead'
+import type { Lead, LeadFile, LeadFilter } from '~/types/lead'
 
 /** Сервис заявок: список целиком, фильтр и выбранная заявка. */
 export const useLeadStore = defineStore('lead', () => {
@@ -27,7 +27,7 @@ export const useLeadStore = defineStore('lead', () => {
   }
 
   /** Файл ТЗ заявки; 413 и 404 приходят ошибками предметной области. */
-  function downloadFile(id: number): Promise<Blob> {
+  function downloadFile(id: number): Promise<LeadFile> {
     return repository.downloadFile(id)
   }
 

@@ -1,10 +1,12 @@
 """Уведомление менеджера через Telegram-бота."""
 
 import io
+from pathlib import PurePosixPath
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
 
+from src.leads.entities import LeadFile
 from src.leads.exceptions import FileTooLarge
 from src.leads.ports import FileGateway, ManagerNotifier
 
@@ -16,7 +18,7 @@ class TelegramFileGateway(FileGateway):
     def __init__(self, bot: Bot) -> None:
         self._bot = bot
 
-    async def download(self, file_id: str) -> bytes:
+    async def download(self, file_id: str) -> LeadFile:
         try:
             info = await self._bot.get_file(file_id)
         except TelegramBadRequest as exc:
@@ -29,7 +31,7 @@ class TelegramFileGateway(FileGateway):
             raise FileTooLarge("Telegram не отдаёт путь к файлу")
         buffer = io.BytesIO()
         await self._bot.download_file(info.file_path, destination=buffer)
-        return buffer.getvalue()
+        return LeadFile(PurePosixPath(info.file_path).name, buffer.getvalue())
 
 
 class TelegramManagerNotifier(ManagerNotifier):

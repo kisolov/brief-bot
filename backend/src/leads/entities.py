@@ -29,3 +29,11 @@ class Lead:
     file_id: str | None
     created_at: datetime
     last_step: str | None
+
+
+@dataclass(frozen=True)
+class LeadFile:
+    """Файл ТЗ: имя и содержимое."""
+
+    name: str
+    content: bytes

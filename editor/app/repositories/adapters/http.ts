@@ -1,7 +1,16 @@
 import { BackendUnavailable, DomainError, SessionExpired } from '~/errors/base'
 
+/** Ответ `$fetch.raw`: тело и заголовки. */
+export interface RawResponse<T> {
+  _data?: T
+  headers: Headers
+}
+
 /** Клиент HTTP по форме совпадает с `$fetch`; адаптеры получают его через конструктор. */
-export type HttpClient = <T = unknown>(url: string, options?: Record<string, unknown>) => Promise<T>
+export interface HttpClient {
+  <T = unknown>(url: string, options?: Record<string, unknown>): Promise<T>
+  raw<T = unknown>(url: string, options?: Record<string, unknown>): Promise<RawResponse<T>>
+}
 
 interface FetchLikeError {
   statusCode?: number

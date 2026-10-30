@@ -19,7 +19,7 @@ notify: format_lead(saved) -> ManagerNotifier.send(parts, saved.file_id)
 
 | Ситуация | Итог в хранилище |
 |---|---|
-| partial, затем finish | одна строка, тот же `id`, статус `full` |
+| partial, затем finish | одна строка, тот же `id`, статус `full`, `created_at` обновлён |
 | partial, затем ещё partial | одна строка, обновлённые ответы и `last_step` |
 | finish, затем новый проход (partial) | две строки: прежняя `full` нетронута, новая `partial` |
 | finish без предшествующего partial | новая строка `full` |

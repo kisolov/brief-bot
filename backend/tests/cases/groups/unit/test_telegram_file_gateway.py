@@ -24,9 +24,10 @@ def _bot(size: int | None, content: bytes = b"data") -> AsyncMock:
 async def test_downloads_small_file():
     bot = _bot(10, b"hello")
 
-    data = await TelegramFileGateway(bot).download("f")
+    file = await TelegramFileGateway(bot).download("f")
 
-    assert data == b"hello"
+    assert file.content == b"hello"
+    assert file.name == "f.pdf"
     bot.get_file.assert_awaited_once_with("f")
 
 
@@ -40,7 +41,7 @@ async def test_file_over_limit_is_refused_without_download():
 
 
 async def test_file_at_limit_is_downloaded():
-    assert await TelegramFileGateway(_bot(MAX_FILE_BYTES)).download("f") == b"data"
+    assert (await TelegramFileGateway(_bot(MAX_FILE_BYTES)).download("f")).content == b"data"
 
 
 async def test_telegram_file_is_too_big_error_becomes_file_too_large():

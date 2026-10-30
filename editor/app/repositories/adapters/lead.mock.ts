@@ -1,6 +1,6 @@
 import { FileTooLarge, LeadNotFound } from '~/errors/lead'
 import type { LeadRepository } from '~/repositories/lead.port'
-import type { Lead, LeadStatus } from '~/types/lead'
+import type { Lead, LeadFile, LeadStatus } from '~/types/lead'
 
 const MINUTE = 60_000
 
@@ -102,10 +102,10 @@ export class MockLeadRepository implements LeadRepository {
     return structuredClone(items)
   }
 
-  async downloadFile(id: number): Promise<Blob> {
+  async downloadFile(id: number): Promise<LeadFile> {
     const lead = this.leads.find((l) => l.id === id)
     if (!lead?.hasFile) throw new LeadNotFound()
     if (this.oversized.has(id)) throw new FileTooLarge()
-    return new Blob([`ТЗ заявки ${id}`], { type: 'application/octet-stream' })
+    return { blob: new Blob([`ТЗ заявки ${id}`], { type: 'application/octet-stream' }), name: `tz-${id}.pdf` }
   }
 }

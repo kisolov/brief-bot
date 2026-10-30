@@ -149,7 +149,7 @@ describe('скачивание ТЗ', () => {
     vi.useFakeTimers()
     const { revoke } = setup()
     expect(await useDownloadLeadFile()(4)).toBeNull()
-    expect(link.download).toBe('tz-4')
+    expect(link.download).toBe('tz-4.pdf')
     expect(link.href).toBe('blob:x')
     expect(link.click).toHaveBeenCalledTimes(1)
     expect(appended).toEqual([link])

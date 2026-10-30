@@ -7,7 +7,7 @@ const REVOKE_DELAY_MS = 1000
 
 /**
  * Сценарий «скачать ТЗ»: файл забирается запросом, чтобы ошибку (413) показать текстом,
- * и отдаётся браузеру как скачивание `tz-<id>`. Возвращает текст ошибки или `null`;
+ * и отдаётся браузеру под именем из ответа backend. Возвращает текст ошибки или `null`;
  * ошибка запоздавшего ответа по уже не выбранной заявке не возвращается: карточка чужая.
  */
 export function useDownloadLeadFile() {
@@ -16,11 +16,11 @@ export function useDownloadLeadFile() {
 
   return async (id: number): Promise<string | null> => {
     const error = await guard(async () => {
-      const blob = await store.downloadFile(id)
-      const url = URL.createObjectURL(blob)
+      const file = await store.downloadFile(id)
+      const url = URL.createObjectURL(file.blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `tz-${id}`
+      link.download = file.name
       // Firefox не кликает по якорю вне документа
       document.body.appendChild(link)
       link.click()

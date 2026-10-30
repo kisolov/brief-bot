@@ -5,7 +5,7 @@
 | Слой | Файл | Роль |
 |---|---|---|
 | Типы | [types/lead.ts](../../../editor/app/types/lead.ts) | `Lead` (зеркало `LeadDto`: `id, branch, username, status, createdAt, lastStep, hasFile, answers`), `LeadAnswer {key, value}`, `LeadStatus` (`partial` / `full`), `LeadFilter` (`all` + статусы) |
-| Порт | [lead.port.ts](../../../editor/app/repositories/lead.port.ts) | `list(status?)`, `downloadFile(id): Blob` |
+| Порт | [lead.port.ts](../../../editor/app/repositories/lead.port.ts) | `list(status?)`, `downloadFile(id): LeadFile` (`blob`, `name`) |
 | Адаптер | [lead.http.ts](../../../editor/app/repositories/adapters/lead.http.ts) | `GET /api/leads` (`query.status`), `GET /api/leads/{id}/file` как `blob`; 413 это `FileTooLarge`, 404 это `LeadNotFound` |
 | Мок | [lead.mock.ts](../../../editor/app/repositories/adapters/lead.mock.ts) | пять заявок: две брошенные, одна с файлом, одна вчерашняя, одна старая; `oversized` имитирует 413 |
 | Store | [lead.store.ts](../../../editor/app/stores/lead.store.ts) | `leads` (весь список), `filter`, `selectedId`, `visible` (фильтр на клиенте), `selected`; `load`, `setFilter`, `select`, `downloadFile` |
@@ -19,6 +19,6 @@
 - Таблица: "Когда" (`formatWhen`), "Клиент", "Запрос" (`branch`), "Статус". Клиент это ответ "Имя", иначе `@username`, иначе "Заявка #id".
 - Статус: полная "Полная"; брошенная "Брошена на шаге «<lastStep>»" (`lastStep` это первая строка текста шага, как его пишет backend; в таблице обрезается многоточием до 260 px, полный текст в `title`), без `lastStep` просто "Брошена".
 - Карточка: имя это ответ "Имя", иначе "Заявка #id". Подзаголовок "направление. когда". Верхний блок: "Телефон", "Мессенджер", "Удобное время" (только те, что есть). Остальные ответы, кроме "Имя", списком в порядке прохождения.
-- "Скачать ТЗ" есть только при `hasFile`; это ссылка на `/api/leads/{id}/file`, но клик перехватывается: файл забирается запросом и отдаётся браузеру как `tz-<id>`, чтобы ошибку показать текстом. Якорь на время клика добавляется в `document.body`, ссылка на blob отзывается через секунду. Ошибка запоздавшего ответа по уже не выбранной заявке не показывается.
+- "Скачать ТЗ" есть только при `hasFile`; это ссылка на `/api/leads/{id}/file`, но клик перехватывается: файл забирается запросом и отдаётся браузеру под именем из `Content-Disposition` (`tz-<id><суффикс>`, адаптер читает заголовок через `$fetch.raw`, без заголовка `tz-<id>`), чтобы ошибку показать текстом. Якорь на время клика добавляется в `document.body`, ссылка на blob отзывается через секунду. Ошибка запоздавшего ответа по уже не выбранной заявке не показывается.
 - Длинные значения без пробелов переносятся (`overflow-wrap: anywhere`), в карточке переводы строк сохраняются (`pre-wrap`).
 - Бейджа числа заявок у вкладки "Заявки" нет (см. [DESIGN](../DESIGN.md)).

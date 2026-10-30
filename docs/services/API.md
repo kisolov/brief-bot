@@ -28,7 +28,7 @@
 | `POST /api/scenario/versions/{n}/activate` | | 204; нет версии 404; черновик становится копией версии |
 | `GET /api/leads?status=` | | `[Lead]`, новые первыми; `status` это `partial` или `full`, без параметра все; иное значение 422 |
 | `GET /api/leads/{id}` | | `Lead`; нет заявки 404 |
-| `GET /api/leads/{id}/file` | | `application/octet-stream`, `Content-Disposition: attachment; filename="tz-<id>"`; нет файла 404; больше 20 МБ 413 |
+| `GET /api/leads/{id}/file` | | `application/octet-stream`, `Content-Disposition: attachment; filename="tz-<id><суффикс>"`, суффикс из имени файла в Telegram, только `[a-zA-Z0-9.]` до 10 символов, иначе пустой; нет файла 404; больше 20 МБ 413 |
 | `GET /api/settings/reminder` | | `{hours, text}` |
 | `PUT /api/settings/reminder` | `{hours, text}` | `{hours, text}`; `hours` целое 1..168, `text` 1..1024 символа, иначе 422 |
 

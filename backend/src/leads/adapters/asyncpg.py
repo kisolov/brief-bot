@@ -25,7 +25,8 @@ class AsyncpgLeadRepository(LeadRepository):
             )
             row = await conn.fetchrow(
                 "UPDATE leads SET username = $2, branch = $3, answers = $4, status = $5, "
-                "file_id = $6, last_step = $7 "
+                "file_id = $6, last_step = $7, "
+                "created_at = CASE WHEN $5 = 'full' THEN $8 ELSE created_at END "
                 f"WHERE chat_id = $1 AND status = 'partial' RETURNING {_COLUMNS}",
                 lead.chat_id,
                 lead.username,
@@ -34,6 +35,7 @@ class AsyncpgLeadRepository(LeadRepository):
                 lead.status.value,
                 lead.file_id,
                 lead.last_step,
+                lead.created_at,
             )
             if row is None:
                 row = await conn.fetchrow(

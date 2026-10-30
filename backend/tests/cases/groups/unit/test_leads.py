@@ -74,6 +74,16 @@ async def test_upsert_keeps_id_and_created_at(repo):
     assert later.created_at == NOW
 
 
+async def test_finish_of_partial_refreshes_created_at(repo):
+    first = await repo.upsert_open(_lead())
+    done = NOW + timedelta(days=1)
+
+    full = await repo.upsert_open(_lead(status=LeadStatus.FULL, created_at=done))
+
+    assert full.id == first.id
+    assert full.created_at == done
+
+
 async def test_list_filters_by_status_newest_first(service):
     a = await service.finish(_lead(chat_id=1, created_at=NOW))
     b = await service.save_partial(_lead(chat_id=2, created_at=NOW + timedelta(minutes=1)))

@@ -7,7 +7,13 @@ import { HttpLeadRepository } from '~/repositories/adapters/lead.http'
 import { HttpSettingsRepository } from '~/repositories/adapters/settings.http'
 
 function failing(status: number) {
-  return vi.fn().mockRejectedValue({ response: { status }, statusCode: status })
+  const fail = () => vi.fn().mockRejectedValue({ response: { status }, statusCode: status })
+  return Object.assign(fail(), { raw: fail() })
+}
+
+function fileClient(disposition: string | null) {
+  const headers = new Headers(disposition === null ? {} : { 'content-disposition': disposition })
+  return Object.assign(vi.fn(), { raw: vi.fn().mockResolvedValue({ _data: new Blob(['x']), headers }) })
 }
 
 describe('HttpLeadRepository', () => {
@@ -26,10 +32,17 @@ describe('HttpLeadRepository', () => {
     await expect(new HttpLeadRepository(failing(401) as never).list()).rejects.toBeInstanceOf(SessionExpired)
   })
 
-  it('файл запрашивается как blob', async () => {
-    const client = vi.fn().mockResolvedValue(new Blob(['x']))
-    await new HttpLeadRepository(client as never).downloadFile(7)
-    expect(client).toHaveBeenCalledWith('/api/leads/7/file', { responseType: 'blob' })
+  it('файл запрашивается как blob, имя берётся из заголовка', async () => {
+    const client = fileClient('attachment; filename="tz-7.pdf"')
+    const file = await new HttpLeadRepository(client as never).downloadFile(7)
+    expect(client.raw).toHaveBeenCalledWith('/api/leads/7/file', { responseType: 'blob' })
+    expect(file.name).toBe('tz-7.pdf')
+    expect(file.blob).toBeInstanceOf(Blob)
+  })
+
+  it('без заголовка имя по номеру заявки', async () => {
+    const file = await new HttpLeadRepository(fileClient(null) as never).downloadFile(7)
+    expect(file.name).toBe('tz-7')
   })
 
   it('текст ошибки большого файла', () => {

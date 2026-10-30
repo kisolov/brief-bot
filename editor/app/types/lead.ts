@@ -21,5 +21,11 @@ export interface Lead {
   answers: LeadAnswer[]
 }
 
+/** Файл ТЗ: содержимое и имя, которое назначил backend. */
+export interface LeadFile {
+  blob: Blob
+  name: string
+}
+
 /** Фильтр списка: все, полные или брошенные. */
 export type LeadFilter = 'all' | LeadStatus
