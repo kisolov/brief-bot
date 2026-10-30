@@ -1,0 +1,1823 @@
+{
+  "entry": "privacy",
+  "blocks": {
+    "sections": "sec_hub",
+    "sphere": "sphere",
+    "site_examples": "ref_site",
+    "final": "fin_name"
+  },
+  "steps": {
+    "privacy": {
+      "type": "choice",
+      "text": "⚠️ Перед началом:\nМы не передаём ваши данные третьим лицам. Вся информация используется только для подготовки предложения по вашему запросу.",
+      "options": [
+        {
+          "id": "policy",
+          "label": "🔒 Политика конфиденциальности",
+          "url": "https://example.com"
+        },
+        {
+          "id": "start",
+          "label": "🚀 Начать",
+          "next": "menu"
+        }
+      ],
+      "no_back": true
+    },
+    "menu": {
+      "type": "choice",
+      "text": "👋 Здравствуйте! Чем можем помочь?",
+      "key": "Направление",
+      "options": [
+        {
+          "id": "new",
+          "label": "🌐 Заказать новый сайт",
+          "next": "kind"
+        },
+        {
+          "id": "fix",
+          "label": "🛠 Доработать текущий сайт",
+          "next": "fix_platform"
+        },
+        {
+          "id": "promo",
+          "label": "📈 Продвижение сайта",
+          "next": "promo_what"
+        },
+        {
+          "id": "works",
+          "label": "🖼 Примеры наших работ",
+          "next": "works_sphere"
+        },
+        {
+          "id": "contact",
+          "label": "💬 Связаться с нами",
+          "next": "contact"
+        }
+      ],
+      "no_back": true
+    },
+    "kind": {
+      "type": "choice",
+      "text": "Что вы хотите разместить на сайте?",
+      "key": "Что разместить",
+      "options": [
+        {
+          "id": "goods",
+          "label": "🛍 Товары",
+          "next": "g_pay"
+        },
+        {
+          "id": "services",
+          "label": "🛎 Услуги",
+          "next": {
+            "call": "sphere",
+            "then": "s_structure"
+          }
+        },
+        {
+          "id": "both",
+          "label": "🧩 Товары и услуги",
+          "next": "priority"
+        },
+        {
+          "id": "other",
+          "label": "✏️ Иное (ввести вручную)",
+          "next": "kind_other"
+        }
+      ]
+    },
+    "kind_other": {
+      "type": "text",
+      "text": "✏️ Напишите, что вы хотите разместить на сайте:",
+      "key": "Что разместить (уточнение)",
+      "next": "s_structure"
+    },
+    "g_pay": {
+      "type": "choice",
+      "text": "Нужно ли подключать оплату на сайте?\nℹ️ Только для ИП и юрлиц",
+      "key": "Оплата на сайте",
+      "options": [
+        {
+          "id": "yes",
+          "label": "Да",
+          "next": "g_delivery"
+        },
+        {
+          "id": "no",
+          "label": "Нет",
+          "next": "g_delivery"
+        }
+      ]
+    },
+    "g_delivery": {
+      "type": "choice",
+      "text": "Нужен ли расчёт стоимости доставки?\n🚚 СДЭК, ПЭК, BoxBerry, Почта РФ и др.",
+      "key": "Расчёт доставки",
+      "options": [
+        {
+          "id": "yes",
+          "label": "Да",
+          "next": "g_stock"
+        },
+        {
+          "id": "no",
+          "label": "Нет",
+          "next": "g_stock"
+        }
+      ]
+    },
+    "g_stock": {
+      "type": "choice",
+      "text": "Интеграция с учётом остатков (1С, МойСклад и др.)?",
+      "key": "Учёт остатков",
+      "options": [
+        {
+          "id": "yes",
+          "label": "Да",
+          "next": "g_integr"
+        },
+        {
+          "id": "no",
+          "label": "Нет",
+          "next": "g_integr"
+        }
+      ]
+    },
+    "g_integr": {
+      "type": "choice",
+      "text": "Интеграция с другими сервисами (CRM, онлайн-чаты и пр.)?",
+      "key": "Интеграция с сервисами",
+      "options": [
+        {
+          "id": "yes",
+          "label": "Да",
+          "next": "g_features"
+        },
+        {
+          "id": "no",
+          "label": "Нет",
+          "next": "g_features"
+        }
+      ]
+    },
+    "g_features": {
+      "type": "multi_input",
+      "text": "Какой функционал нужен?\n✅ Можно выбрать несколько",
+      "key": "Функционал",
+      "options": [
+        {
+          "id": "mailing",
+          "label": "📧 Подписка на рассылку"
+        },
+        {
+          "id": "coupons",
+          "label": "🎟 Купоны/промокоды"
+        },
+        {
+          "id": "account",
+          "label": "👤 Личный кабинет"
+        },
+        {
+          "id": "one_click",
+          "label": "⚡ Купить в 1 клик"
+        },
+        {
+          "id": "search",
+          "label": "🔍 Поиск"
+        },
+        {
+          "id": "quiz",
+          "label": "🧠 Квиз"
+        },
+        {
+          "id": "consultant",
+          "label": "💬 Онлайн-консультант"
+        },
+        {
+          "id": "calc",
+          "label": "🧮 Калькулятор"
+        },
+        {
+          "id": "geo_lang",
+          "label": "🌍 Выбор города/языка"
+        },
+        {
+          "id": "other",
+          "label": "✏️ Другое (ввести вручную)",
+          "input": "✏️ Напишите, какой функционал нужен:"
+        }
+      ],
+      "next": "g_variations"
+    },
+    "g_variations": {
+      "type": "multi_input",
+      "text": "У товаров будут вариации?\n✅ Можно выбрать несколько",
+      "key": "Вариации товаров",
+      "options": [
+        {
+          "id": "none",
+          "label": "Нет",
+          "exclusive": true
+        },
+        {
+          "id": "color",
+          "label": "Цвет"
+        },
+        {
+          "id": "size",
+          "label": "Размер"
+        },
+        {
+          "id": "weight",
+          "label": "Вес"
+        },
+        {
+          "id": "volume",
+          "label": "Объем"
+        },
+        {
+          "id": "material",
+          "label": "Материал"
+        },
+        {
+          "id": "other",
+          "label": "Иное (введу)",
+          "input": "✏️ Напишите, какие вариации:"
+        }
+      ],
+      "next": "g_count"
+    },
+    "g_count": {
+      "type": "choice",
+      "text": "Сколько товаров планируется?",
+      "key": "Количество товаров",
+      "options": [
+        {
+          "id": "lt100",
+          "label": "< 100",
+          "next": "g_data"
+        },
+        {
+          "id": "lt1k",
+          "label": "100–1 000",
+          "next": "g_data"
+        },
+        {
+          "id": "lt10k",
+          "label": "1 000–10 000",
+          "next": "g_data"
+        },
+        {
+          "id": "gt10k",
+          "label": "> 10 000",
+          "next": "g_data"
+        }
+      ]
+    },
+    "g_data": {
+      "type": "choice",
+      "text": "Как передадите информацию о товарах?",
+      "key": "Передача данных о товарах",
+      "options": [
+        {
+          "id": "excel",
+          "label": "📊 Заполню Excel",
+          "next": {
+            "call": "sections",
+            "then": "design"
+          }
+        },
+        {
+          "id": "file",
+          "label": "📁 Уже есть файл",
+          "next": {
+            "call": "sections",
+            "then": "design"
+          }
+        },
+        {
+          "id": "parse",
+          "label": "🤖 Нужно парсить",
+          "next": {
+            "call": "sections",
+            "then": "design"
+          }
+        },
+        {
+          "id": "unknown",
+          "label": "❓ Пока не знаю",
+          "next": {
+            "call": "sections",
+            "then": "design"
+          }
+        }
+      ]
+    },
+    "priority": {
+      "type": "choice",
+      "text": "Что будет приоритетом?",
+      "key": "Приоритет",
+      "options": [
+        {
+          "id": "goods",
+          "label": "🛍 Каталог товаров",
+          "next": {
+            "call": "sphere",
+            "then": "g_pay"
+          }
+        },
+        {
+          "id": "services",
+          "label": "🛎 Каталог услуг",
+          "next": {
+            "call": "sphere",
+            "then": "g_pay"
+          }
+        },
+        {
+          "id": "equal",
+          "label": "⚖️ Примерно поровну",
+          "next": {
+            "call": "sphere",
+            "then": "g_pay"
+          }
+        },
+        {
+          "id": "help",
+          "label": "❓ Не знаю — нужна помощь",
+          "next": {
+            "call": "sphere",
+            "then": "g_pay"
+          }
+        }
+      ]
+    },
+    "sphere": {
+      "type": "choice",
+      "text": "В какой сфере вы работаете?\n\nВыберите сферу, в которой оказываете услуги (бьюти, консультации, юристы и т.д.):",
+      "key": "Сфера",
+      "options": [
+        {
+          "id": "build",
+          "label": "🏗 Строительство / благоустройство",
+          "next": "@return"
+        },
+        {
+          "id": "repair",
+          "label": "🔨 Ремонтные работы",
+          "next": "@return"
+        },
+        {
+          "id": "prod",
+          "label": "🏭 Производство / промышленность",
+          "next": "@return"
+        },
+        {
+          "id": "auto",
+          "label": "🚗 Автомобили",
+          "next": "@return"
+        },
+        {
+          "id": "spec",
+          "label": "🧑‍💼 Специалисты / услуги",
+          "next": "@return"
+        },
+        {
+          "id": "food",
+          "label": "🍽 Еда / доставка / кулинария",
+          "next": "@return"
+        },
+        {
+          "id": "sport",
+          "label": "🏃 Спорт / отдых / тренеры",
+          "next": "@return"
+        },
+        {
+          "id": "other",
+          "label": "✏️ Иное",
+          "next": "sphere_other"
+        }
+      ]
+    },
+    "sphere_other": {
+      "type": "text",
+      "text": "✏️ Напишите, чем вы занимаетесь:",
+      "key": "Сфера (уточнение)",
+      "next": "@return"
+    },
+    "s_structure": {
+      "type": "choice",
+      "text": "Какую структуру сайта вы рассматриваете?\n\nЭто влияет на функционал и стоимость.",
+      "key": "Структура сайта",
+      "options": [
+        {
+          "id": "landing",
+          "label": "📄 Одностраничный сайт (лендинг)",
+          "next": "s_content"
+        },
+        {
+          "id": "multi",
+          "label": "📚 Многостраничный сайт",
+          "next": "s_content"
+        },
+        {
+          "id": "budget",
+          "label": "💰 Зависит от бюджета",
+          "next": "s_content"
+        },
+        {
+          "id": "help",
+          "label": "❓ Затрудняюсь, нужна консультация",
+          "next": "s_content"
+        }
+      ]
+    },
+    "s_content": {
+      "type": "multi_input",
+      "text": "У вас есть наполнение для сайта?\n\nВыберите всё, что уже есть или требуется:\n✅ Можно выбрать несколько",
+      "key": "Наполнение сайта",
+      "options": [
+        {
+          "id": "all",
+          "label": "Есть все тексты и материалы"
+        },
+        {
+          "id": "partial",
+          "label": "🧩 Есть частично, нужна помощь"
+        },
+        {
+          "id": "texts",
+          "label": "✍️ Нужны уникальные тексты"
+        },
+        {
+          "id": "images",
+          "label": "🖼 Требуется подбор изображений"
+        },
+        {
+          "id": "unsure",
+          "label": "❓ Затрудняюсь, нужно обсуждение"
+        },
+        {
+          "id": "other",
+          "label": "✏️ Иное",
+          "input": "✏️ Напишите, какое наполнение и в каком формате есть:"
+        }
+      ],
+      "next": "s_pay"
+    },
+    "s_pay": {
+      "type": "choice",
+      "text": "Нужно ли подключать оплату на сайте?\nℹ️ Только для ИП и юрлиц",
+      "key": "Оплата на сайте",
+      "options": [
+        {
+          "id": "yes",
+          "label": "Да",
+          "next": "s_integr"
+        },
+        {
+          "id": "no",
+          "label": "Нет",
+          "next": "s_integr"
+        }
+      ]
+    },
+    "s_integr": {
+      "type": "choice",
+      "text": "Интеграция с другими сервисами (CRM, онлайн-чаты и пр.)?",
+      "key": "Интеграция с сервисами",
+      "options": [
+        {
+          "id": "yes",
+          "label": "Да",
+          "next": "s_popup"
+        },
+        {
+          "id": "no",
+          "label": "Нет",
+          "next": "s_popup"
+        }
+      ]
+    },
+    "s_popup": {
+      "type": "choice",
+      "text": "Нужны ли всплывающие окна (pop-up)?\n\nОни могут облегчить восприятие длинных страниц, либо открываться при клике «Подробнее».\nОкна с текстами и ценами об услугах: укажите, сколько их нужно.",
+      "key": "Всплывающие окна",
+      "options": [
+        {
+          "id": "callback",
+          "label": "✅ Да, окна для обратного звонка",
+          "next": {
+            "call": "sections",
+            "then": "ref_site"
+          }
+        },
+        {
+          "id": "texts",
+          "label": "💬 Да, окна с текстами/ценами",
+          "next": "s_popup_count"
+        },
+        {
+          "id": "help",
+          "label": "❓ Нужна консультация",
+          "next": {
+            "call": "sections",
+            "then": "ref_site"
+          }
+        },
+        {
+          "id": "unsure",
+          "label": "🤔 Не уверен(а), нужно ли мне",
+          "next": {
+            "call": "sections",
+            "then": "ref_site"
+          }
+        }
+      ]
+    },
+    "s_popup_count": {
+      "type": "text",
+      "text": "💬 Сколько и какие окна вы хотите разместить?",
+      "key": "Всплывающие окна (уточнение)",
+      "next": {
+        "call": "sections",
+        "then": "ref_site"
+      }
+    },
+    "sec_hub": {
+      "type": "choice",
+      "text": "Какие разделы сайта вам понадобятся?\n\nВыберите категории. Затем уточним внутри каждой.",
+      "options": [
+        {
+          "id": "main",
+          "label": "📄 Основные страницы",
+          "next": "sec_main"
+        },
+        {
+          "id": "svc_goods",
+          "label": "🧰 Услуги и товары",
+          "next": "sec_svc",
+          "when": {
+            "step": "kind",
+            "any": [
+              "goods",
+              "both"
+            ]
+          }
+        },
+        {
+          "id": "svc",
+          "label": "🧰 Услуги",
+          "next": "sec_svc",
+          "when": {
+            "step": "kind",
+            "any": [
+              "services",
+              "other"
+            ]
+          }
+        },
+        {
+          "id": "trust",
+          "label": "⭐ Доверие и отзывы",
+          "next": "sec_trust"
+        },
+        {
+          "id": "port",
+          "label": "🖼 Портфолио и проекты",
+          "next": "sec_port"
+        },
+        {
+          "id": "legal",
+          "label": "⚖️ Правовая информация",
+          "next": "sec_legal"
+        },
+        {
+          "id": "other",
+          "label": "➕ Иное",
+          "next": "sec_other"
+        },
+        {
+          "id": "done",
+          "label": "✅ Готово",
+          "next": "@return"
+        }
+      ]
+    },
+    "sec_main": {
+      "type": "multi_input",
+      "text": "📄 Основные страницы:\n\nМожно выбрать несколько.",
+      "key": "Основные страницы",
+      "options": [
+        {
+          "id": "about",
+          "label": "🏢 О компании / Обо мне"
+        },
+        {
+          "id": "contacts",
+          "label": "📞 Контакты"
+        },
+        {
+          "id": "price",
+          "label": "💰 Прайс / цены"
+        },
+        {
+          "id": "promo",
+          "label": "🔥 Акции"
+        },
+        {
+          "id": "delivery",
+          "label": "🚚 Доставка и оплата"
+        },
+        {
+          "id": "faq",
+          "label": "❓ FAQ — Часто задаваемые вопросы"
+        },
+        {
+          "id": "custom",
+          "label": "➕ Добавить свой вариант",
+          "input": "✏️ Напишите, какие страницы ещё нужны:"
+        }
+      ],
+      "next": "sec_hub"
+    },
+    "sec_svc": {
+      "type": "multi_input",
+      "text": "🧰 Услуги и товары:\n\nМожно выбрать несколько.",
+      "key": "Услуги и товары",
+      "options": [
+        {
+          "id": "services",
+          "label": "🛠 Услуги"
+        },
+        {
+          "id": "goods",
+          "label": "🛒 Товары (если есть каталог)",
+          "when": {
+            "step": "kind",
+            "any": [
+              "goods",
+              "both"
+            ]
+          }
+        },
+        {
+          "id": "certs",
+          "label": "📜 Сертификаты"
+        },
+        {
+          "id": "brands",
+          "label": "🏷 Бренды / марки"
+        },
+        {
+          "id": "jobs",
+          "label": "👥 Вакансии"
+        },
+        {
+          "id": "custom",
+          "label": "➕ Добавить свой вариант",
+          "input": "✏️ Напишите, какие страницы ещё нужны:"
+        }
+      ],
+      "next": "sec_hub"
+    },
+    "sec_trust": {
+      "type": "multi_input",
+      "text": "⭐ Доверие и отзывы:\n\nМожно выбрать несколько.",
+      "key": "Доверие и отзывы",
+      "options": [
+        {
+          "id": "benefits",
+          "label": "🏆 Преимущества"
+        },
+        {
+          "id": "reviews",
+          "label": "💬 Отзывы"
+        },
+        {
+          "id": "partners",
+          "label": "🤝 Партнеры / сотрудничество"
+        },
+        {
+          "id": "news",
+          "label": "📰 Новости / статьи"
+        },
+        {
+          "id": "custom",
+          "label": "➕ Добавить свой вариант",
+          "input": "✏️ Напишите, какие страницы ещё нужны:"
+        }
+      ],
+      "next": "sec_hub"
+    },
+    "sec_port": {
+      "type": "multi_input",
+      "text": "🖼 Портфолио и проекты:\n\nМожно выбрать несколько.",
+      "key": "Портфолио и проекты",
+      "options": [
+        {
+          "id": "projects",
+          "label": "📁 Наши проекты"
+        },
+        {
+          "id": "works",
+          "label": "🏗 Работы / объекты"
+        },
+        {
+          "id": "gallery",
+          "label": "📷 Фотогалерея"
+        },
+        {
+          "id": "custom",
+          "label": "➕ Добавить свой вариант",
+          "input": "✏️ Напишите, какие страницы ещё нужны:"
+        }
+      ],
+      "next": "sec_hub"
+    },
+    "sec_legal": {
+      "type": "multi",
+      "text": "⚖️ Правовая информация:\n\nМожно выбрать несколько.",
+      "key": "Правовая информация",
+      "options": [
+        {
+          "id": "privacy",
+          "label": "🔒 Политика конфиденциальности"
+        },
+        {
+          "id": "terms",
+          "label": "📋 Пользовательское соглашение"
+        },
+        {
+          "id": "offer",
+          "label": "📝 Договор-оферта"
+        }
+      ],
+      "next": "sec_hub"
+    },
+    "sec_other": {
+      "type": "text",
+      "text": "✏️ Напишите, какие страницы ещё нужны:",
+      "key": "Страницы (иное)",
+      "next": "sec_hub"
+    },
+    "design": {
+      "type": "choice",
+      "text": "Спасибо! Переходим к следующему вопросу.\n\nПожелания по стилистике и дизайну?",
+      "key": "Стиль и дизайн",
+      "options": [
+        {
+          "id": "full",
+          "label": "🎨 Полный индивидуальный дизайн + логотип",
+          "next": "streams"
+        },
+        {
+          "id": "logo",
+          "label": "✒️ Только логотип",
+          "next": "streams"
+        },
+        {
+          "id": "have_logo",
+          "label": "✅ Есть логотип, нужен дизайн под него",
+          "next": "streams"
+        },
+        {
+          "id": "modern",
+          "label": "✨ Главное — просто современно и красиво",
+          "next": "streams"
+        },
+        {
+          "id": "template",
+          "label": "💸 Шаблон подойдет, бюджет ограничен",
+          "next": "streams"
+        },
+        {
+          "id": "consult",
+          "label": "❓ Хотелось бы проконсультироваться",
+          "next": "streams"
+        }
+      ]
+    },
+    "streams": {
+      "type": "choice",
+      "text": "Нужны ли разные потоки: «купить» и «заказать услугу»?",
+      "key": "Потоки покупки и заказа",
+      "options": [
+        {
+          "id": "two",
+          "label": "✅ Да, две разные страницы",
+          "next": {
+            "call": "site_examples"
+          }
+        },
+        {
+          "id": "one",
+          "label": "🔀 Нет, всё в одной системе",
+          "next": {
+            "call": "site_examples"
+          }
+        },
+        {
+          "id": "unsure",
+          "label": "❓ Не уверен(а)",
+          "next": {
+            "call": "site_examples"
+          }
+        }
+      ],
+      "when": {
+        "step": "kind",
+        "any": [
+          "both"
+        ]
+      },
+      "next": {
+        "call": "site_examples"
+      }
+    },
+    "ref_site": {
+      "type": "choice",
+      "text": "Спасибо! Переходим к следующему вопросу.\n\nЕсть ли пример сайта, который вам нравится?\n\nСсылку и комментарий можно отправить следом, подробное ТЗ загрузить файлом.",
+      "key": "Пример сайта",
+      "options": [
+        {
+          "id": "yes",
+          "label": "✅ Да, есть",
+          "next": "ref_link"
+        },
+        {
+          "id": "no",
+          "label": "❌ Нет, нужна помощь с примерами",
+          "next": {
+            "call": "final"
+          }
+        },
+        {
+          "id": "spec",
+          "label": "📎 Есть подробное ТЗ",
+          "next": "ref_file"
+        },
+        {
+          "id": "other",
+          "label": "➕ Иное",
+          "next": "ref_other"
+        }
+      ]
+    },
+    "ref_link": {
+      "type": "text",
+      "text": "🔗 Отправьте ссылку на сайт и комментарий, что именно вам в нём нравится:",
+      "key": "Пример сайта (ссылка)",
+      "next": {
+        "call": "final"
+      }
+    },
+    "ref_file": {
+      "type": "file",
+      "text": "📎 Пришлите файл с подробным ТЗ:",
+      "key": "Файл ТЗ",
+      "next": {
+        "call": "final"
+      }
+    },
+    "ref_other": {
+      "type": "text",
+      "text": "✏️ Напишите, какие есть примеры и в каком формате:",
+      "key": "Пример сайта (уточнение)",
+      "next": {
+        "call": "final"
+      }
+    },
+    "promo_what": {
+      "type": "multi_input",
+      "text": "📣 Настроим рекламу, которая работает!\nПродвигаем ваш бизнес через Яндекс.Директ под ключ — от анализа до запуска и ведения кампаний.\n\nЧто вы хотите продвигать?\n(Выберите всё, что актуально — можно несколько вариантов. Для каждого откроется поле ввода ссылки.)",
+      "key": "Что продвигаем",
+      "options": [
+        {
+          "id": "site",
+          "label": "🌐 Сайт",
+          "input": "🔗 Введите ссылку на сайт"
+        },
+        {
+          "id": "social",
+          "label": "📱 Соцсети",
+          "input": "🔗 Введите ссылки на ваши соцсети"
+        },
+        {
+          "id": "gis",
+          "label": "📍 Профиль в 2ГИС",
+          "input": "🔗 Введите ссылку"
+        },
+        {
+          "id": "ybiz",
+          "label": "🏪 Яндекс Бизнес",
+          "input": "🔗 Введите ссылку"
+        },
+        {
+          "id": "ymaps",
+          "label": "🗺 Яндекс Карты",
+          "input": "🔗 Введите ссылку"
+        },
+        {
+          "id": "yserv",
+          "label": "🧰 Яндекс Услуги",
+          "input": "🔗 Введите ссылку"
+        },
+        {
+          "id": "nosite",
+          "label": "❌ Пока нет сайта и других каналов",
+          "exclusive": true
+        },
+        {
+          "id": "unknown",
+          "label": "❓ Не знаю, нужна рекомендация"
+        },
+        {
+          "id": "other",
+          "label": "➕ Иное",
+          "input": "🔗 Введите, что именно хотите продвигать"
+        }
+      ],
+      "next": "promo_types"
+    },
+    "promo_types": {
+      "type": "multi_input",
+      "text": "Какие типы продвижения вам интересны?\n(Можно выбрать несколько вариантов)",
+      "key": "Типы продвижения",
+      "options": [
+        {
+          "id": "direct",
+          "label": "🎯 Реклама в Яндекс Директ"
+        },
+        {
+          "id": "gis",
+          "label": "📍 Реклама в 2ГИС"
+        },
+        {
+          "id": "ybiz",
+          "label": "🏪 Реклама в Яндекс Бизнес"
+        },
+        {
+          "id": "ymaps",
+          "label": "🗺 Реклама в Яндекс Картах"
+        },
+        {
+          "id": "yserv",
+          "label": "🧰 Реклама в Яндекс Услугах"
+        },
+        {
+          "id": "social",
+          "label": "📱 Реклама в соцсетях"
+        },
+        {
+          "id": "seo",
+          "label": "🔎 SEO-продвижение"
+        },
+        {
+          "id": "unknown",
+          "label": "❓ Не знаю, нужна рекомендация"
+        },
+        {
+          "id": "other",
+          "label": "➕ Иное",
+          "input": "🔗 Уточните"
+        }
+      ],
+      "next": "promo_now"
+    },
+    "promo_now": {
+      "type": "multi_input",
+      "text": "Сейчас вы уже что-то продвигаете?\n(Можно выбрать несколько вариантов)",
+      "key": "Что продвигают сейчас",
+      "options": [
+        {
+          "id": "paid",
+          "label": "💳 Да, через платную рекламу",
+          "input": "🔗 Уточните, какую именно (например, Яндекс Директ, ВК, Google)"
+        },
+        {
+          "id": "seo",
+          "label": "🔎 Да, через SEO-продвижение"
+        },
+        {
+          "id": "social",
+          "label": "📱 Да, через соцсети"
+        },
+        {
+          "id": "unclear",
+          "label": "🤷 Да, но не знаю точно, что это",
+          "input": "🔗 Опишите, что делаете сейчас"
+        },
+        {
+          "id": "before",
+          "label": "⏳ Продвигали раньше, но сейчас нет",
+          "input": "🔗 Опишите, как продвигали"
+        },
+        {
+          "id": "never",
+          "label": "🙋 Никогда не продвигали, нужна помощь",
+          "exclusive": true
+        },
+        {
+          "id": "unsure",
+          "label": "❓ Затрудняюсь, нужна консультация",
+          "exclusive": true
+        }
+      ],
+      "next": "promo_helpers"
+    },
+    "promo_helpers": {
+      "type": "multi_input",
+      "text": "Вам кто-то уже помогал с продвижением?\n✅ Можно выбрать несколько",
+      "key": "Кто помогал с продвижением",
+      "options": [
+        {
+          "id": "none",
+          "label": "🙅 Нет, никогда не обращались",
+          "exclusive": true
+        },
+        {
+          "id": "yandex",
+          "label": "🤝 Да, помогали сотрудники Яндекс"
+        },
+        {
+          "id": "pros",
+          "label": "👥 Работали маркетологи / SEO"
+        },
+        {
+          "id": "other",
+          "label": "➕ Иное",
+          "input": "🔗 Опишите, кто именно"
+        }
+      ],
+      "next": "promo_support",
+      "when": {
+        "step": "promo_now",
+        "any": [
+          "paid",
+          "seo",
+          "social",
+          "unclear",
+          "before"
+        ]
+      }
+    },
+    "promo_support": {
+      "type": "choice",
+      "text": "Вас интересует разовая настройка или сопровождение?\n\nОдин выбор.",
+      "key": "Настройка или сопровождение",
+      "options": [
+        {
+          "id": "both",
+          "label": "🔄 Настройка и регулярное продвижение",
+          "next": "promo_geo"
+        },
+        {
+          "id": "once",
+          "label": "⚙️ Только разовая настройка",
+          "next": "promo_geo"
+        },
+        {
+          "id": "help",
+          "label": "❓ Нужна консультация",
+          "next": "promo_geo"
+        },
+        {
+          "id": "other",
+          "label": "➕ Иное",
+          "next": "promo_support_other"
+        }
+      ],
+      "when": {
+        "step": "promo_now",
+        "any": [
+          "paid",
+          "seo",
+          "social",
+          "unclear",
+          "before"
+        ]
+      },
+      "next": "promo_geo"
+    },
+    "promo_support_other": {
+      "type": "text",
+      "text": "🔗 Уточните ваш запрос:",
+      "key": "Настройка или сопровождение (уточнение)",
+      "next": "promo_geo"
+    },
+    "promo_geo": {
+      "type": "choice",
+      "text": "География продвижения:",
+      "key": "География продвижения",
+      "options": [
+        {
+          "id": "city",
+          "label": "🏙 Один город",
+          "next": "promo_goals"
+        },
+        {
+          "id": "regions",
+          "label": "🗺 Несколько регионов",
+          "next": "promo_goals"
+        },
+        {
+          "id": "russia",
+          "label": "🇷🇺 Вся Россия",
+          "next": "promo_goals"
+        },
+        {
+          "id": "world",
+          "label": "🌍 Международно",
+          "next": "promo_goals"
+        }
+      ],
+      "when": {
+        "step": "promo_now",
+        "any": [
+          "paid",
+          "seo",
+          "social",
+          "unclear",
+          "before"
+        ]
+      },
+      "next": "promo_goals"
+    },
+    "promo_goals": {
+      "type": "choice",
+      "text": "Какие цели у рекламы?",
+      "key": "Цели рекламы",
+      "options": [
+        {
+          "id": "leads",
+          "label": "📝 Заявки",
+          "next": "promo_link"
+        },
+        {
+          "id": "calls",
+          "label": "📞 Звонки",
+          "next": "promo_link"
+        },
+        {
+          "id": "sales",
+          "label": "🛒 Продажи",
+          "next": "promo_link"
+        },
+        {
+          "id": "traffic",
+          "label": "📈 Увеличение трафика",
+          "next": "promo_link"
+        },
+        {
+          "id": "all",
+          "label": "🎯 Всё вместе",
+          "next": "promo_link"
+        }
+      ],
+      "when": {
+        "step": "promo_now",
+        "any": [
+          "paid",
+          "seo",
+          "social",
+          "unclear",
+          "before"
+        ]
+      },
+      "next": {
+        "call": "final"
+      }
+    },
+    "promo_link": {
+      "type": "text",
+      "text": "🔗 Оставьте ссылку на сайт, чтобы мы проанализировали:",
+      "key": "Ссылка на сайт",
+      "next": {
+        "call": "final"
+      },
+      "validate": "url",
+      "when": {
+        "step": "promo_what",
+        "any": [
+          "social",
+          "gis",
+          "ybiz",
+          "ymaps",
+          "yserv",
+          "unknown",
+          "other"
+        ]
+      }
+    },
+    "fix_platform": {
+      "type": "choice",
+      "text": "На какой платформе сделан ваш сайт?\n\nВыбор одного варианта.",
+      "key": "Платформа сайта",
+      "options": [
+        {
+          "id": "wordpress",
+          "label": "📰 WordPress",
+          "next": "fix_what"
+        },
+        {
+          "id": "tilda",
+          "label": "🧩 Tilda",
+          "next": "fix_what"
+        },
+        {
+          "id": "opencart",
+          "label": "🛒 OpenCart",
+          "next": "fix_what"
+        },
+        {
+          "id": "joomla",
+          "label": "🗂 Joomla",
+          "next": "fix_what"
+        },
+        {
+          "id": "bitrix",
+          "label": "🏢 1С-Битрикс",
+          "next": "fix_what"
+        },
+        {
+          "id": "other",
+          "label": "✏️ Иное",
+          "next": "fix_platform_other"
+        },
+        {
+          "id": "unknown",
+          "label": "🤷 Не знаю, нужна консультация",
+          "next": "fix_what"
+        }
+      ]
+    },
+    "fix_platform_other": {
+      "type": "text",
+      "text": "✏️ Уточните, на какой платформе сайт:",
+      "key": "Платформа сайта (уточнение)",
+      "next": "fix_what"
+    },
+    "fix_what": {
+      "type": "multi_input",
+      "text": "Что именно вы хотели бы доработать?\n\nМожно выбрать несколько вариантов.\n➕ Новый функционал: калькулятор, квиз, формы, корзина и т.д.",
+      "key": "Что доработать",
+      "options": [
+        {
+          "id": "design",
+          "label": "🎨 Улучшить визуал или сделать редизайн"
+        },
+        {
+          "id": "layout",
+          "label": "📐 Исправить верстку, структуру, логику"
+        },
+        {
+          "id": "bugs",
+          "label": "🐞 Исправить баги и нерабочие функции"
+        },
+        {
+          "id": "pages",
+          "label": "🗂 Добавить/удалить страницы"
+        },
+        {
+          "id": "feature",
+          "label": "➕ Добавить новый функционал"
+        },
+        {
+          "id": "advice",
+          "label": "💡 Нужны рекомендации специалиста"
+        },
+        {
+          "id": "migrate",
+          "label": "🔄 Перенос сайта на другую платформу"
+        },
+        {
+          "id": "other",
+          "label": "✏️ Иное",
+          "input": "✏️ Напишите, что ещё хотите доработать:"
+        }
+      ],
+      "next": "fix_link_ask"
+    },
+    "fix_link_ask": {
+      "type": "choice",
+      "text": "Нужна ссылка на ваш сайт для анализа.\n\nНажмите «Ввести ссылку» и пришлите адрес. Если не получается, выберите другой вариант.",
+      "key": "Ссылка на сайт",
+      "options": [
+        {
+          "id": "enter",
+          "label": "🔗 Ввести ссылку",
+          "next": "fix_link"
+        },
+        {
+          "id": "forgot",
+          "label": "❓ Не помню ссылку, нужна помощь",
+          "next": "fix_rebuild"
+        },
+        {
+          "id": "down",
+          "label": "❌ Сайт не открывается, нужна помощь",
+          "next": "fix_rebuild"
+        }
+      ]
+    },
+    "fix_link": {
+      "type": "text",
+      "text": "🔗 Введите ссылку на ваш сайт для анализа:",
+      "key": "Адрес сайта",
+      "next": "fix_rebuild",
+      "validate": "url"
+    },
+    "fix_rebuild": {
+      "type": "choice",
+      "text": "Готовы рассмотреть полную пересборку сайта?\n\nОдин выбор.",
+      "key": "Полная пересборка",
+      "options": [
+        {
+          "id": "yes",
+          "label": "✅ Да, можно предложить и такой",
+          "next": "fix_promo"
+        },
+        {
+          "id": "no",
+          "label": "🚫 Нет, нужны только доработки",
+          "next": "fix_promo"
+        },
+        {
+          "id": "unsure",
+          "label": "❓ Затрудняюсь, нужна консультация",
+          "next": "fix_promo"
+        }
+      ]
+    },
+    "fix_promo": {
+      "type": "multi_input",
+      "text": "Сейчас сайт продвигается?\n\n✅ Можно выбрать несколько\nℹ️ Учитываем продвижение, чтобы сохранить позиции при доработке.",
+      "key": "Продвижение сайта сейчас",
+      "options": [
+        {
+          "id": "direct",
+          "label": "🎯 Да, реклама в Яндекс Директ"
+        },
+        {
+          "id": "ybiz",
+          "label": "🏪 Да, в Яндекс Бизнес"
+        },
+        {
+          "id": "seo",
+          "label": "🔎 Да, SEO-продвижение"
+        },
+        {
+          "id": "other",
+          "label": "✏️ Иное",
+          "input": "✏️ Опишите, как продвигаете сайт:"
+        },
+        {
+          "id": "none",
+          "label": "⛔ Нет, пока не продвигаем",
+          "exclusive": true
+        }
+      ],
+      "next": "fix_access"
+    },
+    "fix_access": {
+      "type": "choice",
+      "text": "У вас есть доступы от сайта?\n\nОдин выбор.",
+      "key": "Доступы к сайту",
+      "options": [
+        {
+          "id": "all",
+          "label": "✅ Да, есть домен и хостинг",
+          "next": {
+            "call": "final"
+          }
+        },
+        {
+          "id": "domain",
+          "label": "🌐 Есть только доступ от домена",
+          "next": {
+            "call": "final"
+          }
+        },
+        {
+          "id": "hosting",
+          "label": "🖥 Есть только доступ от хостинга",
+          "next": {
+            "call": "final"
+          }
+        },
+        {
+          "id": "lost",
+          "label": "❓ Не помню доступы, нужна помощь",
+          "next": {
+            "call": "final"
+          }
+        },
+        {
+          "id": "none",
+          "label": "🚫 Нет никаких доступов",
+          "next": {
+            "call": "final"
+          }
+        },
+        {
+          "id": "other",
+          "label": "✏️ Иное",
+          "next": "fix_access_other"
+        }
+      ]
+    },
+    "fix_access_other": {
+      "type": "text",
+      "text": "✏️ Опишите ситуацию с доступами:",
+      "key": "Доступы к сайту (уточнение)",
+      "next": {
+        "call": "final"
+      }
+    },
+    "works_sphere": {
+      "type": "choice",
+      "text": "В какой сфере хотите посмотреть примеры сайтов?\n\nСпециалисты / услуги: бьюти, консультации, юристы и т.д.",
+      "key": "Сфера примеров",
+      "options": [
+        {
+          "id": "build",
+          "label": "🏗 Строительство / благоустройство",
+          "next": "works_build"
+        },
+        {
+          "id": "repair",
+          "label": "🔨 Ремонтные работы",
+          "next": "works_repair"
+        },
+        {
+          "id": "prod",
+          "label": "🏭 Производство / промышленность",
+          "next": "works_prod"
+        },
+        {
+          "id": "auto",
+          "label": "🚗 Автомобили",
+          "next": "works_auto"
+        },
+        {
+          "id": "spec",
+          "label": "🧑‍💼 Специалисты / услуги",
+          "next": "works_spec"
+        },
+        {
+          "id": "food",
+          "label": "🍽 Еда / доставка / кулинария",
+          "next": "works_food"
+        },
+        {
+          "id": "sport",
+          "label": "🏃 Спорт / отдых / тренеры",
+          "next": "works_sport"
+        },
+        {
+          "id": "other",
+          "label": "✏️ Иное",
+          "next": "works_other"
+        }
+      ]
+    },
+    "works_build": {
+      "type": "info",
+      "text": "🖼 Вот несколько примеров сайтов по строительной тематике:\n\nКаждый сайт делался под конкретные задачи клиента. Можно адаптировать стиль под вашу нишу.",
+      "options": [
+        {
+          "id": "site1",
+          "label": "🔗 Сайт №1 – Дома под ключ",
+          "url": "https://example.com"
+        },
+        {
+          "id": "site2",
+          "label": "🔗 Сайт №2 – Укладка брусчатки",
+          "url": "https://example.com"
+        },
+        {
+          "id": "site3",
+          "label": "🔗 Сайт №3 – Утепление фасадов",
+          "url": "https://example.com"
+        },
+        {
+          "id": "order",
+          "label": "📝 Заказать услугу",
+          "next": "order_menu"
+        },
+        {
+          "id": "back",
+          "label": "↩️ Назад к списку сфер",
+          "next": "works_sphere"
+        }
+      ]
+    },
+    "works_repair": {
+      "type": "info",
+      "text": "🖼 Вот несколько примеров сайтов по ремонтной тематике:\n\nКаждый сайт делался под конкретные задачи клиента. Можно адаптировать стиль под вашу нишу.",
+      "options": [
+        {
+          "id": "site1",
+          "label": "🔗 Сайт №1 – Ремонт квартир",
+          "url": "https://example.com"
+        },
+        {
+          "id": "site2",
+          "label": "🔗 Сайт №2 – Натяжные потолки",
+          "url": "https://example.com"
+        },
+        {
+          "id": "site3",
+          "label": "🔗 Сайт №3 – Отделка балконов",
+          "url": "https://example.com"
+        },
+        {
+          "id": "order",
+          "label": "📝 Заказать услугу",
+          "next": "order_menu"
+        },
+        {
+          "id": "back",
+          "label": "↩️ Назад к списку сфер",
+          "next": "works_sphere"
+        }
+      ]
+    },
+    "works_prod": {
+      "type": "info",
+      "text": "🖼 Вот несколько примеров сайтов по тематике производства / промышленности:\n\nКаждый сайт делался под конкретные задачи клиента. Можно адаптировать стиль под вашу нишу.",
+      "options": [
+        {
+          "id": "site1",
+          "label": "🔗 Сайт №1 – Металлоконструкции",
+          "url": "https://example.com"
+        },
+        {
+          "id": "site2",
+          "label": "🔗 Сайт №2 – Инженерные системы",
+          "url": "https://example.com"
+        },
+        {
+          "id": "order",
+          "label": "📝 Заказать услугу",
+          "next": "order_menu"
+        },
+        {
+          "id": "back",
+          "label": "↩️ Назад к списку сфер",
+          "next": "works_sphere"
+        }
+      ]
+    },
+    "works_auto": {
+      "type": "info",
+      "text": "🖼 Вот несколько примеров сайтов по автомобильной тематике:\n\nКаждый сайт делался под конкретные задачи клиента. Можно адаптировать стиль под вашу нишу.",
+      "options": [
+        {
+          "id": "site1",
+          "label": "🔗 Сайт №1 – Автосервис",
+          "url": "https://example.com"
+        },
+        {
+          "id": "site2",
+          "label": "🔗 Сайт №2 – Шиномонтаж и ТО",
+          "url": "https://example.com"
+        },
+        {
+          "id": "order",
+          "label": "📝 Заказать услугу",
+          "next": "order_menu"
+        },
+        {
+          "id": "back",
+          "label": "↩️ Назад к списку сфер",
+          "next": "works_sphere"
+        }
+      ]
+    },
+    "works_spec": {
+      "type": "info",
+      "text": "🖼 Вот несколько примеров сайтов по тематике “специалисты”:\n\nКаждый сайт делался под конкретные задачи клиента. Можно адаптировать стиль под вашу нишу.",
+      "options": [
+        {
+          "id": "site1",
+          "label": "🔗 Сайт №1 – Консультант-юрист",
+          "url": "https://example.com"
+        },
+        {
+          "id": "site2",
+          "label": "🔗 Сайт №2 – Бьюти",
+          "url": "https://example.com"
+        },
+        {
+          "id": "site3",
+          "label": "🔗 Сайт №3 – Коуч/психолог",
+          "url": "https://example.com"
+        },
+        {
+          "id": "order",
+          "label": "📝 Заказать услугу",
+          "next": "order_menu"
+        },
+        {
+          "id": "back",
+          "label": "↩️ Назад к списку сфер",
+          "next": "works_sphere"
+        }
+      ]
+    },
+    "works_food": {
+      "type": "info",
+      "text": "🖼 Вот несколько примеров сайтов по тематике еды и кулинарии:\n\nКаждый сайт делался под конкретные задачи клиента. Можно адаптировать стиль под вашу нишу.",
+      "options": [
+        {
+          "id": "site1",
+          "label": "🔗 Сайт №1 – Кафе / меню",
+          "url": "https://example.com"
+        },
+        {
+          "id": "site2",
+          "label": "🔗 Сайт №2 – Доставка обедов",
+          "url": "https://example.com"
+        },
+        {
+          "id": "order",
+          "label": "📝 Заказать услугу",
+          "next": "order_menu"
+        },
+        {
+          "id": "back",
+          "label": "↩️ Назад к списку сфер",
+          "next": "works_sphere"
+        }
+      ]
+    },
+    "works_sport": {
+      "type": "info",
+      "text": "🖼 Вот несколько примеров сайтов по тематике спорта и отдыха:\n\nКаждый сайт делался под конкретные задачи клиента. Можно адаптировать стиль под вашу нишу.",
+      "options": [
+        {
+          "id": "site1",
+          "label": "🔗 Сайт №1 – Персональный тренер",
+          "url": "https://example.com"
+        },
+        {
+          "id": "site2",
+          "label": "🔗 Сайт №2 – Фитнес-клуб",
+          "url": "https://example.com"
+        },
+        {
+          "id": "order",
+          "label": "📝 Заказать услугу",
+          "next": "order_menu"
+        },
+        {
+          "id": "back",
+          "label": "↩️ Назад к списку сфер",
+          "next": "works_sphere"
+        }
+      ]
+    },
+    "works_other": {
+      "type": "text",
+      "text": "✏️ Введите, что именно вас интересует — и мы пришлём примеры, если есть подходящие сайты в портфолио.",
+      "key": "Интересующая сфера",
+      "next": "works_other_done"
+    },
+    "works_other_done": {
+      "type": "info",
+      "text": "Спасибо! Если в портфолио есть подходящие сайты, мы пришлём их вам.",
+      "options": [
+        {
+          "id": "order",
+          "label": "📝 Заказать услугу",
+          "next": "order_menu"
+        },
+        {
+          "id": "back",
+          "label": "↩️ Назад к списку сфер",
+          "next": "works_sphere"
+        }
+      ]
+    },
+    "order_menu": {
+      "type": "info",
+      "text": "Отлично! Давайте определим, что вам нужно:",
+      "options": [
+        {
+          "id": "new",
+          "label": "🌐 Заказать новый сайт",
+          "next": "kind"
+        },
+        {
+          "id": "fix",
+          "label": "🛠 Доработать текущий сайт",
+          "next": "fix_platform"
+        },
+        {
+          "id": "promo",
+          "label": "📈 Продвижение сайта",
+          "next": "promo_what"
+        },
+        {
+          "id": "menu",
+          "label": "🏠 В главное меню",
+          "next": "menu"
+        }
+      ]
+    },
+    "contact": {
+      "type": "info",
+      "text": "Если у вас остались вопросы — пишите или звоните!\nМы на связи и с радостью поможем 🤝\n\nКонтакты:\n✈️ Telegram: @11111\n📞 Телефон: +7 999 999-99-99\n📧 Email: site-it@mail.ru",
+      "options": [
+        {
+          "id": "menu",
+          "label": "🏠 В главное меню",
+          "next": "menu"
+        },
+        {
+          "id": "new",
+          "label": "🌐 Заказать новый сайт",
+          "next": "kind"
+        },
+        {
+          "id": "promo",
+          "label": "📈 Продвижение сайта",
+          "next": "promo_what"
+        },
+        {
+          "id": "fix",
+          "label": "🛠 Доработать текущий сайт",
+          "next": "fix_platform"
+        }
+      ]
+    },
+    "fin_name": {
+      "type": "text",
+      "text": "🏁 Остался последний шаг!\nЧтобы мы могли с вами связаться и обсудить детали — пожалуйста, оставьте свои контактные данные:\n\n👤 Ваше имя:",
+      "key": "name",
+      "next": "fin_phone"
+    },
+    "fin_phone": {
+      "type": "text",
+      "text": "📞 Номер телефона для связи:\nℹ️ Мы не будем названивать — только по делу!",
+      "key": "Телефон",
+      "next": "fin_messenger",
+      "validate": "phone"
+    },
+    "fin_messenger": {
+      "type": "multi",
+      "text": "💬 Удобный мессенджер для связи:\n(можно выбрать один или несколько)",
+      "key": "Мессенджер",
+      "options": [
+        {
+          "id": "whatsapp",
+          "label": "🟢 WhatsApp"
+        },
+        {
+          "id": "telegram",
+          "label": "✈️ Telegram"
+        },
+        {
+          "id": "calls",
+          "label": "📞 Звонки"
+        }
+      ],
+      "next": "fin_time",
+      "done_label": "Продолжить"
+    },
+    "fin_time": {
+      "type": "choice",
+      "text": "🕒 Когда вам удобно связаться?",
+      "key": "Удобное время",
+      "options": [
+        {
+          "id": "morning",
+          "label": "Утро (09:00–12:00)",
+          "next": "fin_thanks"
+        },
+        {
+          "id": "day",
+          "label": "День (12:00–17:00)",
+          "next": "fin_thanks"
+        },
+        {
+          "id": "evening",
+          "label": "Вечер (после 17:00)",
+          "next": "fin_thanks"
+        },
+        {
+          "id": "any",
+          "label": "Без разницы — пишите в любое время",
+          "next": "fin_thanks"
+        }
+      ]
+    },
+    "fin_thanks": {
+      "type": "info",
+      "text": "Спасибо за заявку, {name}!\nМы обязательно с вами свяжемся в ближайшее время — обсудим всё подробно и предложим оптимальные варианты под ваш бюджет и цели.\n\n🔒 Вся ваша информация передана напрямую специалисту — без посредников и задержек.\n💬 Если появятся дополнительные вопросы — смело пишите сюда, бот всегда на связи."
+    }
+  }
+}

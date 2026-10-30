@@ -4,6 +4,9 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Literal
 
+# Ключ шага главного меню: по нему заявка узнаёт выбранное направление.
+BRANCH_KEY = "Направление"
+
 
 @dataclass(frozen=True)
 class Event:
