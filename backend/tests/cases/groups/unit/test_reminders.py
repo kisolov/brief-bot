@@ -18,7 +18,11 @@ from src.dialog.services import DialogService
 from src.dialog.usecases.handle_event import HandleEvent
 from src.dialog.usecases.resume_or_restart import ResumeOrRestart
 from src.dialog.usecases.send_reminders import BATCH_LIMIT, SendReminders
-from src.leads.adapters.memory import InMemoryLeadRepository, MockManagerNotifier
+from src.leads.adapters.memory import (
+    InMemoryLeadRepository,
+    MockFileGateway,
+    MockManagerNotifier,
+)
 from src.leads.entities import LeadStatus
 from src.leads.services import LeadService
 from src.scenario.adapters.memory import InMemoryScenarioRepository
@@ -74,7 +78,7 @@ async def h() -> Harness:
     notifier = MockManagerNotifier()
     gateway = FakeGateway()
     dialog = DialogService(sessions, reminders, ScenarioService(scenario_repo), settings)
-    leads = LeadService(lead_repo, notifier)
+    leads = LeadService(lead_repo, notifier, MockFileGateway())
     return Harness(
         HandleEvent(dialog, leads, clock=lambda: NOW),
         ResumeOrRestart(dialog),

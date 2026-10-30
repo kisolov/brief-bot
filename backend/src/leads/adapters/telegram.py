@@ -1,9 +1,35 @@
 """Уведомление менеджера через Telegram-бота."""
 
+import io
+
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
 
-from src.leads.ports import ManagerNotifier
+from src.leads.exceptions import FileTooLarge
+from src.leads.ports import FileGateway, ManagerNotifier
+
+# Telegram не отдаёт боту файлы крупнее 20 МБ.
+MAX_FILE_BYTES = 20 * 1024 * 1024
+
+
+class TelegramFileGateway(FileGateway):
+    def __init__(self, bot: Bot) -> None:
+        self._bot = bot
+
+    async def download(self, file_id: str) -> bytes:
+        try:
+            info = await self._bot.get_file(file_id)
+        except TelegramBadRequest as exc:
+            if "file is too big" in str(exc):
+                raise FileTooLarge("файл больше 20 МБ") from exc
+            raise
+        if info.file_size is not None and info.file_size > MAX_FILE_BYTES:
+            raise FileTooLarge("файл больше 20 МБ")
+        if info.file_path is None:
+            raise FileTooLarge("Telegram не отдаёт путь к файлу")
+        buffer = io.BytesIO()
+        await self._bot.download_file(info.file_path, destination=buffer)
+        return buffer.getvalue()
 
 
 class TelegramManagerNotifier(ManagerNotifier):

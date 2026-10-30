@@ -11,6 +11,8 @@
 | `get` несуществующей заявки это `NotFound` | оба адаптера |
 | `list(status)` отдаёт новые первыми (`created_at`, затем `id` по убыванию) | оба адаптера |
 | Подпись ключа `name` это «Имя» (R9); остальные ключи показываются как есть | `display_key` в [formatter.py](../../../backend/src/leads/formatter.py) |
+| Наружу (API) не уходят `chat_id` и `file_id`: у заявки только признак `hasFile` | [schema.py](../../../backend/src/leads/schema.py) |
+| Файл ТЗ скачивается только через бота и не больше 20 МБ; больше это `FileTooLarge` без скачивания | `TelegramFileGateway` |
 | Текст для менеджера без разметки Telegram (`parse_mode` не задаётся): значения вводит пользователь | `format_lead`, `ManagerNotifier` |
 
 ## Формат текста

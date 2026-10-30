@@ -61,7 +61,7 @@
 
 ## Сервис
 
-`ScenarioService` ([services.py](../../../backend/src/scenario/services.py)); usecase один: [EnsureSeeded](../../../backend/src/scenario/usecases/ensure_seeded.py) (вызывается из `lifespan` при старте и кладёт сид, если версий нет). HTTP пока нет.
+`ScenarioService` ([services.py](../../../backend/src/scenario/services.py)); usecase: [EnsureSeeded](../../../backend/src/scenario/usecases/ensure_seeded.py) (вызывается из `lifespan` при старте и кладёт сид, если версий нет) и для редактора [GetDraft](../../../backend/src/scenario/usecases/get_draft.py), [SaveDraft](../../../backend/src/scenario/usecases/save_draft.py), [PublishScenario](../../../backend/src/scenario/usecases/publish_scenario.py), [ListVersions](../../../backend/src/scenario/usecases/list_versions.py), [ActivateVersion](../../../backend/src/scenario/usecases/activate_version.py): по одному вызову сервиса, `PublishScenario` и `ActivateVersion` пишут один `INFO` с номером версии. DTO: [schema.py](../../../backend/src/scenario/schema.py) (`DraftDto`, `SaveDraftDto`, `RevisionDto`, `PublishedDto`, `VersionDto`, `IssueDto`, все `CamelModel`; `data` черновика идёт как `dict`). HTTP-контракт: [API.md](../API.md).
 
 | Метод | Делает |
 |---|---|
@@ -72,7 +72,7 @@
 | `publish()` | проверяет черновик и записывает новой версией; возвращает номер |
 | `rollback(n)` | `activate_version(n)`: версия `n` становится активной, черновик заменяется её данными, одной операцией |
 | `versions()` | `list[VersionInfo]` по возрастанию номера |
-| `ensure_seeded()` | при пустой таблице версий пишет сид версией 1 и черновиком; `True`, если записал. Из `lifespan` пока не вызывается |
+| `ensure_seeded()` | при пустой таблице версий пишет сид версией 1 и черновиком; `True`, если записал. |
 
 ## Проверка сценария
 

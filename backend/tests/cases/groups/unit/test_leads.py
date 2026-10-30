@@ -3,7 +3,11 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.leads.adapters.memory import InMemoryLeadRepository, MockManagerNotifier
+from src.leads.adapters.memory import (
+    InMemoryLeadRepository,
+    MockFileGateway,
+    MockManagerNotifier,
+)
 from src.leads.entities import Lead, LeadAnswer, LeadStatus
 from src.leads.formatter import _split, display_key, format_lead
 from src.leads.services import LeadService
@@ -40,7 +44,7 @@ def notifier() -> MockManagerNotifier:
 
 @pytest.fixture
 def service(repo, notifier) -> LeadService:
-    return LeadService(repo, notifier)
+    return LeadService(repo, notifier, MockFileGateway())
 
 
 async def test_finish_upgrades_partial(service, repo):
@@ -94,7 +98,7 @@ async def test_notification_sent_after_save(service, notifier):
 
 
 async def test_notifier_failure_keeps_lead(repo, caplog):
-    service = LeadService(repo, MockManagerNotifier(fail=True))
+    service = LeadService(repo, MockManagerNotifier(fail=True), MockFileGateway())
 
     with caplog.at_level(logging.ERROR):
         saved = await service.finish(_lead())

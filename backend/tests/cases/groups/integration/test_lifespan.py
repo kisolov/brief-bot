@@ -6,6 +6,7 @@ import uuid
 from collections.abc import AsyncIterator
 
 import asyncpg
+import httpx
 import pytest
 from pydantic import ValidationError
 
@@ -67,6 +68,7 @@ async def test_lifespan_without_polling(monkeypatch, schema_dsn):
     monkeypatch.setenv("TELEGRAM_TOKEN", "123456:TEST-token")
     monkeypatch.setenv("TELEGRAM_MANAGER_CHAT_ID", "1")
     monkeypatch.setenv("TELEGRAM_INVITE_CODE", "invite")
+    monkeypatch.setenv("EDITOR_BASE_URL", "https://editor.example.com")
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "false")
     monkeypatch.setenv("POSTGRES_DSN", schema_dsn)
     # Отдельная база redis, как в фикстурах интеграционных тестов.
@@ -85,6 +87,7 @@ async def test_lifespan_without_polling(monkeypatch, schema_dsn):
 async def test_missing_setting_fails_before_database(monkeypatch):
     monkeypatch.setenv("TELEGRAM_TOKEN", "123456:TEST-token")
     monkeypatch.setenv("TELEGRAM_INVITE_CODE", "invite")
+    monkeypatch.setenv("EDITOR_BASE_URL", "https://editor.example.com")
     monkeypatch.delenv("TELEGRAM_MANAGER_CHAT_ID", raising=False)
     # Недоступный адрес: любое обращение к базе дало бы другую ошибку.
     monkeypatch.setenv("POSTGRES_DSN", "postgresql://x:x@127.0.0.1:1/x")
@@ -100,6 +103,7 @@ def _env(monkeypatch, schema_dsn: str, polling: bool) -> None:
     monkeypatch.setenv("TELEGRAM_TOKEN", "123456:TEST-token")
     monkeypatch.setenv("TELEGRAM_MANAGER_CHAT_ID", "1")
     monkeypatch.setenv("TELEGRAM_INVITE_CODE", "invite")
+    monkeypatch.setenv("EDITOR_BASE_URL", "https://editor.example.com")
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true" if polling else "false")
     monkeypatch.setenv("POSTGRES_DSN", schema_dsn)
     monkeypatch.setenv("REDIS_URL", "redis://localhost:56379/15")
@@ -146,3 +150,39 @@ async def test_reminder_job_runs_with_polling_and_is_cancelled(monkeypatch, sche
         assert len(started) == 1
 
     assert cancelled == [True]
+
+
+async def test_editor_login_on_real_adapters(monkeypatch, schema_dsn):
+    _env(monkeypatch, schema_dsn, polling=False)
+    container = Container()
+    app = create_app(container)
+
+    async with app.router.lifespan_context(app):
+        await (await container.access_service()).add_admin(7)
+        link = await (await container.issue_editor_link())(7, None)
+        token = link.removeprefix("https://editor.example.com/login?token=")
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="https://test") as client:
+            assert (await client.get("/api/scenario/draft")).status_code == 401
+            exchanged = await client.post("/api/auth/exchange", json={"token": token})
+            assert exchanged.status_code == 204
+            assert (
+                await client.post("/api/auth/exchange", json={"token": token})
+            ).status_code == 401
+            draft = await client.get("/api/scenario/draft")
+            assert draft.status_code == 200
+            assert draft.json()["revision"] == 1
+
+
+async def test_missing_editor_url_fails_before_database(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_TOKEN", "123456:TEST-token")
+    monkeypatch.setenv("TELEGRAM_MANAGER_CHAT_ID", "1")
+    monkeypatch.setenv("TELEGRAM_INVITE_CODE", "invite")
+    monkeypatch.delenv("EDITOR_BASE_URL", raising=False)
+    monkeypatch.setenv("POSTGRES_DSN", "postgresql://x:x@127.0.0.1:1/x")
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "false")
+    app = create_app(Container())
+
+    with pytest.raises(ValidationError, match="base_url"):
+        async with app.router.lifespan_context(app):
+            pass

@@ -7,7 +7,14 @@ from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from dependency_injector import containers, providers
 
-from src.bootstrap.settings import TelegramSettings
+from src.access.adapters.asyncpg import AsyncpgAdminRepository, AsyncpgTokenRepository
+from src.access.adapters.memory import InMemoryAdminRepository, InMemoryTokenRepository
+from src.access.ports import AdminRepository, TokenRepository
+from src.access.services import AccessService
+from src.access.usecases.check_editor_session import CheckEditorSession
+from src.access.usecases.exchange_token import ExchangeToken
+from src.access.usecases.issue_editor_link import IssueEditorLink
+from src.bootstrap.settings import EditorSettings, TelegramSettings
 from src.bootstrap.telegram.gateway import TelegramChatGateway
 from src.bootstrap.telegram.router import build_router
 from src.dialog.adapters.asyncpg import AsyncpgSettingsRepository
@@ -19,19 +26,33 @@ from src.dialog.adapters.memory import (
 from src.dialog.adapters.redis import RedisReminderQueue, RedisSessionRepository
 from src.dialog.ports import ChatGateway, ReminderQueue, SessionRepository, SettingsRepository
 from src.dialog.services import DialogService
+from src.dialog.usecases.get_reminder_settings import GetReminderSettings
 from src.dialog.usecases.handle_event import HandleEvent
 from src.dialog.usecases.resume_or_restart import ResumeOrRestart
+from src.dialog.usecases.save_reminder_settings import SaveReminderSettings
 from src.dialog.usecases.send_reminders import SendReminders
 from src.leads.adapters.asyncpg import AsyncpgLeadRepository
-from src.leads.adapters.memory import InMemoryLeadRepository, MockManagerNotifier
-from src.leads.adapters.telegram import TelegramManagerNotifier
-from src.leads.ports import LeadRepository, ManagerNotifier
+from src.leads.adapters.memory import (
+    InMemoryLeadRepository,
+    MockFileGateway,
+    MockManagerNotifier,
+)
+from src.leads.adapters.telegram import TelegramFileGateway, TelegramManagerNotifier
+from src.leads.ports import FileGateway, LeadRepository, ManagerNotifier
 from src.leads.services import LeadService
+from src.leads.usecases.download_lead_file import DownloadLeadFile
+from src.leads.usecases.get_lead import GetLead
+from src.leads.usecases.list_leads import ListLeads
 from src.scenario.adapters.asyncpg import AsyncpgScenarioRepository
 from src.scenario.adapters.memory import InMemoryScenarioRepository
 from src.scenario.ports import ScenarioRepository
 from src.scenario.services import ScenarioService
+from src.scenario.usecases.activate_version import ActivateVersion
 from src.scenario.usecases.ensure_seeded import EnsureSeeded
+from src.scenario.usecases.get_draft import GetDraft
+from src.scenario.usecases.list_versions import ListVersions
+from src.scenario.usecases.publish_scenario import PublishScenario
+from src.scenario.usecases.save_draft import SaveDraft
 from src.shared import redis_client
 from src.shared.asyncpg_db import AsyncpgDatabase, PostgresSettings
 from src.shared.redis_client import RedisSettings
@@ -64,6 +85,7 @@ class Container(containers.DeclarativeContainer):
     postgres_settings = providers.Singleton(PostgresSettings)
     redis_settings = providers.Singleton(RedisSettings)
     telegram_settings = providers.Singleton(TelegramSettings)
+    editor_settings = providers.Singleton(EditorSettings)
 
     # 2. порты
     scenario_repository = providers.AbstractSingleton(ScenarioRepository)
@@ -73,6 +95,9 @@ class Container(containers.DeclarativeContainer):
     chat_gateway = providers.AbstractSingleton(ChatGateway)
     lead_repository = providers.AbstractSingleton(LeadRepository)
     manager_notifier = providers.AbstractSingleton(ManagerNotifier)
+    file_gateway = providers.AbstractSingleton(FileGateway)
+    admin_repository = providers.AbstractSingleton(AdminRepository)
+    token_repository = providers.AbstractSingleton(TokenRepository)
 
     # 3. инфраструктура и адаптеры
     asyncpg_db = providers.Resource(AsyncpgDatabase.initialize, postgres_settings)
@@ -86,6 +111,9 @@ class Container(containers.DeclarativeContainer):
     telegram_chat_gateway = providers.Singleton(TelegramChatGateway, bot)
     redis_session_repository = providers.Singleton(RedisSessionRepository, redis)
     redis_reminder_queue = providers.Singleton(RedisReminderQueue, redis)
+    telegram_file_gateway = providers.Singleton(TelegramFileGateway, bot)
+    asyncpg_admin_repository = providers.Singleton(AsyncpgAdminRepository, asyncpg_db)
+    asyncpg_token_repository = providers.Singleton(AsyncpgTokenRepository, asyncpg_db)
     telegram_manager_notifier = providers.Singleton(
         TelegramManagerNotifier, bot, telegram_settings.provided.manager_chat_id
     )
@@ -96,10 +124,14 @@ class Container(containers.DeclarativeContainer):
     memory_reminder_queue = providers.Singleton(InMemoryReminderQueue)
     memory_settings_repository = providers.Singleton(InMemorySettingsRepository)
     mock_manager_notifier = providers.Singleton(MockManagerNotifier)
+    mock_file_gateway = providers.Singleton(MockFileGateway)
+    memory_admin_repository = providers.Singleton(InMemoryAdminRepository)
+    memory_token_repository = providers.Singleton(InMemoryTokenRepository)
 
     # 4. сервисы
     scenario_service = providers.Singleton(ScenarioService, scenario_repository)
-    lead_service = providers.Singleton(LeadService, lead_repository, manager_notifier)
+    lead_service = providers.Singleton(LeadService, lead_repository, manager_notifier, file_gateway)
+    access_service = providers.Singleton(AccessService, admin_repository, token_repository)
     dialog_service = providers.Singleton(
         DialogService, session_repository, reminder_queue, scenario_service, settings_repository
     )
@@ -112,13 +144,37 @@ class Container(containers.DeclarativeContainer):
     chat_gateway.override(telegram_chat_gateway)
     lead_repository.override(asyncpg_lead_repository)
     manager_notifier.override(telegram_manager_notifier)
+    file_gateway.override(telegram_file_gateway)
+    admin_repository.override(asyncpg_admin_repository)
+    token_repository.override(asyncpg_token_repository)
 
     # 6. usecase и точки входа
     ensure_seeded = providers.Singleton(EnsureSeeded, scenario_service)
     handle_event = providers.Singleton(HandleEvent, dialog_service, lead_service, clock)
     resume_or_restart = providers.Singleton(ResumeOrRestart, dialog_service)
     send_reminders = providers.Singleton(SendReminders, dialog_service, lead_service, chat_gateway)
-    telegram_router = providers.Singleton(build_router, handle_event, resume_or_restart)
+    issue_editor_link = providers.Singleton(
+        IssueEditorLink,
+        access_service,
+        editor_settings.provided.base_url,
+        telegram_settings.provided.invite_code,
+        clock,
+    )
+    exchange_token = providers.Singleton(ExchangeToken, access_service, clock)
+    check_editor_session = providers.Singleton(CheckEditorSession, access_service, clock)
+    get_draft = providers.Singleton(GetDraft, scenario_service)
+    save_draft = providers.Singleton(SaveDraft, scenario_service)
+    publish_scenario = providers.Singleton(PublishScenario, scenario_service)
+    list_versions = providers.Singleton(ListVersions, scenario_service)
+    activate_version = providers.Singleton(ActivateVersion, scenario_service)
+    list_leads = providers.Singleton(ListLeads, lead_service)
+    get_lead = providers.Singleton(GetLead, lead_service)
+    download_lead_file = providers.Singleton(DownloadLeadFile, lead_service)
+    get_reminder_settings = providers.Singleton(GetReminderSettings, dialog_service)
+    save_reminder_settings = providers.Singleton(SaveReminderSettings, dialog_service)
+    telegram_router = providers.Singleton(
+        build_router, handle_event, resume_or_restart, issue_editor_link
+    )
     dispatcher = providers.Singleton(_build_dispatcher, telegram_router)
 
 

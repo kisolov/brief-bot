@@ -22,8 +22,11 @@ from aiogram.types import (
     Update,
     User,
 )
+from dependency_injector import providers
+from pydantic import SecretStr
 
 from src.bootstrap.di import Container
+from src.bootstrap.settings import EditorSettings, TelegramSettings
 
 CHAT = Chat(id=7, type="private")
 USER = User(id=7, is_bot=False, first_name="Анна", username="anna")
@@ -47,7 +50,7 @@ def _reply(method: TelegramMethod):
 
 
 @pytest.fixture
-async def stand():
+async def container():
     container = Container()
     container.scenario_repository.override(container.memory_scenario_repository)
     container.session_repository.override(container.memory_session_repository)
@@ -55,7 +58,25 @@ async def stand():
     container.settings_repository.override(container.memory_settings_repository)
     container.lead_repository.override(container.memory_lead_repository)
     container.manager_notifier.override(container.mock_manager_notifier)
+    container.admin_repository.override(container.memory_admin_repository)
+    container.token_repository.override(container.memory_token_repository)
+    container.file_gateway.override(container.mock_file_gateway)
+    container.editor_settings.override(
+        providers.Object(EditorSettings(base_url="https://editor.example.com"))
+    )
+    container.telegram_settings.override(
+        providers.Object(
+            TelegramSettings(
+                token=SecretStr("1:x"), manager_chat_id=1, invite_code=SecretStr("code")
+            )
+        )
+    )
     await container.scenario_service().ensure_seeded()
+    return container
+
+
+@pytest.fixture
+async def stand(container):
     bot = Bot(token="123456:TEST-token")
     calls: list[TelegramMethod] = []
 
@@ -261,3 +282,54 @@ async def test_old_button_does_not_change_session(stand):
 
     assert await sessions.get(CHAT.id) == before
     assert AnswerCallbackQuery in [type(c) for c in calls]
+
+
+def _editor(text: str) -> Update:
+    entity = MessageEntity(type="bot_command", offset=0, length=len("/editor"))
+    return Update(update_id=9, message=_message(text, [entity]))
+
+
+async def test_editor_gives_link_to_admin(stand, container):
+    _, _, calls, _ = stand
+    await container.access_service().add_admin(USER.id)
+
+    await _feed(stand, _editor("/editor"))
+
+    (sent,) = calls
+    assert isinstance(sent, SendMessage)
+    assert "https://editor.example.com/login?token=" in sent.text
+    assert "10 минут" in sent.text
+
+
+async def test_editor_with_invite_code_adds_admin(stand, container):
+    _, _, calls, _ = stand
+
+    await _feed(stand, _editor("/editor code"))
+
+    (sent,) = calls
+    assert "https://editor.example.com/login?token=" in sent.text
+    assert await container.access_service().is_admin(USER.id)
+
+
+async def test_editor_refuses_stranger_and_wrong_code_identically(stand, container):
+    _, _, calls, _ = stand
+
+    await _feed(stand, _editor("/editor"))
+    await _feed(stand, _editor("/editor wrong"))
+
+    assert [c.text for c in calls] == ["Эта команда только для администраторов."] * 2
+    assert not await container.access_service().is_admin(USER.id)
+
+
+async def test_editor_does_not_touch_questionnaire_session(stand, container):
+    _, _, calls, sessions = stand
+    text_step, _ = await _text_step_stand(stand)
+    before = await sessions.get(CHAT.id)
+    await container.access_service().add_admin(USER.id)
+    calls.clear()
+
+    await _feed(stand, _editor("/editor"))
+
+    assert await sessions.get(CHAT.id) == before
+    assert before.answers == {}
+    assert len(calls) == 1

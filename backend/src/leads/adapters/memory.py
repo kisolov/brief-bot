@@ -3,7 +3,7 @@
 from dataclasses import replace
 
 from src.leads.entities import Lead, LeadStatus
-from src.leads.ports import LeadRepository, ManagerNotifier
+from src.leads.ports import FileGateway, LeadRepository, ManagerNotifier
 from src.shared.exceptions import NotFound
 
 
@@ -50,3 +50,18 @@ class MockManagerNotifier(ManagerNotifier):
         if self.fail:
             raise RuntimeError("менеджерский чат недоступен")
         self.sent.append((chat_parts, file_id))
+
+
+class MockFileGateway(FileGateway):
+    """Файлы по file_id; errors задаёт исключение, которое бросит скачивание."""
+
+    def __init__(self) -> None:
+        self.files: dict[str, bytes] = {}
+        self.errors: dict[str, Exception] = {}
+
+    async def download(self, file_id: str) -> bytes:
+        if file_id in self.errors:
+            raise self.errors[file_id]
+        if file_id not in self.files:
+            raise NotFound(f"файла {file_id} нет")
+        return self.files[file_id]

@@ -88,6 +88,7 @@
 | `schedule_reminder`, `cancel_reminder` | очередь напоминаний |
 | `due_reminders(now, limit)` | чаты с наступившим сроком, записи снимаются |
 | `reminder_settings()` | `ReminderSettings` из `SettingsRepository` |
+| `save_reminder_settings(settings)` | записывает `ReminderSettings` через `SettingsRepository` |
 
 Экран возобновления: `resume_screen()` с маркером `RESUME_STEP = "@resume"`, кнопки `continue` "Продолжить" и `restart` "Начать заново", `can_back = False`. Для `Screen.step == "@resume"` клавиатура пакует кнопки как `r:continue` и `r:restart`.
 
@@ -98,6 +99,8 @@
 | [HandleEvent](../../../backend/src/dialog/usecases/handle_event.py) `(chat_id, username, event) -> Screen` | единственный вход событий диалога, порядок решений в [INVARIANTS](INVARIANTS.md) |
 | [ResumeOrRestart](../../../backend/src/dialog/usecases/resume_or_restart.py) `(chat_id, choice, username=None) -> Screen` | `continue` показывает текущий экран; `restart` и отсутствие сессии: новая сессия |
 | [SendReminders](../../../backend/src/dialog/usecases/send_reminders.py) `(now) -> int` | напоминание о брошенной анкете и частичная заявка менеджеру, порядок в [DATA_FLOWS](DATA_FLOWS.md) |
+| [GetReminderSettings](../../../backend/src/dialog/usecases/get_reminder_settings.py) `() -> ReminderSettings` | настройки напоминания для редактора (`GET /api/settings/reminder`) |
+| [SaveReminderSettings](../../../backend/src/dialog/usecases/save_reminder_settings.py) `(settings) -> ReminderSettings` | сохраняет настройки из редактора, один `INFO` с `hours`; границы значений проверяет DTO [ReminderSettingsDto](../../../backend/src/dialog/schema.py) (`hours` 1..168, `text` 1..1024 символа), домен их не проверяет |
 
 [build_lead](../../../backend/src/dialog/lead_builder.py)`(scenario, session, status, now) -> Lead`: чистая функция. `answers` в порядке записи, только с `key` и без `BRANCH_KEY`, значение через `answer_text`; `branch` это подпись последнего ответа с `BRANCH_KEY` (иначе пусто); `file_id` последнего ответа с файлом; `last_step` первая строка текста текущего шага до 100 символов. Пустые значения не пропускаются.
 

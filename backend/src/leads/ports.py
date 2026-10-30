@@ -23,6 +23,12 @@ class LeadRepository(ABC):
         """NotFound, если заявки нет."""
 
 
+class FileGateway(ABC):
+    @abstractmethod
+    async def download(self, file_id: str) -> bytes:
+        """Содержимое файла по file_id. FileTooLarge, если файл не отдаётся ботом."""
+
+
 class ManagerNotifier(ABC):
     @abstractmethod
     async def send(self, chat_parts: list[str], file_id: str | None) -> None:

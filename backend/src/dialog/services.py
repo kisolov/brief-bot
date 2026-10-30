@@ -108,3 +108,6 @@ class DialogService:
 
     async def reminder_settings(self) -> ReminderSettings:
         return await self._settings.get_reminder()
+
+    async def save_reminder_settings(self, settings: ReminderSettings) -> None:
+        await self._settings.save_reminder(settings)

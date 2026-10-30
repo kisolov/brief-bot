@@ -10,7 +10,10 @@ from fastapi import FastAPI
 
 from src.bootstrap.di import Container
 from src.bootstrap.di import container as default_container
+from src.bootstrap.endpoints import auth, leads, scenario, settings
 from src.bootstrap.jobs.reminders import run_reminders
+from src.bootstrap.utils import session
+from src.bootstrap.utils.exception_handlers import exception_handlers
 from src.shared.logger import get_logger
 from src.shared.migrate import MIGRATIONS_DIR, apply_migrations
 
@@ -33,7 +36,8 @@ def create_app(container: Container = default_container) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Настройки первыми: неверная конфигурация падает до подключения к базам.
-        settings = container.telegram_settings()
+        telegram = container.telegram_settings()
+        container.editor_settings()
         tasks: list[asyncio.Task[None]] = []
         try:
             await container.init_resources()
@@ -41,7 +45,7 @@ def create_app(container: Container = default_container) -> FastAPI:
             await apply_migrations(db.pool, MIGRATIONS_DIR)
             ensure_seeded = await container.ensure_seeded()
             await ensure_seeded()
-            if settings.polling_enabled:
+            if telegram.polling_enabled:
                 dispatcher = await container.dispatcher()
                 bot = await container.bot()
                 tasks.append(asyncio.create_task(_poll(dispatcher, bot)))
@@ -57,7 +61,17 @@ def create_app(container: Container = default_container) -> FastAPI:
                     await task
             await container.shutdown_resources()
 
-    app = FastAPI(lifespan=lifespan)
+    # Редактор закрыт, схема и документация наружу не нужны.
+    app = FastAPI(
+        lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        exception_handlers=exception_handlers,
+    )
+    container.wire(modules=[auth, scenario, leads, settings, session])
+    for module in (auth, scenario, leads, settings):
+        app.include_router(module.router)
 
     @app.get("/health")
     async def health() -> dict[str, str]:

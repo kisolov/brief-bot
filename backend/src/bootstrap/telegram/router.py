@@ -3,9 +3,11 @@
 from typing import Any
 
 from aiogram import Bot, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import CallbackQuery, ErrorEvent, Message
 
+from src.access.exceptions import NotAdmin
+from src.access.usecases.issue_editor_link import IssueEditorLink
 from src.bootstrap.telegram.callback import unpack, unpack_resume
 from src.bootstrap.telegram.render import reply_screen, update_screen
 from src.dialog.entities import Event
@@ -16,6 +18,8 @@ from src.shared.logger import get_logger
 logger = get_logger(__name__)
 
 ERROR_TEXT = "Что-то пошло не так. Попробуйте ещё раз."
+NOT_ADMIN_TEXT = "Эта команда только для администраторов."
+EDITOR_LINK_TEXT = "Ссылка на редактор: {link}\nОна действует 10 минут и срабатывает один раз."
 
 
 def message_event(message: Any) -> Event:
@@ -52,7 +56,11 @@ async def handle_error(event: ErrorEvent, bot: Bot) -> bool:
     return True
 
 
-def build_router(handle_event: HandleEvent, resume_or_restart: ResumeOrRestart) -> Router:
+def build_router(
+    handle_event: HandleEvent,
+    resume_or_restart: ResumeOrRestart,
+    issue_editor_link: IssueEditorLink,
+) -> Router:
     router = Router()
 
     @router.message(CommandStart())
@@ -60,6 +68,20 @@ def build_router(handle_event: HandleEvent, resume_or_restart: ResumeOrRestart) 
         username = message.from_user.username if message.from_user else None
         screen = await handle_event(message.chat.id, username, Event("start"))
         await reply_screen(message, screen)
+
+    @router.message(Command("editor"))
+    async def on_editor(message: Message, command: CommandObject) -> None:
+        # Сессию анкеты не трогаем: команда не ответ и не шаг.
+        if message.from_user is None:
+            await message.answer(NOT_ADMIN_TEXT)
+            return
+        code = command.args.strip() if command.args else None
+        try:
+            link = await issue_editor_link(message.from_user.id, code or None)
+        except NotAdmin:
+            await message.answer(NOT_ADMIN_TEXT)
+            return
+        await message.answer(EDITOR_LINK_TEXT.format(link=link))
 
     @router.callback_query()
     async def on_callback(callback: CallbackQuery) -> None:
