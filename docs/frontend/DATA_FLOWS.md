@@ -60,3 +60,44 @@ StepPanel "Новый шаг…" → useAddStep(info, {from: {step, handle}}) �
        StepPanel показывает ошибки шага полосой, "Ко всем ошибкам" возвращает список
   сбой сети: notice над схемой
 ```
+
+## Бейдж "В боте"
+
+```
+layouts/default.vue (onMounted) → useLoadVersions → scenario store loadVersions()
+  → ScenarioRepository.getVersions → versions, activeVersion
+шапка: "В боте: версия N" на любой странице; схема для этого не открывается
+публикация: store.publish → после успеха список версий читается заново
+```
+
+## Заявки
+
+```
+leads.vue (onMounted) → useLoadLeads → lead store load() → LeadRepository.list → GET /api/leads
+фильтр "Все / Полные / Брошенные" → store.setFilter → visible (на клиенте); выбор остаётся на видимой заявке
+клик по строке → store.select → LeadDetail
+"Скачать ТЗ" → useDownloadLeadFile → store.downloadFile → GET /api/leads/{id}/file (blob)
+  успех: браузер сохраняет tz-<id>; 413: "Файл больше 20 МБ. Telegram не отдаёт такие файлы ботам."
+```
+
+## Настройки
+
+```
+settings.vue (onMounted) → useLoadSettings → settings store load() → GET /api/settings/reminder
+"Сохранить" → useSaveReminder → store.save
+  часы не 1..168 или текст пуст/длиннее 1024: errors у полей, запроса нет
+  иначе PUT /api/settings/reminder → "Сохранено"
+```
+
+## Вернуть версию
+
+```
+versions.vue: "Вернуть" → useActivateVersion(n)
+  store.needsRollbackConfirm (есть правки или совпадение с версией неизвестно) → confirm "Черновик будет заменён версией N. Продолжить?"; отказ: ничего не меняется
+  → store.activate(n): дождаться сохранения в полёте → POST /api/scenario/versions/{n}/activate (черновик становится копией версии)
+  → store.load(): черновик, версии, шапка "В боте: версия N"
+```
+
+## Любая страница: 401
+
+`SessionExpired` → [usePageGuard](../../editor/app/composables/usePageGuard.ts) (или композабл загрузки сценария) → `/login`.

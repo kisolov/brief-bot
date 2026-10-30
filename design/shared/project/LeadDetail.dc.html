@@ -15,6 +15,7 @@ a{color:#1F4FBF}a:hover{color:#163A8E}
 </style>
 </helmet>
 <article aria-label="Карточка заявки" style="width: 600px; min-height: 844px; box-sizing: border-box; padding: 20px; background: #FFFFFF; border-left: 1px solid #D9DEE5; display: flex; flex-direction: column; gap: 16px; font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px; color: #18212C">
+<sc-if value="{{isCard}}" hint-placeholder-val="{{ true }}">
 <div style="display: flex; flex-direction: column; gap: 4px">
 <div style="font-size: 18px; font-weight: 600">[Имя клиента 1]</div>
 <div style="color: #3A4656">Новый сайт, товары. Сегодня, 14:12</div>
@@ -29,13 +30,24 @@ a{color:#1F4FBF}a:hover{color:#163A8E}
 <div style="display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid #EDF0F4; font-size: 13px"><span style="color: #546070">{{answer.key}}</span><span>{{answer.value}}</span></div>
 </sc-for>
 </div>
+<div style="display: flex; flex-direction: column; gap: 6px">
 <a href="#" style="font-size: 14px; font-weight: 500; color: #1F4FBF">Скачать ТЗ</a>
+<sc-if value="{{isFileError}}" hint-placeholder-val="{{ false }}"><p role="alert" style="margin: 0; font-size: 13px; color: #B3261E">Файл больше 20 МБ. Telegram не отдаёт такие файлы ботам.</p></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 40px 0; text-align: center; font-size: 14px; color: #546070">Выберите заявку в списке.</div>
+</sc-if>
 </article>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":600,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["card","fileError","empty"],"default":"card"},"$preview":{"width":600,"height":844}}'>
 class Component extends DCLogic {
   renderVals() {
+    const state = this.props.state ?? 'card';
     return {
+      isCard: state !== 'empty',
+      isFileError: state === 'fileError',
+      isEmpty: state === 'empty',
       answers: [
         { key: 'Оплата на сайте', value: 'Да' },
         { key: 'Расчёт доставки', value: 'Да' },

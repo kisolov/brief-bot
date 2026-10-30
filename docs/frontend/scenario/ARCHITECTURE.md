@@ -20,9 +20,9 @@
 
 ## Store
 
-[scenario.store.ts](../../../editor/app/stores/scenario.store.ts): `steps`, `entry`, `blocks`, `selectedId`, `revision`, `issues`, `activeVersion`, `scenario` (сборка для схемы), `homes` (вид, где создан ещё не подключённый шаг), состояние сохранения (`edits`, `dirty`, `saving`, `savedAt`, `saveFailed`, `conflict`), `publishing`, `notice`.
+[scenario.store.ts](../../../editor/app/stores/scenario.store.ts): `steps`, `entry`, `blocks`, `selectedId`, `revision`, `issues`, `activeVersion`, `versions` (список версий для страницы "Версии" и бейджа), `draftMatchesActive`, `needsRollbackConfirm`, `scenario` (сборка для схемы), `homes` (вид, где создан ещё не подключённый шаг), состояние сохранения (`edits`, `dirty`, `saving`, `savedAt`, `saveFailed`, `conflict`), `publishing`, `notice`.
 
-Действия правки, все неизменяемые: `updateStep`, `changeStepType`, `clearPositions`, `addStep`, `removeStep`, `addOption`, `updateOption`, `removeOption`, `connect` (без цели снимает переход). Каждая принятая правка увеличивает `edits`; при `conflict` правки не принимаются. Остальное: `load`, `select`, `setIssues`, `setNotice`, `blocksStartingAt`, `toDraftData`, `flush` (очередь сохранений), `publish` (дожать черновик, опубликовать, при 422 положить `issues`).
+Действия правки, все неизменяемые: `updateStep`, `changeStepType`, `clearPositions`, `addStep`, `removeStep`, `addOption`, `updateOption`, `removeOption`, `connect` (без цели снимает переход). Каждая принятая правка увеличивает `edits`; при `conflict` правки не принимаются. Остальное: `load`, `loadVersions` (список и бейдж без загрузки схемы), `activate(n)` (откат), `select`, `setIssues`, `setNotice`, `blocksStartingAt`, `toDraftData`, `flush` (очередь сохранений), `publish` (дожать черновик, опубликовать, при 422 положить `issues`).
 
 ## Композаблы
 
@@ -35,6 +35,8 @@
 | [useConnectSteps](../../../editor/app/composables/useConnectSteps.ts) | соединить шаги: стрелка на схеме и список "Куда ведёт" пишут один переход | StepPanel, index.vue |
 | [useAutosaveDraft](../../../editor/app/composables/useAutosaveDraft.ts) | сохранять черновик через 800 мс тишины; отдаёт текст статуса для шапки | [layouts/default.vue](../../../editor/app/layouts/default.vue) |
 | [usePublishScenario](../../../editor/app/composables/usePublishScenario.ts) | опубликовать: `store.publish`, ошибки сценария остаются в store, сбой сети становится `notice` | layouts/default.vue |
+| [useLoadVersions](../../../editor/app/composables/useLoadVersions.ts) | загрузить версии для бейджа и страницы, схема не нужна | layouts/default.vue, [versions.vue](../../../editor/app/pages/versions.vue) |
+| [useActivateVersion](../../../editor/app/composables/useActivateVersion.ts) | вернуть версию: при правках или расхождении с активной версией `confirm("Черновик будет заменён версией N. Продолжить?")`, затем `store.activate(n)` | versions.vue |
 
 ## Схема
 
@@ -59,3 +61,7 @@
 `StepPanel` поля: тип шага; "Текст сообщения"; "Как подписать ответ в заявке" (`key`, кроме типа "Сообщение"); у текстового шага "Проверять ответ" (не проверять, как телефон, как ссылку); кнопки с подписью и счётчиком до 40 знаков; "Куда ведёт" кнопки (только у выбора, сообщения и завершающего шага: никуда, ссылка на сайт, шаг, блок с выбором шага возврата, новый шаг); у "Несколько ответов" и "Несколько + поле" вместо "Куда ведёт" флажки "Человек вводит свой текст" (`input`) и "Снимает другие отметки" (`exclusive`); "Куда идти дальше" шага (`next`); "Завершить анкету на этом шаге" (`finish`) и "Куда ведёт «Назад» после завершения" (`back_to`); "Когда показывать" (`when`): вопрос, "Показывать, если отмечено" (`any`) и "И не отмечено" (`none`); "Удалить шаг". Id шагов и кнопок на экране не показываются.
 
 Шапка показывает статус черновика, "В боте: версия N" и кнопку "Опубликовать".
+
+## Версии
+
+Страница [versions.vue](../../../editor/app/pages/versions.vue) и [VersionsList](../../../editor/app/components/VersionsList.vue) (артборд `VersionsList`): новые версии сверху, у активной "Сейчас в боте", у прочих "Вернуть". Откат на backend делает черновик копией версии. `store.activate(n)`: дожидается сохранения в полёте, зовёт `activate`, затем `load()` (черновик, список версий, шапка "В боте: версия N" берутся заново). `draftMatchesActive` истинно после публикации и после отката и сбрасывается первой же правкой и каждой загрузкой: API не отдаёт содержимое версии, поэтому после перезагрузки страницы расхождение считается возможным и подтверждение спрашивается. Список версий мок хранит вместе с содержимым: `activate` в моке заменяет черновик.

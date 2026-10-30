@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Заявок пока нет</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#1F4FBF}a:hover{color:#163A8E}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #F7F8FA; display: flex; flex-direction: column">
+<dc-import name="AppHeader" active="leads" hint-size="100%,56px"></dc-import>
+<div style="display: flex; flex-wrap: wrap; align-items: stretch">
+<div style="flex: 999 1 560px; min-width: 0"><dc-import name="LeadsTable" state="empty" hint-size="840px,844px"></dc-import></div>
+<dc-import name="LeadDetail" state="empty" hint-size="600px,844px"></dc-import>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -18,20 +18,33 @@ body{margin:0}
 <div style="font-size: 18px; font-weight: 600">Напоминание о брошенной анкете</div>
 <div style="display: flex; flex-direction: column; gap: 6px">
 <label for="remind-hours" style="font-weight: 500">Через сколько часов напоминать</label>
-<input id="remind-hours" type="number" value="3" style="font: inherit; box-sizing: border-box; width: 120px; height: 40px; padding: 0 10px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C">
+<input id="remind-hours" type="number" value="{{hours}}" style="font: inherit; box-sizing: border-box; width: 120px; height: 40px; padding: 0 10px; border: 1px solid {{hoursBorder}}; border-radius: 6px; background: #FFFFFF; color: #18212C">
+<sc-if value="{{hoursError}}" hint-placeholder-val="{{ false }}"><p role="alert" style="margin: 0; font-size: 13px; color: #B3261E">Укажите целое число часов от 1 до 168.</p></sc-if>
 </div>
 <div style="display: flex; flex-direction: column; gap: 6px">
 <label for="remind-text" style="font-weight: 500">Текст напоминания</label>
-<textarea id="remind-text" rows="4" style="font: inherit; line-height: 20px; box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C; resize: vertical">Вы не закончили анкету. Продолжим с того же места?</textarea>
+<sc-if value="{{textFilled}}" hint-placeholder-val="{{ true }}"><textarea id="remind-text" rows="4" style="font: inherit; line-height: 20px; box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C; resize: vertical">Вы не закончили анкету. Продолжим с того же места?</textarea></sc-if>
+<sc-if value="{{textEmpty}}" hint-placeholder-val="{{ false }}"><textarea id="remind-text" rows="4" style="font: inherit; line-height: 20px; box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #B3261E; border-radius: 6px; background: #FFFFFF; color: #18212C; resize: vertical"></textarea></sc-if>
+<sc-if value="{{textError}}" hint-placeholder-val="{{ false }}"><p role="alert" style="margin: 0; font-size: 13px; color: #B3261E">Напишите текст напоминания.</p></sc-if>
 </div>
-<div><button type="button" style="font: inherit; font-weight: 600; height: 40px; padding: 0 16px; border: 0; border-radius: 6px; background: #1F4FBF; color: #FFFFFF">Сохранить</button></div>
+<div style="display: flex; align-items: center; gap: 12px"><button type="button" style="font: inherit; font-weight: 600; height: 40px; padding: 0 16px; border: 0; border-radius: 6px; background: #1F4FBF; color: #FFFFFF">Сохранить</button><sc-if value="{{isSaved}}" hint-placeholder-val="{{ false }}"><span role="status" style="font-size: 13px; font-weight: 500; color: #0B6B4F">Сохранено</span></sc-if></div>
 </div>
 </section>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["plain","errors","saved"],"default":"plain"},"$preview":{"width":1440,"height":844}}'>
 class Component extends DCLogic {
   renderVals() {
-    return {};
+    const state = this.props.state ?? 'plain';
+    const bad = state === 'errors';
+    return {
+      hours: bad ? '0' : '3',
+      textFilled: !bad,
+      textEmpty: bad,
+      hoursError: bad,
+      textError: bad,
+      hoursBorder: bad ? '#B3261E' : '#A9B3C0',
+      isSaved: state === 'saved'
+    };
   }
 }
 </script>

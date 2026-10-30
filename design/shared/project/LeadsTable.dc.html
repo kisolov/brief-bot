@@ -20,24 +20,36 @@ body{margin:0}
 <button type="button" style="font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid #C8CFD9; border-radius: 6px; background: #FFFFFF; color: #3A4656">Полные</button>
 <button type="button" style="font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid #C8CFD9; border-radius: 6px; background: #FFFFFF; color: #3A4656">Брошенные</button>
 </div>
+<sc-if value="{{isList}}" hint-placeholder-val="{{ true }}">
 <div style="background: #FFFFFF; border: 1px solid #D9DEE5; border-radius: 8px; overflow-x: auto">
 <table style="width: 100%; border-collapse: collapse; font-size: 13px">
 <thead><tr style="text-align: left; color: #546070"><th scope="col" style="padding: 10px 12px; font-weight: 500">Когда</th><th scope="col" style="padding: 10px 12px; font-weight: 500">Клиент</th><th scope="col" style="padding: 10px 12px; font-weight: 500">Запрос</th><th scope="col" style="padding: 10px 12px; font-weight: 500">Статус</th></tr></thead>
 <tbody>
 <sc-for list="{{leads}}" as="lead" hint-placeholder-count="5">
-<tr style="background: {{lead.bg}}; border-top: 1px solid #EDF0F4"><td style="padding: 12px; color: #3A4656; white-space: nowrap">{{lead.when}}</td><td style="padding: 12px; font-weight: 500">{{lead.client}}</td><td style="padding: 12px">{{lead.topic}}</td><td style="padding: 12px"><span style="font-size: 12px; font-weight: 600; border-radius: 6px; padding: 3px 8px; white-space: nowrap; background: {{lead.statusBg}}; color: {{lead.statusInk}}">{{lead.status}}</span></td></tr>
+<tr style="background: {{lead.bg}}; border-top: 1px solid #EDF0F4"><td style="padding: 12px; color: #3A4656; white-space: nowrap">{{lead.when}}</td><td style="padding: 12px; font-weight: 500">{{lead.client}}</td><td style="padding: 12px">{{lead.topic}}</td><td style="padding: 12px"><span style="display: inline-block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; font-size: 12px; font-weight: 600; border-radius: 6px; padding: 3px 8px; white-space: nowrap; background: {{lead.statusBg}}; color: {{lead.statusInk}}">{{lead.status}}</span></td></tr>
 </sc-for>
 </tbody>
 </table>
 </div>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<div style="background: #FFFFFF; border: 1px solid #D9DEE5; border-radius: 8px; padding: 40px 12px; text-align: center; font-size: 14px; color: #546070">Заявок пока нет.</div>
+</sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{ false }}">
+<p role="alert" style="margin: 0; background: #FFFFFF; border: 1px solid #D9DEE5; border-radius: 8px; padding: 40px 12px; text-align: center; font-size: 14px; color: #B3261E">Сервер не отвечает. Попробуйте позже.</p>
+</sc-if>
 </section>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":840,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["list","empty","error"],"default":"list"},"$preview":{"width":840,"height":844}}'>
 class Component extends DCLogic {
   renderVals() {
+    const state = this.props.state ?? 'list';
     const full = { status: 'Полная', statusBg: '#E4F4EE', statusInk: '#0B5B44' };
-    const partial = { status: 'Брошена на шаге 9', statusBg: '#FBEBD9', statusInk: '#8A4300' };
+    const partial = { status: 'Брошена на шаге «Какой бюджет вы рассматриваете?»', statusBg: '#FBEBD9', statusInk: '#8A4300' };
     return {
+      isList: state === 'list',
+      isEmpty: state === 'empty',
+      isError: state === 'error',
       leads: [
         { when: 'Сегодня, 14:12', client: '[Имя клиента 1]', topic: 'Новый сайт, товары', bg: '#EFF3FC', ...full },
         { when: 'Сегодня, 11:40', client: '[Имя клиента 2]', topic: 'Продвижение сайта', bg: '#FFFFFF', ...full },

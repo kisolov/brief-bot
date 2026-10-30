@@ -16,6 +16,7 @@ body{margin:0}
 <section aria-label="Версии сценария" style="box-sizing: border-box; min-height: 844px; padding: 24px 20px; background: #F7F8FA; font-family: 'Golos Text', system-ui, sans-serif; font-size: 14px; color: #18212C">
 <div style="max-width: 720px; display: flex; flex-direction: column; gap: 14px">
 <div style="font-size: 18px; font-weight: 600">Версии сценария</div>
+<sc-if value="{{isError}}" hint-placeholder-val="{{ false }}"><p role="alert" style="margin: 0; font-size: 13px; color: #B3261E">Сервер не отвечает. Попробуйте позже.</p></sc-if>
 <div style="background: #FFFFFF; border: 1px solid #D9DEE5; border-radius: 8px; display: flex; flex-direction: column">
 <sc-for list="{{versions}}" as="version" hint-placeholder-count="4">
 <div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border-top: 1px solid #EDF0F4">
@@ -29,10 +30,12 @@ body{margin:0}
 </div>
 </section>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["list","error"],"default":"list"},"$preview":{"width":1440,"height":844}}'>
 class Component extends DCLogic {
   renderVals() {
+    const state = this.props.state ?? 'list';
     return {
+      isError: state === 'error',
       versions: [
         { num: 7, when: 'Сегодня, 12:10', current: true, old: false },
         { num: 6, when: 'Вчера, 17:45', current: false, old: true },

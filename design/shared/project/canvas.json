@@ -16,6 +16,12 @@
     "StepPanelText.dc.html": {"x": 0, "y": 2040, "w": 336, "h": 800, "title": "Панель шага: текстовый шаг", "page": "screens"},
     "StepPanelName.dc.html": {"x": 416, "y": 2040, "w": 336, "h": 800, "title": "Панель шага: подпись бота", "page": "screens"},
     "StepPanelLink.dc.html": {"x": 832, "y": 2040, "w": 336, "h": 800, "title": "Панель шага: ссылка и условие", "page": "screens"},
+    "LeadsEmpty.dc.html": {"x": 0, "y": 3060, "w": 1440, "h": 900, "title": "Заявок пока нет", "page": "screens", "expand": "fill"},
+    "LeadsError.dc.html": {"x": 1520, "y": 3060, "w": 1440, "h": 900, "title": "Заявки не загрузились", "page": "screens", "expand": "fill"},
+    "LeadsFileError.dc.html": {"x": 3040, "y": 3060, "w": 1440, "h": 900, "title": "Файл ТЗ слишком большой", "page": "screens", "expand": "fill"},
+    "SettingsErrors.dc.html": {"x": 0, "y": 4080, "w": 1440, "h": 900, "title": "Настройки: ошибки полей", "page": "screens", "expand": "fill"},
+    "SettingsSaved.dc.html": {"x": 1520, "y": 4080, "w": 1440, "h": 900, "title": "Настройки: сохранено", "page": "screens", "expand": "fill"},
+    "VersionsError.dc.html": {"x": 3040, "y": 4080, "w": 1440, "h": 900, "title": "Версии: сбой", "page": "screens", "expand": "fill"},
     "AppHeader.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 56, "page": "components"},
     "GraphTabs.dc.html": {"x": 0, "y": 136, "w": 1440, "h": 44, "page": "components"},
     "StepNode.dc.html": {"x": 0, "y": 260, "w": 190, "h": 134, "page": "components"},
@@ -34,7 +40,9 @@
     "ScenarioGraph.dc.html", "StepPanel.dc.html", "ErrorsPanel.dc.html", "LeadsTable.dc.html", "LeadDetail.dc.html",
     "SettingsForm.dc.html", "VersionsList.dc.html",
     "Main.dc.html", "PublishErrors.dc.html", "Leads.dc.html", "Settings.dc.html", "Versions.dc.html",
-    "StepPanelText.dc.html", "StepPanelName.dc.html", "StepPanelLink.dc.html"
+    "StepPanelText.dc.html", "StepPanelName.dc.html", "StepPanelLink.dc.html",
+    "LeadsEmpty.dc.html", "LeadsError.dc.html", "LeadsFileError.dc.html",
+    "SettingsErrors.dc.html", "SettingsSaved.dc.html", "VersionsError.dc.html"
   ],
   "notes": {},
   "designSystems": []

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useContainer } from '~/container'
 import { DraftConflict, ScenarioInvalid } from '~/errors/scenario'
 import { NEXT_HANDLE } from '~/types/scenario'
-import type { GraphView, Issue, Option, Scenario, Step, StepType, Target, When } from '~/types/scenario'
+import type { GraphView, Issue, Option, Scenario, Step, StepType, Target, VersionInfo, When } from '~/types/scenario'
 import { convertStep } from '~/utils/stepType'
 
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -22,6 +22,9 @@ export const useScenarioStore = defineStore('scenario', () => {
   const revision = ref(0)
   const issues = ref<Issue[]>([])
   const activeVersion = ref<number | null>(null)
+  const versions = ref<VersionInfo[]>([])
+  /** Черновик известно равен активной версии: сразу после публикации или отката, до первой правки. */
+  const draftMatchesActive = ref(false)
   const loaded = ref(false)
   /** Вид, где создан шаг без входящего перехода: пока шаг не подключён, он показывается там. */
   const homes = ref<Record<string, GraphView>>({})
@@ -44,8 +47,17 @@ export const useScenarioStore = defineStore('scenario', () => {
     steps: steps.value,
   }))
 
+  /** Откат заменит черновик: подтверждение нужно, если есть правки или совпадение с версией неизвестно. */
+  const needsRollbackConfirm = computed(() => dirty.value || saving.value || !draftMatchesActive.value)
+
+  /** Список версий и бейдж «В боте»: не зависит от того, открыта ли схема. */
+  async function loadVersions(): Promise<void> {
+    versions.value = await repository.getVersions()
+    activeVersion.value = versions.value.find((v) => v.active)?.number ?? null
+  }
+
   async function load(): Promise<void> {
-    const [draft, versions] = await Promise.all([repository.getDraft(), repository.getVersions()])
+    const [draft, list] = await Promise.all([repository.getDraft(), repository.getVersions()])
     // черновик может быть невалидным: пустые поля не должны ронять экран
     const { entry: e, blocks: b, steps: s, ...rest } = (draft.data ?? {}) as Partial<Scenario>
     entry.value = typeof e === 'string' ? e : ''
@@ -53,7 +65,9 @@ export const useScenarioStore = defineStore('scenario', () => {
     steps.value = s ?? {}
     extra.value = rest
     revision.value = draft.revision
-    activeVersion.value = versions.find((v) => v.active)?.number ?? null
+    versions.value = list
+    activeVersion.value = list.find((v) => v.active)?.number ?? null
+    draftMatchesActive.value = false
     selectedId.value = null
     issues.value = []
     homes.value = {}
@@ -70,6 +84,7 @@ export const useScenarioStore = defineStore('scenario', () => {
     if (conflict.value) return false
     edits.value++
     dirty.value = true
+    draftMatchesActive.value = false
     return true
   }
 
@@ -196,6 +211,17 @@ export const useScenarioStore = defineStore('scenario', () => {
     updateOption(sourceStep, handle, { next: target })
   }
 
+  /**
+   * Откат: черновик на backend становится копией версии `n`, затем сценарий и список версий
+   * читаются заново. Сохранение в полёте дожидается, чтобы оно не перезаписало откат.
+   */
+  async function activate(n: number): Promise<void> {
+    await queue.catch(() => undefined)
+    await repository.activate(n)
+    await load()
+    draftMatchesActive.value = true
+  }
+
   /** Данные для `saveDraft`: исходный JSON плюс правки, без потери незнакомых полей. */
   function toDraftData(): Scenario {
     return JSON.parse(JSON.stringify(scenario.value)) as Scenario
@@ -241,7 +267,12 @@ export const useScenarioStore = defineStore('scenario', () => {
     notice.value = null
     try {
       await flush()
+      const stamp = edits.value
       const version = await repository.publish()
+      // публикуется сохранённый черновик: правка за время запроса в версию не попала
+      draftMatchesActive.value = edits.value === stamp
+      // список для страницы «Версии» обновляется по возможности; номер из ответа верен и без него
+      await loadVersions().catch(() => undefined)
       activeVersion.value = version
       issues.value = []
       return version
@@ -265,6 +296,11 @@ export const useScenarioStore = defineStore('scenario', () => {
     revision,
     issues,
     activeVersion,
+    versions,
+    draftMatchesActive,
+    needsRollbackConfirm,
+    loadVersions,
+    activate,
     loaded,
     homes,
     edits,

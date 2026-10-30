@@ -10,8 +10,10 @@
 |---|---|---|
 | scenario | черновик, версии, схема | [scenario](scenario/ARCHITECTURE.md) |
 | auth | обмен токена из ссылки бота на cookie | [auth](auth/ARCHITECTURE.md) |
+| leads | заявки: список, фильтр, карточка, файл ТЗ | [leads](leads/ARCHITECTURE.md) |
+| settings | напоминание о брошенной анкете | [settings](settings/ARCHITECTURE.md) |
 
-Не сделано и появится в следующих задачах: заявки, настройки, версии. Ссылки "Заявки", "Настройки", "Версии" в шапке ведут на ещё не существующие страницы.
+Страница "Версии" живёт в домене scenario (store хранит список версий и откат), см. [scenario](scenario/ARCHITECTURE.md).
 
 ## Общие слои
 
@@ -19,9 +21,10 @@
 |---|---|---|
 | container | [container.ts](../../editor/app/container.ts) | единственное место, где порт связывается с адаптером; `__setContainer` только для тестов |
 | HTTP-разбор | [adapters/http.ts](../../editor/app/repositories/adapters/http.ts) | `request()`: 401 это `SessionExpired`, остальное адаптер переводит сам, прочее `BackendUnavailable` |
-| Ошибки | [errors/](../../editor/app/errors) | `base.ts` (общие), `auth.ts`, `scenario.ts`; текст для человека только в [presentation.ts](../../editor/app/errors/presentation.ts) |
+| Ошибки | [errors/](../../editor/app/errors) | `base.ts` (общие), `auth.ts`, `scenario.ts`, `lead.ts`, `settings.ts`; текст для человека только в [presentation.ts](../../editor/app/errors/presentation.ts) |
 | Токены дизайна | [tokens.css](../../editor/app/assets/css/tokens.css) | цвета, шрифт, размеры, снятые с артбордов |
-| Каркас | [app.vue](../../editor/app/app.vue), [layouts/default.vue](../../editor/app/layouts/default.vue) | шапка и область страницы; в каркасе живут автосохранение и публикация, шапка показывает их состояние; страница входа без раскладки |
+| Каркас | [app.vue](../../editor/app/app.vue), [layouts/default.vue](../../editor/app/layouts/default.vue) | шапка и область страницы; в каркасе живут автосохранение, публикация и загрузка списка версий (бейдж "В боте" на любой странице, раздел шапки выбирается по адресу); страница входа без раскладки |
+| Оболочка страницы | [usePageGuard](../../editor/app/composables/usePageGuard.ts) | общая для композаблов страниц: 401 ведёт на `/login`, остальное текстом через `map…Error` |
 
 ## Запуск и сборка
 

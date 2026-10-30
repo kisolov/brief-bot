@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Настройки: сохранено</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#1F4FBF}a:hover{color:#163A8E}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #F7F8FA; display: flex; flex-direction: column">
+<dc-import name="AppHeader" active="settings" hint-size="100%,56px"></dc-import>
+<dc-import name="SettingsForm" state="saved" hint-size="100%,844px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

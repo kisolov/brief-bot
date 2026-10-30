@@ -1,5 +1,7 @@
 import { BackendUnavailable, DomainError, SessionExpired } from './base'
 import { InvalidLoginLink } from './auth'
+import { FileTooLarge, LeadNotFound } from './lead'
+import { SettingsInvalid } from './settings'
 import { DraftConflict, ScenarioInvalid, VersionNotFound } from './scenario'
 
 /** Единственное место, где ошибка предметной области превращается в текст для человека. */
@@ -36,3 +38,17 @@ export function mapAuthError(e: unknown): string {
   if (e instanceof BackendUnavailable) return 'Сервер не отвечает. Попробуйте позже.'
   return LOGIN_HINT
 }
+
+export const FILE_TOO_LARGE_TEXT = 'Файл больше 20 МБ. Telegram не отдаёт такие файлы ботам.'
+
+export function mapLeadsError(e: unknown): string {
+  if (e instanceof FileTooLarge) return FILE_TOO_LARGE_TEXT
+  if (e instanceof LeadNotFound) return 'Заявка или файл не найдены.'
+  return mapScenarioError(e)
+}
+
+export function mapSettingsError(e: unknown): string {
+  if (e instanceof SettingsInvalid) return 'Сервер не принял значения. Проверьте поля.'
+  return mapScenarioError(e)
+}
+
