@@ -1,4 +1,5 @@
 import type { Option, Step, StepType } from '~/types/scenario'
+import { isReservedKey } from '~/utils/stepKeys'
 
 export interface Conversion {
   step: Step
@@ -57,4 +58,16 @@ export function convertStep(step: Step, type: StepType): Conversion {
     if (options.length) out.options = withoutOptionKeys(options, 'input', 'exclusive')
   }
   return { step: out, lostButtons, lostLinks }
+}
+
+/**
+ * Тип нельзя менять у шага, от которого зависит бот: завершающего анкету (`finish` либо `info`
+ * без кнопок и `next`) и с подписью `name` или `Направление`. Смена потеряла бы переходы кнопок
+ * или стёрла подпись, которую использует бот.
+ */
+export function canChangeType(step: Step): boolean {
+  if (step.finish) return false
+  if (isReservedKey(step.key)) return false
+  const isEnd = step.type === 'info' && !(step.options?.length) && step.next === undefined
+  return !isEnd
 }

@@ -15,7 +15,7 @@ import { useScenarioStore } from '~/stores/scenario.store'
 import type { Issue, Scenario } from '~/types/scenario'
 import { issueItems, locateIssue } from '~/utils/issues'
 import { keyInfo } from '~/utils/stepKeys'
-import { convertStep } from '~/utils/stepType'
+import { canChangeType, convertStep } from '~/utils/stepType'
 import { decodeTarget, encodeTarget, isConnected, targetChoices } from '~/utils/stepTargets'
 
 const CONFLICT_TEXT = 'Сценарий изменён в другой вкладке. Обновите страницу.'
@@ -490,7 +490,9 @@ describe('подпись ответа (key)', () => {
     expect(setKey('b', '')).toBe(false)
     expect(store.steps.c!.key).toBe('city')
     expect(store.steps.a!.key).toBe('name')
-    expect(setKey('c', 'town')).toBe(true)
+    expect(setKey('c', ' name')).toBe(false)
+    expect(setKey('c', 'Направление ')).toBe(false)
+    expect(setKey('c', '  town ')).toBe(true)
     expect(store.steps.c!.key).toBe('town')
     expect(setKey('c', '')).toBe(true)
     expect(store.steps.c).not.toHaveProperty('key')
@@ -552,6 +554,8 @@ describe('смена типа шага', () => {
         m: { type: 'multi', text: 'Мульти', options: [{ id: 'p', label: 'P', next: 'z' }, { id: 'q', label: 'Q', next: 'w' }] },
         z: { type: 'info', text: 'Z' },
         w: { type: 'info', text: 'W' },
+        p: { type: 'info', text: 'P', next: 'z' },
+        f: { type: 'choice', text: 'Финал', finish: true, options: [{ id: 'o', label: 'O', next: 'z' }] },
       },
     }
   }
@@ -608,12 +612,31 @@ describe('смена типа шага', () => {
     expect(store.steps.c).not.toHaveProperty('options')
   })
 
+  it('тип служебных шагов не меняется: завершающий, конец, name, Направление', async () => {
+    const data = typed()
+    data.steps.nm = { type: 'text', text: 'Имя?', key: 'name', next: 'z' }
+    data.steps.dir = { type: 'choice', text: 'Куда?', key: 'Направление', options: [{ id: 'a', label: 'A', next: 'z' }] }
+    const { store } = await setupWith(data)
+    const edit = useEditStep({ confirm: () => true })
+    for (const id of ['f', 'z', 'nm', 'dir']) {
+      expect(canChangeType(store.steps[id]!)).toBe(false)
+      expect(edit.changeType(id, 'multi')).toBe(false)
+      expect(edit.changeType(id, 'info')).toBe(false)
+    }
+    expect(store.steps.f!.options![0]!.next).toBe('z')
+    expect(store.steps.nm!.key).toBe('name')
+    expect(store.steps.dir!.key).toBe('Направление')
+    expect(store.steps.z!.type).toBe('info')
+    expect(canChangeType(store.steps.p!)).toBe(true)
+    expect(edit.changeType('p', 'text')).toBe(true)
+  })
+
   it('без потерь смена типа идёт без вопроса', async () => {
     const { store } = await setupWith(typed())
     const ask = vi.fn(() => false)
-    expect(useEditStep({ confirm: ask }).changeType('z', 'file')).toBe(true)
+    expect(useEditStep({ confirm: ask }).changeType('p', 'file')).toBe(true)
     expect(ask).not.toHaveBeenCalled()
-    expect(store.steps.z!.type).toBe('file')
+    expect(store.steps.p!.type).toBe('file')
   })
 })
 

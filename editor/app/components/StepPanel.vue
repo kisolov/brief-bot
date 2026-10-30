@@ -8,6 +8,7 @@ import { NEXT_HANDLE } from '~/types/scenario'
 import type { Option, Step, StepType, Target, When } from '~/types/scenario'
 import { STEP_TYPE_LABELS } from '~/utils/scenarioGraph'
 import { keyInfo } from '~/utils/stepKeys'
+import { canChangeType } from '~/utils/stepType'
 import { decodeTarget, encodeTarget, isConnected, stepLabel, targetChoices } from '~/utils/stepTargets'
 
 const props = defineProps<{ view: string }>()
@@ -57,6 +58,7 @@ function checked(e: Event): boolean {
 }
 
 const info = computed(() => keyInfo(scenario.value, id.value))
+const typeLocked = computed(() => (step.value ? !canChangeType(step.value) : false))
 const connected = computed(() => isConnected(scenario.value, id.value))
 const usedInSteps = computed(() => info.value.usedIn.map((sid) => ({ id: sid, label: stepLabel(steps.value[sid]!) })))
 /** Текст, который человек ввёл, но правка не принята (подпись занята ботом): показывается вместе с подсказкой. */
@@ -170,7 +172,7 @@ function onRemove() {
 
     <div class="field inline">
       <label for="step-type">Тип шага</label>
-      <select id="step-type" :class="`type-${type}`" class="chip" :value="type" @change="onType">
+      <select id="step-type" :class="`type-${type}`" class="chip" :value="type" :disabled="typeLocked" @change="onType">
         <option v-for="c in typeChoices" :key="c.value" :value="c.value">{{ c.label }}</option>
       </select>
     </div>
@@ -179,6 +181,8 @@ function onRemove() {
       <label for="step-text">Текст сообщения</label>
       <textarea id="step-text" rows="3" :value="step.text" @input="updateStep(id, { text: text($event) })" />
     </div>
+
+    <div v-if="typeLocked" class="warn">Тип этого шага менять нельзя: от него зависит работа бота.</div>
 
     <div v-if="hasKey" class="field">
       <label for="step-key">Как подписать ответ в заявке</label>

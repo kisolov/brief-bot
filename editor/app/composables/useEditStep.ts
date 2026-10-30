@@ -2,7 +2,7 @@ import { useScenarioStore } from '~/stores/scenario.store'
 import type { Option, Step, StepType, When } from '~/types/scenario'
 import { blockLabel } from '~/utils/scenarioGraph'
 import { isReservedKey, keyInfo } from '~/utils/stepKeys'
-import { convertStep } from '~/utils/stepType'
+import { canChangeType, convertStep } from '~/utils/stepType'
 
 interface Options {
   /** Вопрос «Удалить?» человеку; по умолчанию окно браузера. */
@@ -48,8 +48,9 @@ export function useEditStep(options: Options = {}) {
    * иначе в Telegram появится буквальное `{name}`, а направление выпадет из заявки.
    * Возвращает, применена ли правка.
    */
-  function setKey(id: string, value: string): boolean {
-    if (keyInfo(store.scenario, id).locked || isReservedKey(value.trim())) return false
+  function setKey(id: string, raw: string): boolean {
+    const value = raw.trim()
+    if (keyInfo(store.scenario, id).locked || isReservedKey(value)) return false
     store.updateStep(id, { key: value === '' ? undefined : value })
     return true
   }
@@ -57,7 +58,7 @@ export function useEditStep(options: Options = {}) {
   /** Смена типа чистит скрытое; если пропадают кнопки или переходы, сначала вопрос с числом. */
   function changeType(id: string, type: StepType): boolean {
     const step = store.steps[id]
-    if (!step || step.type === type) return false
+    if (!step || step.type === type || !canChangeType(step)) return false
     const { lostButtons, lostLinks } = convertStep(step, type)
     if (lostButtons || lostLinks) {
       const what = lostButtons ? `кнопок: ${lostButtons}` : `переходов кнопок и шага: ${lostLinks}`
