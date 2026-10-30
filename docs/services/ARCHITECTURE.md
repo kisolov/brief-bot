@@ -8,7 +8,7 @@
 |---|---|---|---|
 | `scenario` | Модель сценария, разбор JSON, проверка, версии и черновик | написан | [scenario](scenario/ARCHITECTURE.md) |
 | `dialog` | Движок диалога (чистая функция), сессии, очередь напоминаний | движок и хранение написаны, usecase-слой запланирован | [dialog](dialog/ARCHITECTURE.md) |
-| `leads` | Заявки, форматирование для менеджера | запланирован | нет |
+| `leads` | Заявки, форматирование для менеджера | сервис, хранилища и порт уведомления написаны; Telegram-адаптер и usecase-слой запланированы | [leads](leads/ARCHITECTURE.md) |
 | `access` | Администраторы, токены входа в редактор | запланирован | нет |
 
 Зависимости: `dialog` → `scenario`, `dialog` → `leads`. `scenario` и `leads` друг о друге не знают.
@@ -30,7 +30,8 @@
 | Версии сценария, черновик | postgres `scenario_versions`, `scenario_draft` | [AsyncpgScenarioRepository](../../backend/src/scenario/adapters/asyncpg.py) |
 | Сессии | redis `session:<chat_id>`, TTL 30 дней | [RedisSessionRepository](../../backend/src/dialog/adapters/redis.py) |
 | Очередь напоминаний | redis ZSET `reminders` | [RedisReminderQueue](../../backend/src/dialog/adapters/redis.py) |
-| Заявки, администраторы, токены, настройки | postgres `leads`, `admins`, `editor_tokens`, `settings` | таблицы созданы в [001_init.sql](../../backend/migrations/001_init.sql), адаптеров ещё нет |
+| Заявки | postgres `leads` | [AsyncpgLeadRepository](../../backend/src/leads/adapters/asyncpg.py) |
+| Администраторы, токены, настройки | postgres `admins`, `editor_tokens`, `settings` | таблицы созданы в [001_init.sql](../../backend/migrations/001_init.sql), адаптеров ещё нет |
 
 Подключение: `POSTGRES_DSN` (по умолчанию `postgresql://brief:brief@localhost:55432/brief`) и `REDIS_URL` (по умолчанию `redis://localhost:56379/0`, оба `SecretStr`); значения по умолчанию совпадают с `docker-compose.yml`. DI-контейнера и точки входа пока нет.
 
