@@ -13,10 +13,17 @@
 body{margin:0}
 </style>
 </helmet>
-<aside aria-label="Настройки шага" style="width: 336px; height: 800px; box-sizing: border-box; padding: 16px; background: #FFFFFF; border-left: 1px solid #D9DEE5; display: flex; flex-direction: column; gap: 16px; overflow: hidden; font-family: 'Golos Text', system-ui, sans-serif; font-size: 13px; color: #18212C">
+<aside aria-label="Настройки шага" style="width: 336px; height: 800px; box-sizing: border-box; padding: 16px; background: #FFFFFF; border-left: 1px solid #D9DEE5; display: flex; flex-direction: column; gap: 12px; font-family: 'Golos Text', system-ui, sans-serif; font-size: 13px; color: #18212C">
+<div style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 14px">
+<sc-if value="{{hasErrors}}" hint-placeholder-val="{{ false }}">
+<div role="alert" style="display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid #E9B9B5; border-radius: 6px">
+<div style="display: flex; gap: 10px; line-height: 19px"><span style="flex: none; width: 20px; height: 20px; border-radius: 10px; background: #B3261E; color: #FFFFFF; font-size: 12px; font-weight: 600; text-align: center; line-height: 20px">1</span><span>Кнопка "Да" никуда не ведёт. Выберите следующий шаг.</span></div>
+<span style="color: #1F4FBF; text-decoration: underline">Ко всем ошибкам</span>
+</div>
+</sc-if>
 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
-<div style="font-size: 15px; font-weight: 600">Шаг</div>
-<span style="font-size: 12px; font-weight: 600; background: #E3EBFB; color: #1A459F; border-radius: 6px; padding: 3px 8px">Один выбор</span>
+<label for="step-type" style="font-weight: 500">Тип шага</label>
+<select id="step-type" style="font: inherit; font-size: 12px; font-weight: 600; height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: #E3EBFB; color: #1A459F"><option>Один выбор</option></select>
 </div>
 <div style="display: flex; flex-direction: column; gap: 6px">
 <label for="step-text" style="font-weight: 500">Текст сообщения</label>
@@ -24,33 +31,36 @@ body{margin:0}
 Только для ИП и юрлиц</textarea>
 </div>
 <div style="display: flex; flex-direction: column; gap: 6px">
-<label for="step-key" style="font-weight: 500">Название поля в заявке</label>
+<label for="step-key" style="font-weight: 500">Как подписать ответ в заявке</label>
 <input id="step-key" type="text" value="Оплата на сайте" style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 38px; padding: 0 10px; border: 1px solid #A9B3C0; border-radius: 6px; color: #18212C">
 </div>
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-weight: 500">Кнопки</div>
 <div style="border: 1px solid #D9DEE5; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px">
-<label style="display: flex; flex-direction: column; gap: 4px; color: #3A4656">Подпись<input type="text" value="Да" style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 36px; padding: 0 10px; border: 1px solid #A9B3C0; border-radius: 6px; color: #18212C"></label>
+<label style="display: flex; flex-direction: column; gap: 4px; color: #3A4656"><span style="display: flex; justify-content: space-between">Подпись<span style="color: #546070">2/40</span></span><input type="text" value="Да" style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 36px; padding: 0 10px; border: 1px solid #A9B3C0; border-radius: 6px; color: #18212C"></label>
 <label style="display: flex; flex-direction: column; gap: 4px; color: #3A4656">Куда ведёт<select style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 36px; padding: 0 8px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C"><option>Нужен ли расчёт стоимости доставки?</option></select></label>
+<span style="color: #B3261E; text-decoration: underline">Удалить кнопку</span>
 </div>
 <div style="border: 1px solid #D9DEE5; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px">
-<label style="display: flex; flex-direction: column; gap: 4px; color: #3A4656">Подпись<input type="text" value="Нет" style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 36px; padding: 0 10px; border: 1px solid #A9B3C0; border-radius: 6px; color: #18212C"></label>
+<label style="display: flex; flex-direction: column; gap: 4px; color: #3A4656"><span style="display: flex; justify-content: space-between">Подпись<span style="color: #546070">3/40</span></span><input type="text" value="Нет" style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 36px; padding: 0 10px; border: 1px solid #A9B3C0; border-radius: 6px; color: #18212C"></label>
 <label style="display: flex; flex-direction: column; gap: 4px; color: #3A4656">Куда ведёт<select style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 36px; padding: 0 8px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C"><option>Нужен ли расчёт стоимости доставки?</option></select></label>
+<span style="color: #B3261E; text-decoration: underline">Удалить кнопку</span>
 </div>
 <button type="button" style="font: inherit; font-weight: 500; height: 38px; border: 1px dashed #7C8796; border-radius: 6px; background: transparent; color: #1F4FBF">Добавить кнопку</button>
 </div>
+<label style="display: flex; align-items: flex-start; gap: 8px; line-height: 18px"><input type="checkbox" style="margin: 2px 0 0">Завершить анкету на этом шаге</label>
 <div style="display: flex; flex-direction: column; gap: 6px">
 <label for="step-when" style="font-weight: 500">Когда показывать</label>
 <select id="step-when" style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 38px; padding: 0 8px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C"><option>Всегда</option></select>
 </div>
-<div style="flex: 1 1 auto"></div>
-<button type="button" style="font: inherit; font-weight: 500; height: 40px; border: 1px solid #D9DEE5; border-radius: 6px; background: #FFFFFF; color: #B3261E">Удалить шаг</button>
+</div>
+<button type="button" style="flex: none; font: inherit; font-weight: 500; height: 40px; border: 1px solid #D9DEE5; border-radius: 6px; background: #FFFFFF; color: #B3261E">Удалить шаг</button>
 </aside>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":336,"height":800}}'>
+<script type="text/x-dc" data-dc-script data-props='{"errors":{"editor":"enum","options":["none","one"],"default":"none"},"$preview":{"width":336,"height":800}}'>
 class Component extends DCLogic {
   renderVals() {
-    return {};
+    return { hasErrors: (this.props.errors ?? 'none') === 'one' };
   }
 }
 </script>

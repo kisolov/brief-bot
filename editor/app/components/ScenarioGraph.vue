@@ -5,10 +5,24 @@ import { MiniMap } from '@vue-flow/minimap'
 import BlockNode from './BlockNode.vue'
 import StepNode from './StepNode.vue'
 
-const props = defineProps<{ nodes: Node[]; edges: Edge[] }>()
-const emit = defineEmits<{ select: [id: string]; relayout: [] }>()
+const props = defineProps<{
+  nodes: Node[]
+  edges: Edge[]
+  /** Вкладка: при её смене схема заново вписывается в экран. */
+  view: string
+  /** Правки заблокированы (конфликт версий): ноды не двигаются и не соединяются. */
+  locked?: boolean
+}>()
+const emit = defineEmits<{
+  select: [id: string]
+  deselect: []
+  relayout: []
+  move: [id: string, pos: [number, number]]
+  connect: [source: string, handle: string, target: string]
+  drop: [type: string, pos: [number, number]]
+}>()
 
-const { zoomIn, zoomOut, fitView, viewport, onNodesInitialized } = useVueFlow()
+const { zoomIn, zoomOut, fitView, viewport, dimensions, screenToFlowCoordinate, onNodesInitialized } = useVueFlow()
 const zoomPercent = computed(() => `${Math.round(viewport.value.zoom * 100)}%`)
 
 const START_SPAN = 520
@@ -26,8 +40,59 @@ function focus() {
   return fitView({ nodes: start, padding: 0.08, minZoom: START_ZOOM, maxZoom: 1 })
 }
 
-// Ноды получают размеры после отрисовки: фокус ставится на каждую новую раскладку
-onNodesInitialized(focus)
+// Ноды получают размеры после отрисовки. Вид вписывается при открытии и смене вкладки,
+// а не при добавлении шага: иначе схема прыгала бы из-под рук.
+let refit = true
+watch(
+  () => props.view,
+  () => {
+    refit = true
+  },
+)
+let revealId: string | null = null
+
+// Показать шаг, к которому ведёт ошибка: схема большая, шаг может лежать за краем экрана.
+function showRevealed() {
+  if (!revealId) return
+  const id = revealId
+  revealId = null
+  fitView({ nodes: [id], padding: 0.6, minZoom: START_ZOOM, maxZoom: 1, duration: 200 })
+}
+
+onNodesInitialized(() => {
+  if (!refit) return
+  refit = false
+  if (revealId) showRevealed()
+  else focus()
+})
+
+function reveal(id: string) {
+  revealId = id
+  // после смены вкладки ноды появятся позже и покажут шаг сами (onNodesInitialized)
+  nextTick(() => {
+    if (!refit) showRevealed()
+  })
+}
+
+const NODE_WIDTH = 190
+const NODE_HALF_HEIGHT = 40
+
+/** Центр видимой части холста в координатах схемы: сюда ложится шаг, добавленный кликом. */
+function visibleCenter(): [number, number] {
+  const { x, y, zoom } = viewport.value
+  return [
+    Math.round((dimensions.value.width / 2 - x) / zoom - NODE_WIDTH / 2),
+    Math.round((dimensions.value.height / 2 - y) / zoom - NODE_HALF_HEIGHT),
+  ]
+}
+defineExpose({ visibleCenter, reveal })
+
+function onDrop(event: DragEvent) {
+  const type = event.dataTransfer?.getData('application/x-step-type')
+  if (!type || props.locked) return
+  const at = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
+  emit('drop', type, [Math.round(at.x - NODE_WIDTH / 2), Math.round(at.y - NODE_HALF_HEIGHT)])
+}
 
 function nodeColor(node: Node): string {
   if (node.type === 'block') return '#18212c'
@@ -42,16 +107,20 @@ function relayout() {
 </script>
 
 <template>
-  <div class="scenario-graph">
+  <div class="scenario-graph" @dragover.prevent @drop.prevent="onDrop">
     <VueFlow
       :nodes="nodes"
       :edges="edges"
-      :nodes-draggable="false"
-      :nodes-connectable="false"
+      :nodes-draggable="!locked"
+      :nodes-connectable="!locked"
+      :delete-key-code="null"
       :min-zoom="0.1"
       :max-zoom="2"
       fit-view-on-init
       @node-click="({ node }) => emit('select', node.id)"
+      @pane-click="emit('deselect')"
+      @node-drag-stop="({ node }) => emit('move', node.id, [node.position.x, node.position.y])"
+      @connect="(c) => c.sourceHandle && emit('connect', c.source, c.sourceHandle, c.target)"
     >
       <template #node-step="props"><StepNode v-bind="props" /></template>
       <template #node-block="props"><BlockNode v-bind="props" /></template>

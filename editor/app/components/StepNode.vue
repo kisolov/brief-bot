@@ -14,19 +14,21 @@ const props = defineProps<{
   selected?: boolean
 }>()
 const rows = computed<Row[]>(() => props.data.rows)
-const errorCount = computed<number>(() => props.data.errorCount ?? 0)
+// номера ошибок публикации; на схеме они совпадают с номерами в панели ошибок
+const errorNumbers = computed<number[]>(() => props.data.errorNumbers ?? [])
+const failed = computed(() => props.data.state === 'error')
 </script>
 
 <template>
   <div
     class="step-node"
-    :class="[`type-${data.stepType}`, { selected, error: errorCount > 0 }]"
+    :class="[`type-${data.stepType}`, { selected, error: failed }]"
     :style="{ height: `${data.height}px` }"
   >
     <Handle id="in" type="target" :position="Position.Left" class="port-in" />
     <div class="head">
       <span>{{ data.typeLabel }}</span>
-      <span v-if="errorCount" class="badge">{{ errorCount }}</span>
+      <span v-if="failed" class="badge">{{ errorNumbers.join(', ') }}</span>
     </div>
     <div class="title">{{ data.title }}</div>
     <div v-for="row in rows" :key="row.handle || 'more'" class="row" :class="{ more: row.more }">

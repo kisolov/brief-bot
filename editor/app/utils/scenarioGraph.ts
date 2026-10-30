@@ -92,9 +92,10 @@ function reach(s: Scenario, start: string | undefined, skip: ReadonlySet<string>
  * Главный граф: достижимые от `entry`, не заходя в блок (ни входом `call`, ни прямым
  * переходом на первый шаг блока). Блок: достижимые от его первого шага без `@return`,
  * не считая шагов главного графа и первых шагов других блоков. Шаг, который не показывает
- * ни один вид, попадает в главный граф: он не должен пропасть с экрана.
+ * ни один вид, попадает в главный граф: он не должен пропасть с экрана. Исключение: шаг,
+ * созданный на вкладке блока (`homes`), пока он не подключён, показывается на этой вкладке.
  */
-function stepsOf(s: Scenario, view: GraphView): Set<string> {
+function stepsOf(s: Scenario, view: GraphView, homes: Homes = {}): Set<string> {
   const starts = new Set(Object.values(s.blocks ?? {}))
   const main = reach(s, s.entry, starts)
   const ownBlock = (name: string): Set<string> => {
@@ -103,29 +104,50 @@ function stepsOf(s: Scenario, view: GraphView): Set<string> {
     if (first) skip.delete(first)
     return reach(s, first, skip)
   }
-  if (view !== MAIN_VIEW) return ownBlock(view)
-
+  const sets = new Map<GraphView, Set<string>>([[MAIN_VIEW, new Set(main)]])
   const owned = new Set(main)
-  for (const name of Object.keys(s.blocks ?? {})) for (const id of ownBlock(name)) owned.add(id)
+  for (const name of Object.keys(s.blocks ?? {})) {
+    const own = ownBlock(name)
+    sets.set(name, own)
+    for (const id of own) owned.add(id)
+  }
+  const homeOf = (id: string): GraphView => (homes[id] !== undefined && sets.has(homes[id]!) ? homes[id]! : MAIN_VIEW)
   const skip = new Set([...owned, ...starts])
   for (const id of Object.keys(s.steps)) {
     if (owned.has(id)) continue
     for (const x of reach(s, id, skip)) {
-      main.add(x)
+      sets.get(homeOf(id))!.add(x)
       owned.add(x)
     }
   }
-  return main
+  return sets.get(view) ?? new Set()
 }
 
-function titleOf(step: Step): string {
+/** Шаг → вид, где он создан: пока шаг не подключён к схеме, он остаётся на этой вкладке. */
+export type Homes = Record<string, GraphView>
+
+/** Вид, где шаг виден: главный граф или имя общего блока. */
+export function viewOfStep(s: Scenario, id: string, homes: Homes = {}): GraphView | null {
+  for (const view of [MAIN_VIEW, ...Object.keys(s.blocks ?? {})]) {
+    if (stepsOf(s, view, homes).has(id)) return view
+  }
+  return null
+}
+
+/** Шаги вида: «Разложить» очищает позиции именно их. */
+export function stepIdsOf(s: Scenario, view: GraphView, homes: Homes = {}): string[] {
+  const inView = stepsOf(s, view, homes)
+  return Object.keys(s.steps).filter((id) => inView.has(id))
+}
+
+export function titleOf(step: Step): string {
   return (step.text ?? '').split('\n')[0]!.trim()
 }
 
 const ARROW = { type: 'arrowclosed' as MarkerType, color: '#7c8796', width: 14, height: 14 }
 
-export function toFlow(s: Scenario, view: GraphView): { nodes: Node[]; edges: Edge[] } {
-  const inView = stepsOf(s, view)
+export function toFlow(s: Scenario, view: GraphView, homes: Homes = {}): { nodes: Node[]; edges: Edge[] } {
+  const inView = stepsOf(s, view, homes)
   const nodes: Node[] = []
   const edges: Edge[] = []
   const extra = new Map<string, Node>()

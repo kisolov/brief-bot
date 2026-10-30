@@ -1,0 +1,447 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import { useAddStep } from '~/composables/useAddStep'
+import { useAutosaveDraft } from '~/composables/useAutosaveDraft'
+import { useConnectSteps } from '~/composables/useConnectSteps'
+import { useEditStep } from '~/composables/useEditStep'
+import { usePublishScenario } from '~/composables/usePublishScenario'
+import { useScenarioLayout } from '~/composables/useScenarioLayout'
+import { __setContainer } from '~/container'
+import { BackendUnavailable } from '~/errors/base'
+import { DraftConflict, ScenarioInvalid } from '~/errors/scenario'
+import { MockScenarioRepository } from '~/repositories/adapters/scenario.mock'
+import { useScenarioStore } from '~/stores/scenario.store'
+import type { Issue, Scenario } from '~/types/scenario'
+import { issueItems, locateIssue } from '~/utils/issues'
+import { decodeTarget, encodeTarget, targetChoices } from '~/utils/stepTargets'
+
+const CONFLICT_TEXT = 'Сценарий изменён в другой вкладке. Обновите страницу.'
+const NETWORK_TEXT = 'Не удалось сохранить. Проверьте соединение.'
+
+function fixture(): Scenario {
+  return {
+    entry: 'menu',
+    blocks: { sphere: 'sph', late: 'pick' },
+    legacy: { keep: true },
+    steps: {
+      menu: {
+        type: 'choice',
+        text: 'Меню\nвторая строка',
+        options: [
+          { id: 'a', label: 'А', next: 'pay', when: { step: 'pick', any: ['p1'] } },
+          { id: 'b', label: 'Б', next: { call: 'sphere', then: 'pay' } },
+          { id: 'u', label: 'Сайт', url: 'https://example.com' },
+        ],
+      },
+      pay: { type: 'text', text: 'Оплата', next: 'fin' },
+      pick: {
+        type: 'multi',
+        text: 'Что нужно',
+        options: [
+          { id: 'p1', label: 'Один' },
+          { id: 'p2', label: 'Два' },
+        ],
+        next: 'fin',
+      },
+      fin: {
+        type: 'info',
+        text: 'Готово',
+        finish: true,
+        back_to: 'pick',
+        when: { step: 'pick', any: ['p1', 'p2'], none: ['p2'] },
+        options: [{ id: 'z', label: 'Заново', next: 'menu' }],
+      },
+      sph: { type: 'info', text: 'Блок', next: '@return' },
+    },
+  }
+}
+
+async function setup(revision = 3) {
+  const repo = new MockScenarioRepository({ data: fixture(), revision })
+  __setContainer({ scenarioRepository: repo })
+  setActivePinia(createPinia())
+  const store = useScenarioStore()
+  await store.load()
+  return { store, repo }
+}
+
+function stubRouter() {
+  const replace = vi.fn()
+  vi.stubGlobal('useRouter', () => ({ replace }))
+  return replace
+}
+
+describe('правка схемы', () => {
+  it('test_connect_sets_option_next', async () => {
+    const { store } = await setup()
+    const { connect, disconnect } = useConnectSteps()
+    connect('menu', 'a', 'sph')
+    expect(store.steps.menu!.options![0]!.next).toBe('sph')
+    connect('pay', ':next', 'menu')
+    expect(store.steps.pay!.next).toBe('menu')
+    disconnect('menu', 'a')
+    expect(store.steps.menu!.options![0]).not.toHaveProperty('next')
+    expect(store.steps.menu!.options![0]!.label).toBe('А')
+  })
+
+  it('ссылка на сайт и переход взаимоисключают друг друга', async () => {
+    const { store } = await setup()
+    const { connect } = useConnectSteps()
+    connect('menu', 'u', 'pay')
+    expect(store.steps.menu!.options![2]).not.toHaveProperty('url')
+    expect(store.steps.menu!.options![2]!.next).toBe('pay')
+    useEditStep().updateOption('menu', 'u', { url: 'https://a.b' })
+    expect(store.steps.menu!.options![2]).not.toHaveProperty('next')
+    expect(store.steps.menu!.options![2]!.url).toBe('https://a.b')
+  })
+
+  it('test_remove_step_clears_references', async () => {
+    const { store } = await setup()
+    const { removeStep } = useEditStep({ confirm: () => true })
+    expect(removeStep('pay')).toBe(true)
+    expect(store.steps.pay).toBeUndefined()
+    expect(store.steps.menu!.options![0]).not.toHaveProperty('next')
+    expect(store.steps.menu!.options![1]!.next).toEqual({ call: 'sphere' })
+    expect(removeStep('pick')).toBe(true)
+    // условия, ссылки назад и блок на удалённый шаг убраны
+    expect(store.steps.fin).not.toHaveProperty('when')
+    expect(store.steps.fin).not.toHaveProperty('back_to')
+    expect(store.steps.menu!.options![0]).not.toHaveProperty('when')
+    expect(store.blocks).toEqual({ sphere: 'sph' })
+    const out = store.toDraftData()
+    expect(JSON.stringify(out)).not.toMatch(/"(pay|pick)"/)
+    expect(out.legacy).toEqual({ keep: true })
+  })
+
+  it('начальный шаг удалить нельзя', async () => {
+    const { store } = await setup()
+    const { removeStep, canRemove } = useEditStep({ confirm: () => true })
+    expect(canRemove('menu')).toBe(false)
+    expect(removeStep('menu')).toBe(false)
+    expect(store.steps.menu).toBeDefined()
+  })
+
+  it('шаг, на который указывает блок, удаляется только с подтверждения', async () => {
+    const { store } = await setup()
+    const ask = vi.fn(() => false)
+    const { removeStep } = useEditStep({ confirm: ask })
+    expect(removeStep('pick')).toBe(false)
+    expect(ask).toHaveBeenCalledTimes(1)
+    expect(store.steps.pick).toBeDefined()
+    // шаг без блока спрашивать не заставляет
+    expect(useEditStep({ confirm: ask }).removeStep('pay')).toBe(true)
+    expect(ask).toHaveBeenCalledTimes(1)
+  })
+
+  it('test_add_option_generates_short_id', async () => {
+    const { store } = await setup()
+    const { addOption } = useEditStep()
+    const a = addOption('pick')!
+    const b = addOption('pick')!
+    expect(a).toMatch(/^o_[a-z0-9]{8}$/)
+    expect(b).not.toBe(a)
+    expect(store.steps.pick!.options!.map((o) => o.id)).toEqual(['p1', 'p2', a, b])
+    expect(`s:pick:o:${a}`.length).toBeLessThanOrEqual(64)
+  })
+
+  it('новый шаг получает id s_ и 8 символов base36', async () => {
+    const { store } = await setup()
+    const id = useAddStep()('text', { pos: [10, 20] })
+    expect(id).toMatch(/^s_[a-z0-9]{8}$/)
+    expect(store.steps[id]!.pos).toEqual([10, 20])
+    expect(store.selectedId).toBe(id)
+  })
+
+  it('удаление кнопки снимает её из условий показа', async () => {
+    const { store } = await setup()
+    useEditStep().removeOption('pick', 'p2')
+    expect(store.steps.fin!.when).toEqual({ step: 'pick', any: ['p1'], none: [] })
+    useEditStep().removeOption('pick', 'p1')
+    expect(store.steps.fin).not.toHaveProperty('when')
+    expect(store.steps.menu!.options![0]).not.toHaveProperty('when')
+  })
+
+  it('правки не меняют прежние объекты и сохраняют порядок шагов', async () => {
+    const { store } = await setup()
+    const before = store.steps
+    const menuBefore = store.steps.menu
+    useEditStep().updateStep('pay', { text: 'Новый' })
+    expect(store.steps).not.toBe(before)
+    expect(store.steps.menu).toBe(menuBefore)
+    expect(before.pay!.text).toBe('Оплата')
+    expect(Object.keys(store.steps)).toEqual(['menu', 'pay', 'pick', 'fin', 'sph'])
+  })
+
+  it('перетаскивание пишет pos, "Разложить" очищает pos шагов вида', async () => {
+    const { store } = await setup()
+    const { moveStep } = useEditStep()
+    moveStep('menu', [100, 200])
+    moveStep('sph', [5, 5])
+    expect(store.steps.menu!.pos).toEqual([100, 200])
+    const { relayout, nodes } = useScenarioLayout()
+    relayout()
+    await nextTick()
+    expect(store.steps.menu).not.toHaveProperty('pos')
+    // шаг блока вне главного вида остаётся на месте
+    expect(store.steps.sph!.pos).toEqual([5, 5])
+    expect(nodes.value.length).toBeGreaterThan(0)
+  })
+
+  it('шаг из палитры в блоке остаётся виден в этом блоке', async () => {
+    const { store } = await setup()
+    const { view, setView, nodes } = useScenarioLayout()
+    setView('sphere')
+    await nextTick()
+    const id = useAddStep()('text', { pos: [0, 0], view: view.value })
+    await nextTick()
+    expect(nodes.value.some((n) => n.id === id)).toBe(true)
+    setView('main')
+    await nextTick()
+    expect(nodes.value.some((n) => n.id === id)).toBe(false)
+    expect(store.steps[id]).toBeDefined()
+  })
+
+  it('кнопка "Новый шаг" в списке переходов создаёт шаг и соединяет', async () => {
+    const { store } = await setup()
+    const id = useAddStep()('info', { from: { step: 'menu', handle: 'a' } })
+    expect(store.steps.menu!.options![0]!.next).toBe(id)
+    expect(store.steps[id]!.type).toBe('info')
+  })
+})
+
+describe('списки переходов', () => {
+  it('кодирует и разбирает цель', () => {
+    expect(decodeTarget('')).toBeUndefined()
+    expect(decodeTarget('step:pay')).toBe('pay')
+    expect(decodeTarget('@return')).toBe('@return')
+    expect(decodeTarget('block:sphere')).toEqual({ call: 'sphere' })
+    expect(encodeTarget(undefined)).toBe('')
+    expect(encodeTarget('pay')).toBe('step:pay')
+    expect(encodeTarget({ call: 'sphere', then: 'pay' })).toBe('block:sphere')
+    expect(encodeTarget('@return')).toBe('@return')
+  })
+
+  it('выход из блока предлагается только внутри блока', () => {
+    const s = fixture()
+    const inMain = targetChoices(s, 'main')
+    const inBlock = targetChoices(s, 'sphere')
+    expect(inMain.some((c) => c.value === '@return')).toBe(false)
+    expect(inBlock.find((c) => c.value === '@return')?.label).toBe('Вернуться из блока')
+    expect(inMain.find((c) => c.value === 'step:menu')?.label).toBe('Меню')
+    expect(inMain.find((c) => c.value === 'block:sphere')?.label).toBe('Перейти в блок: Сфера деятельности')
+  })
+})
+
+describe('автосохранение', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 9, 30, 14, 32, 0))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('test_autosave_debounced', async () => {
+    stubRouter()
+    const { repo, store } = await setup(3)
+    const save = vi.spyOn(repo, 'saveDraft')
+    const { status, stop } = useAutosaveDraft()
+    const edit = useEditStep()
+    edit.updateStep('pay', { text: 'раз' })
+    await vi.advanceTimersByTimeAsync(500)
+    edit.updateStep('pay', { text: 'два' })
+    await vi.advanceTimersByTimeAsync(500)
+    edit.updateStep('pay', { text: 'три' })
+    await vi.advanceTimersByTimeAsync(799)
+    expect(save).not.toHaveBeenCalled()
+    expect(status.value).toBe('Сохраняем…')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(save).toHaveBeenCalledTimes(1)
+    expect((save.mock.calls[0]![0] as Scenario).steps.pay!.text).toBe('три')
+    expect(save.mock.calls[0]![1]).toBe(3)
+    expect(store.revision).toBe(4)
+    expect(status.value).toBe('Черновик сохранён в 14:32')
+    stop()
+  })
+
+  it('правка во время сохранения: следующее сохранение идёт с новой ревизией', async () => {
+    stubRouter()
+    const { repo, store } = await setup(3)
+    const release: Array<(rev: number) => void> = []
+    const save = vi.spyOn(repo, 'saveDraft').mockImplementation(
+      () => new Promise<number>((resolve) => release.push(resolve)),
+    )
+    const { stop } = useAutosaveDraft()
+    const edit = useEditStep()
+    edit.updateStep('pay', { text: 'первая' })
+    await vi.advanceTimersByTimeAsync(800)
+    expect(save).toHaveBeenCalledTimes(1)
+    edit.updateStep('pay', { text: 'вторая' })
+    await vi.advanceTimersByTimeAsync(800)
+    // первый ответ ещё не пришёл: второе сохранение ждёт
+    expect(save).toHaveBeenCalledTimes(1)
+    release[0]!(4)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(save.mock.calls[1]![1]).toBe(4)
+    expect((save.mock.calls[1]![0] as Scenario).steps.pay!.text).toBe('вторая')
+    release[1]!(5)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(store.revision).toBe(5)
+    expect(store.dirty).toBe(false)
+    stop()
+  })
+
+  it('сбой сети: понятный текст, следующая правка повторяет попытку', async () => {
+    stubRouter()
+    const { repo, store } = await setup(3)
+    const save = vi.spyOn(repo, 'saveDraft').mockRejectedValueOnce(new BackendUnavailable())
+    const { status, stop } = useAutosaveDraft()
+    const edit = useEditStep()
+    edit.updateStep('pay', { text: 'раз' })
+    await vi.advanceTimersByTimeAsync(800)
+    expect(status.value).toBe(NETWORK_TEXT)
+    expect(store.dirty).toBe(true)
+    edit.updateStep('pay', { text: 'два' })
+    await vi.advanceTimersByTimeAsync(800)
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(status.value).toBe('Черновик сохранён в 14:32')
+    stop()
+  })
+
+  it('test_conflict_shows_reload_message', async () => {
+    stubRouter()
+    const { repo, store } = await setup(3)
+    const save = vi.spyOn(repo, 'saveDraft').mockRejectedValue(new DraftConflict())
+    const { status, stop } = useAutosaveDraft()
+    const edit = useEditStep()
+    edit.updateStep('pay', { text: 'раз' })
+    await vi.advanceTimersByTimeAsync(800)
+    expect(status.value).toBe(CONFLICT_TEXT)
+    expect(store.conflict).toBe(true)
+    // редактирование заблокировано, повторов нет
+    edit.updateStep('pay', { text: 'два' })
+    expect(store.steps.pay!.text).toBe('раз')
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(save).toHaveBeenCalledTimes(1)
+    stop()
+  })
+})
+
+describe('публикация', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('сначала дожимает черновик, потом публикует; успех показывает версию и сбрасывает ошибки', async () => {
+    stubRouter()
+    const { repo, store } = await setup(3)
+    const order: string[] = []
+    vi.spyOn(repo, 'saveDraft').mockImplementation(async () => {
+      order.push('save')
+      return 4
+    })
+    vi.spyOn(repo, 'publish').mockImplementation(async () => {
+      order.push('publish')
+      return 2
+    })
+    store.setIssues([{ code: 'missing_next', stepId: 'pay', optionId: null, message: 'x' }])
+    useEditStep().updateStep('pay', { text: 'правка' })
+    await usePublishScenario()()
+    expect(order).toEqual(['save', 'publish'])
+    expect(store.activeVersion).toBe(2)
+    expect(store.issues).toEqual([])
+    expect(store.publishing).toBe(false)
+    expect(store.notice).toBeNull()
+  })
+
+  it('повторная публикация без правок допустима', async () => {
+    stubRouter()
+    const { repo } = await setup(3)
+    const publish = vi.spyOn(repo, 'publish')
+    await usePublishScenario()()
+    await usePublishScenario()()
+    expect(publish).toHaveBeenCalledTimes(2)
+  })
+
+  it('не публикует, если черновик не сохранился', async () => {
+    stubRouter()
+    const { repo, store } = await setup(3)
+    vi.spyOn(repo, 'saveDraft').mockRejectedValue(new BackendUnavailable())
+    const publish = vi.spyOn(repo, 'publish')
+    useEditStep().updateStep('pay', { text: 'правка' })
+    await usePublishScenario()()
+    expect(publish).not.toHaveBeenCalled()
+    expect(store.notice).toBe(NETWORK_TEXT)
+    expect(store.publishing).toBe(false)
+  })
+
+  const issues: Issue[] = [
+    { code: 'missing_next', stepId: 'menu', optionId: 'a', message: 'Кнопка "А" никуда не ведёт. Выберите следующий шаг.' },
+    { code: 'missing_next', stepId: 'pay', optionId: null, message: 'После ответа бот не знает, куда идти.' },
+    { code: 'missing_target', stepId: 'late', optionId: null, message: 'Блок ведёт на шаг, которого нет.' },
+    { code: 'malformed', stepId: '', optionId: null, message: 'не разобрать' },
+  ]
+
+  it('test_publish_errors_mark_nodes', async () => {
+    stubRouter()
+    const { repo, store } = await setup(3)
+    vi.spyOn(repo, 'publish').mockRejectedValue(new ScenarioInvalid(issues))
+    const { nodes } = useScenarioLayout()
+    await usePublishScenario()()
+    await nextTick()
+    expect(store.issues).toEqual(issues)
+    expect(store.activeVersion).toBe(1)
+    const byId = new Map(nodes.value.map((n) => [n.id, n]))
+    expect(byId.get('menu')!.data.state).toBe('error')
+    expect(byId.get('menu')!.data.errorNumbers).toEqual([1])
+    expect(byId.get('pay')!.data.state).toBe('error')
+    expect(byId.get('pay')!.data.errorNumbers).toEqual([2])
+    expect(byId.get('fin')!.data.state).toBeUndefined()
+  })
+
+  it('ошибки живут до следующей успешной публикации, правка их не сбрасывает', async () => {
+    stubRouter()
+    const { repo, store } = await setup(3)
+    vi.spyOn(repo, 'publish').mockRejectedValueOnce(new ScenarioInvalid(issues))
+    await usePublishScenario()()
+    useEditStep().updateStep('pay', { text: 'правка' })
+    expect(store.issues).toHaveLength(4)
+    await usePublishScenario()()
+    expect(store.issues).toEqual([])
+    expect(store.activeVersion).toBe(2)
+  })
+
+  it('сбой сети при публикации оставляет понятное сообщение', async () => {
+    stubRouter()
+    const { repo, store } = await setup(3)
+    vi.spyOn(repo, 'publish').mockRejectedValue(new BackendUnavailable())
+    await usePublishScenario()()
+    expect(store.notice).toBe('Не удалось опубликовать. Проверьте соединение.')
+    expect(store.issues).toEqual([])
+  })
+
+  it('клик по ошибке ведёт на шаг и на вкладку блока; malformed без перехода', async () => {
+    await setup(3)
+    const s = fixture()
+    expect(locateIssue(s, issues[0]!)).toEqual({ view: 'main', stepId: 'menu' })
+    expect(locateIssue(s, { ...issues[0]!, stepId: 'sph' })).toEqual({ view: 'sphere', stepId: 'sph' })
+    expect(locateIssue(s, issues[2]!)).toEqual({ view: 'late', stepId: null })
+    expect(locateIssue(s, issues[3]!)).toBeNull()
+    const items = issueItems(s, issues)
+    expect(items.map((i) => i.number)).toEqual([1, 2, 3, 4])
+    expect(items[0]!.title).toBe('Меню')
+    expect(items[0]!.text).toBe(issues[0]!.message)
+    expect(items[3]!.title).toBe('Сценарий')
+  })
+
+  it('jumpTo переключает вкладку и выбирает шаг', async () => {
+    const { store } = await setup(3)
+    const { view, jumpTo } = useScenarioLayout()
+    jumpTo({ code: 'x', stepId: 'sph', optionId: null, message: '' })
+    expect(view.value).toBe('sphere')
+    expect(store.selectedId).toBe('sph')
+    jumpTo({ code: 'malformed', stepId: '', optionId: null, message: '' })
+    expect(view.value).toBe('sphere')
+  })
+})

@@ -26,3 +26,37 @@ ScenarioGraph рисует; клик по ноде шага → store.select →
 ```
 
 Дальше человек открывает редактор новой ссылкой из бота.
+
+## Править шаг и сохранить черновик
+
+```
+StepPanel (ввод) → useEditStep.updateStep / updateOption → store: новый объект steps, edits++, dirty
+useAutosaveDraft (watch edits) → 800 мс тишины → store.flush
+  → очередь: ScenarioRepository.saveDraft(toDraftData(), revision) → PUT /api/scenario/draft
+  → ответ: revision обновлена; если edits изменился за время запроса, dirty остаётся, сохранение повторится
+  409 → conflict: правки заблокированы, текст конфликта
+  сбой сети → saveFailed, правки остаются
+шапка: status из useAutosaveDraft ("Сохраняем…", "Черновик сохранён в HH:MM", тексты сбоев)
+```
+
+## Добавить шаг и соединить
+
+```
+палитра: клик → useAddStep(type, {pos: центр видимой части, view}) ; бросок → pos в месте броска
+StepPanel "Новый шаг…" → useAddStep(info, {from: {step, handle}}) → шаг рядом с источником + переход
+стрелка между портами → ScenarioGraph connect → useConnectSteps.connect (только шаг → шаг)
+список "Куда ведёт" → useConnectSteps.connect / disconnect
+перетаскивание ноды → useEditStep.moveStep → pos
+```
+
+## Опубликовать
+
+```
+"Опубликовать" (шапка) → usePublishScenario → store.publish
+  → flush (сохранить черновик) → ScenarioRepository.publish → POST /api/scenario/publish
+  успех: activeVersion = N, issues очищены, шапка "В боте: версия N"
+  422: issues в store → useScenarioLayout метит ноды (state=error, номера) → ErrorsPanel
+       клик по ошибке → useScenarioLayout.jumpTo (вкладка, выбор шага) + ScenarioGraph.reveal (прокрутка к шагу)
+       StepPanel показывает ошибки шага полосой, "Ко всем ошибкам" возвращает список
+  сбой сети: notice над схемой
+```

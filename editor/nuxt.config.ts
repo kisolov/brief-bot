@@ -1,6 +1,7 @@
 // Мок-адаптеры включаются при сборке или `nuxt dev` переменной NUXT_PUBLIC_EDITOR_MOCK=1.
 // Флаг вшивается константой, поэтому в рабочей сборке мок и сид backend вырезаются.
 const editorMock = process.env.NUXT_PUBLIC_EDITOR_MOCK === '1'
+const apiTarget = process.env.EDITOR_API_TARGET ?? 'http://localhost:8000'
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-10-30',
@@ -23,6 +24,7 @@ export default defineNuxtConfig({
     },
   },
   // Локально /api идёт на backend; в рабочей сборке его проксирует веб-сервер.
-  nitro: { devProxy: { '/api': { target: 'http://localhost:8000/api', changeOrigin: true } } },
+  // Другой порт backend (8000 занят) задаётся EDITOR_API_TARGET=http://localhost:8100.
+  nitro: { devProxy: { '/api': { target: `${apiTarget}/api`, changeOrigin: true } } },
   vite: { define: { __EDITOR_MOCK__: JSON.stringify(editorMock) } },
 })

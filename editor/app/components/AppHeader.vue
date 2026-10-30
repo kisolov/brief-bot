@@ -2,7 +2,17 @@
 import { storeToRefs } from 'pinia'
 import { useScenarioStore } from '~/stores/scenario.store'
 
-withDefaults(defineProps<{ active?: 'scenario' | 'leads' | 'settings' | 'versions' }>(), { active: 'scenario' })
+withDefaults(
+  defineProps<{
+    active?: 'scenario' | 'leads' | 'settings' | 'versions'
+    /** «Черновик сохранён в 14:32» и другие состояния автосохранения. */
+    status?: string
+    /** Кнопка «Опубликовать» недоступна: идёт публикация, черновик в конфликте или не загружен. */
+    publishDisabled?: boolean
+  }>(),
+  { active: 'scenario', status: '', publishDisabled: false },
+)
+defineEmits<{ publish: [] }>()
 
 const tabs = [
   { id: 'scenario', label: 'Сценарий', to: '/' },
@@ -29,9 +39,9 @@ const { activeVersion } = storeToRefs(useScenarioStore())
       </NuxtLink>
     </nav>
     <div class="spacer" />
+    <div v-if="status" class="status" role="status">{{ status }}</div>
     <div v-if="activeVersion" class="live">В боте: версия {{ activeVersion }}</div>
-    <!-- Публикация подключается вместе с панелью ошибок -->
-    <button type="button" class="publish" disabled>Опубликовать</button>
+    <button type="button" class="publish" :disabled="publishDisabled" @click="$emit('publish')">Опубликовать</button>
   </header>
 </template>
 
@@ -78,6 +88,11 @@ nav {
 }
 .spacer {
   flex: 1 1 auto;
+}
+.status {
+  font-size: 13px;
+  color: var(--ink-3);
+  white-space: nowrap;
 }
 .live {
   font-size: 13px;
