@@ -1,6 +1,6 @@
 # dialog
 
-Движок анкеты и хранение состояния диалога. Движок это чистые функции над `Scenario` и `Session` без ввода-вывода; Telegram, usecase-слой и DI ещё не написаны. Зависит от [scenario](../scenario/ARCHITECTURE.md).
+Движок анкеты и хранение состояния диалога. Движок это чистые функции над `Scenario` и `Session` без ввода-вывода; Поверх него сервис, два usecase и сборка заявки; Telegram-слой лежит в [bootstrap](../ARCHITECTURE.md). Зависит от [scenario](../scenario/ARCHITECTURE.md) и [leads](../leads/ARCHITECTURE.md).
 
 ## Сущности
 
@@ -70,6 +70,35 @@
 
 Сериализатор сессии (`session_to_json`, `session_from_json`) лежит в [adapters/redis.py](../../../backend/src/dialog/adapters/redis.py) и не требует подключения к Redis.
 
-## Запланировано
+## Сервис
 
-Usecase-слой (`HandleEvent`, напоминания), Telegram-шлюз, DI-контейнер. В этом документе не описаны, пока не написаны.
+[DialogService](../../../backend/src/dialog/services.py): единственная точка доступа usecase к `SessionRepository`, `ReminderQueue` и (через `ScenarioService.by_version`) к закреплённой версии сценария.
+
+| Метод | Делает |
+|---|---|
+| `load(chat_id)`, `save(session)` | чтение и запись сессии |
+| `start(chat_id, username)` | новая сессия на текущей опубликованной версии, сохраняется, возвращает экран входа |
+| `apply(chat_id, event, username=None)` | событие к сохранённой сессии на её версии; обновляет `username`; **ничего не сохраняет**; нет сессии: `SessionNotFound` |
+| `reset(chat_id, username=None)` | снимает напоминание и делает `start`; `username` берётся из старой сессии, если не передан |
+| `screen(session)`, `scenario_of(session)` | экран и сценарий сессии |
+| `schedule_reminder`, `cancel_reminder` | очередь напоминаний |
+
+Экран возобновления: `resume_screen()` с маркером `RESUME_STEP = "@resume"`, кнопки `continue` "Продолжить" и `restart` "Начать заново", `can_back = False`. Для `Screen.step == "@resume"` клавиатура пакует кнопки как `r:continue` и `r:restart`.
+
+## Usecase
+
+| Класс | Делает |
+|---|---|
+| [HandleEvent](../../../backend/src/dialog/usecases/handle_event.py) `(chat_id, username, event) -> Screen` | единственный вход событий диалога, порядок решений в [INVARIANTS](INVARIANTS.md) |
+| [ResumeOrRestart](../../../backend/src/dialog/usecases/resume_or_restart.py) `(chat_id, choice, username=None) -> Screen` | `continue` показывает текущий экран; `restart` и отсутствие сессии: новая сессия |
+
+[build_lead](../../../backend/src/dialog/lead_builder.py)`(scenario, session, status, now) -> Lead`: чистая функция. `answers` в порядке записи, только с `key` и без `BRANCH_KEY`, значение через `answer_text`; `branch` это подпись последнего ответа с `BRANCH_KEY` (иначе пусто); `file_id` последнего ответа с файлом; `last_step` первая строка текста текущего шага до 100 символов. Пустые значения не пропускаются.
+
+## Telegram (bootstrap)
+
+Роутер превращает апдейт в `Event`: `/start` в `start`; нажатие в `button`/`done`/`back` по `callback_data`; текст в `text`; `document` и `photo` (наибольший размер) в `file` с `file_id`; сообщение без текста и файла в `text` с пустым значением (движок покажет экран заново).
+
+`callback_data`: `s:<шаг>:o:<опция>`, `s:<шаг>:d`, `s:<шаг>:b`, `r:continue`, `r:restart`; не длиннее 53 байт при id до 24 символов. Чужие данные: `unpack` даёт `None`, роутер отвечает на callback и ничего не делает.
+
+Клавиатура: опция по одной в ряд, ссылка это url-кнопка, отмеченная опция с префиксом `✅ ` (на `callback_data` не влияет), ряд `done_label` при `can_done`, ряд `⬅️ Назад` при `can_back`. Тексты уходят с `parse_mode=None`.
+

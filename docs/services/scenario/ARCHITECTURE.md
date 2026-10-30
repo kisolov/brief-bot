@@ -61,7 +61,7 @@
 
 ## Сервис
 
-`ScenarioService` ([services.py](../../../backend/src/scenario/services.py)); usecase-слоя и HTTP пока нет.
+`ScenarioService` ([services.py](../../../backend/src/scenario/services.py)); usecase один: [EnsureSeeded](../../../backend/src/scenario/usecases/ensure_seeded.py) (вызывается из `lifespan` при старте и кладёт сид, если версий нет). HTTP пока нет.
 
 | Метод | Делает |
 |---|---|

@@ -1,0 +1,80 @@
+"""Запуск приложения на настоящих postgres и redis, без опроса Telegram."""
+
+import json
+import uuid
+from collections.abc import AsyncIterator
+
+import asyncpg
+import pytest
+
+from src.bootstrap.app import create_app
+from src.bootstrap.di import Container
+from src.shared.asyncpg_db import PostgresSettings
+
+pytestmark = pytest.mark.integration
+
+
+@pytest.fixture
+async def schema_dsn() -> AsyncIterator[str]:
+    """DSN со своей схемой: приложение мигрирует и засевает её, а не общую базу."""
+    schema = f"t_{uuid.uuid4().hex[:12]}"
+    base = PostgresSettings().dsn.get_secret_value()
+    admin = await asyncpg.connect(base)
+    await admin.execute(f"CREATE SCHEMA {schema}")
+    try:
+        yield f"{base}?search_path={schema}"
+    finally:
+        await admin.execute(f"DROP SCHEMA {schema} CASCADE")
+        await admin.close()
+
+
+async def _get(app, path: str) -> tuple[int, bytes]:
+    sent = []
+    done = False
+
+    async def receive():
+        nonlocal done
+        if done:
+            return {"type": "http.disconnect"}
+        done = True
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "headers": [],
+        "scheme": "http",
+        "server": ("test", 80),
+        "client": ("test", 1),
+    }
+    await app(scope, receive, send)
+    status = next(m["status"] for m in sent if m["type"] == "http.response.start")
+    body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body")
+    return status, body
+
+
+async def test_lifespan_without_polling(monkeypatch, schema_dsn):
+    monkeypatch.setenv("TELEGRAM_TOKEN", "123456:TEST-token")
+    monkeypatch.setenv("TELEGRAM_MANAGER_CHAT_ID", "1")
+    monkeypatch.setenv("TELEGRAM_INVITE_CODE", "invite")
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "false")
+    monkeypatch.setenv("POSTGRES_DSN", schema_dsn)
+    # Отдельная база redis, как в фикстурах интеграционных тестов.
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:56379/15")
+    container = Container()
+    app = create_app(container)
+
+    async with app.router.lifespan_context(app):
+        status, body = await _get(app, "/health")
+        assert (status, json.loads(body)) == (200, {"status": "ok"})
+        # Миграции и сид отработали: опубликованный сценарий читается.
+        scenario = await (await container.scenario_service()).current()
+        assert scenario.version == 1

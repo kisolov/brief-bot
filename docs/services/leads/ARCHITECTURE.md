@@ -1,6 +1,6 @@
 # leads
 
-Заявки: сохранение прохода анкеты (частичного или полного) и уведомление менеджера. Домен не знает про `dialog` и `scenario`: `Lead` собирает вызывающая сторона, сборки из `Session` здесь нет. Usecase-слоя, DI и API пока нет.
+Заявки: сохранение прохода анкеты (частичного или полного) и уведомление менеджера. Домен не знает про `dialog` и `scenario`: `Lead` собирает вызывающая сторона, сборки из `Session` здесь нет. Usecase-слоя и API пока нет; `LeadService` вызывает `dialog`.
 
 ## Сущности
 
@@ -21,7 +21,7 @@
 | `LeadRepository` | [AsyncpgLeadRepository](../../../backend/src/leads/adapters/asyncpg.py) | postgres, таблица `leads` ([001_init.sql](../../../backend/migrations/001_init.sql)) |
 | `LeadRepository` | [InMemoryLeadRepository](../../../backend/src/leads/adapters/memory.py) | тесты |
 | `ManagerNotifier` | [MockManagerNotifier](../../../backend/src/leads/adapters/memory.py) | тесты (`fail=True` имитирует сбой) |
-| `ManagerNotifier` | `TelegramManagerNotifier` (запланирован, `adapters/telegram.py`) | менеджерский чат Telegram |
+| `ManagerNotifier` | [TelegramManagerNotifier](../../../backend/src/leads/adapters/telegram.py) | менеджерский чат Telegram (`TELEGRAM_MANAGER_CHAT_ID`): части текста по очереди через `send_message` без разметки, затем файл: `send_document`, при `TelegramBadRequest` `send_photo` (`file_id` фото документом не уйдёт) |
 
 ## Сервис и форматирование
 
