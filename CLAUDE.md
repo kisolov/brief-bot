@@ -16,7 +16,7 @@ Telegram-бот веб-студии и визуальный редактор с�
 - `uv run ruff check .` — линтер.
 - `docker compose up -d` (из корня) — postgres и redis.
 
-Хуки: `git config core.hooksPath .githooks`. `pre-commit` запускает ruff и pytest без integration, `commit-msg` отклоняет сообщения с `Co-Authored-By` и `Claude`.
+Хуки: `git config core.hooksPath .githooks`. `pre-commit` запускает ruff, pytest без integration и, если в коммите есть файлы `editor/`, vitest; `commit-msg` отклоняет сообщения с `Co-Authored-By` и `Claude`.
 
 ## Политика git
 

@@ -7,6 +7,7 @@ from src.dialog.entities import Effect, Event, StepResult
 from src.scenario.entities import Option, Scenario, Step, StepType, When
 from src.scenario.parser import dump_scenario, parse_scenario
 from src.scenario.validator import validate_scenario
+from tests.utils.walker import play
 
 
 def _none_scenario() -> Scenario:
@@ -163,3 +164,86 @@ def test_finish_step_options_validated():
     bad = replace(sc.steps["thanks"], options=(Option(id="x", label="Куда"),))
     broken = replace(sc, steps={**sc.steps, "thanks": bad})
     assert [i.code for i in validate_scenario(broken)] == ["missing_next"]
+
+
+# Черновик в том виде, как его сохраняет редактор: JSON со всеми необязательными полями.
+EDITOR_DRAFT = {
+    "entry": "menu",
+    "blocks": {"final": "phone"},
+    "steps": {
+        "menu": {
+            "type": "choice",
+            "text": "Что нужно?",
+            "key": "Направление",
+            "options": [
+                {"id": "go", "label": "Начать", "next": "pick"},
+                {"id": "site", "label": "Сайт", "url": "https://example.com"},
+            ],
+            "no_back": True,
+            "pos": [10.5, 20],
+        },
+        "pick": {
+            "type": "multi_input",
+            "text": "Что разместить?",
+            "key": "Разместить",
+            "options": [
+                {"id": "goods", "label": "Товары"},
+                {"id": "other", "label": "Другое", "input": "Что именно?"},
+                {"id": "nothing", "label": "Ничего", "exclusive": True},
+            ],
+            "next": "link",
+            "done_label": "Дальше",
+            "pos": [300, 20],
+        },
+        "link": {
+            "type": "text",
+            "text": "Ссылка на сайт?",
+            "key": "Ссылка",
+            "next": {"call": "final"},
+            "when": {"step": "pick", "any": ["goods"], "none": ["nothing"]},
+            "validate": "url",
+        },
+        "phone": {
+            "type": "text",
+            "text": "Телефон?",
+            "key": "Телефон",
+            "next": "thanks",
+            "validate": "phone",
+        },
+        "thanks": {
+            "type": "info",
+            "text": "Спасибо!",
+            "options": [{"id": "again", "label": "Ещё раз", "next": "pick"}],
+            "finish": True,
+            "back_to": "menu",
+        },
+    },
+}
+
+
+def test_editor_draft_passes_parse_validate_and_step():
+    sc = parse_scenario(EDITOR_DRAFT, 1)
+    assert validate_scenario(sc) == []
+    assert dump_scenario(sc) == EDITOR_DRAFT
+
+    done = play(
+        sc,
+        ["Начать", "Товары", "Другое", "Своё", "Дальше", "example.ru", "+7 999 111-22-33"],
+    )
+
+    assert done.session.finished and done.effects == (Effect.FINISHED,)
+    assert done.session.answers["pick"].texts == {"other": "Своё"}
+    assert done.screen.step == "thanks" and not done.screen.can_back
+
+    again = step(sc, done.session, Event("button", step="thanks", value="again"))
+    assert again.session.step == "pick" and again.session.answers == {}
+    assert again.screen.done_label == "Дальше" and again.screen.can_back
+    assert step(sc, again.session, Event("back", step="pick")).session.step == "menu"
+
+
+def test_editor_draft_skips_step_by_condition():
+    sc = parse_scenario(EDITOR_DRAFT, 1)
+    # link пропущен по условию: его next ведёт в блок final
+    assert play(sc, ["Начать", "Товары", "Ничего", "Дальше"]).session.step == "phone"
+    assert play(sc, ["Начать", "Другое", "Своё", "Дальше"]).session.step == "phone"
+    assert play(sc, ["Начать", "Товары", "Дальше"]).session.step == "link"

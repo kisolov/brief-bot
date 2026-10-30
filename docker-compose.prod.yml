@@ -32,7 +32,7 @@ services:
         max-size: 10m
         max-file: "3"
     # Без пароля намеренно: порт наружу не опубликован, Redis виден только app внутри сети compose.
-    # noeviction: в Redis лежат сессии редактора, вытеснять их нельзя; при нехватке 32 МБ Redis отдаст ошибку записи.
+    # noeviction: в Redis лежат сессии анкет и очередь напоминаний, вытеснять их нельзя; при нехватке 32 МБ Redis отдаст ошибку записи.
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "32mb", "--maxmemory-policy", "noeviction"]
     volumes:
       - redis_data:/data
