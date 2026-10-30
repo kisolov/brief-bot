@@ -27,16 +27,15 @@ class ScenarioRepository(ABC):
         """Атомарно сохраняет, если revision всё ещё base_revision. Иначе DraftConflict."""
 
     @abstractmethod
-    async def replace_draft(self, data: dict) -> int:
-        """Заменяет черновик без проверки revision (откат версии). Возвращает новый revision."""
-
-    @abstractmethod
     async def publish(self, data: dict) -> int:
         """Записывает данные новой версией с номером max+1 и делает её активной."""
 
     @abstractmethod
-    async def set_active(self, n: int) -> None:
-        """NotFound, если версии нет."""
+    async def activate_version(self, n: int) -> None:
+        """Откат: атомарно делает версию n активной и заменяет черновик её данными.
+
+        revision черновика растёт. NotFound, если версии нет; при сбое не меняется ничего.
+        """
 
     @abstractmethod
     async def seed(self, data: dict) -> bool:

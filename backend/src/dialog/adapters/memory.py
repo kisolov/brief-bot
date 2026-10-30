@@ -32,4 +32,7 @@ class InMemoryReminderQueue(ReminderQueue):
 
     async def due(self, now: datetime, limit: int) -> list[int]:
         past = sorted((at, chat_id) for chat_id, at in self._deadlines.items() if at <= now)
-        return [chat_id for _, chat_id in past[:limit]]
+        taken = [chat_id for _, chat_id in past[:limit]]
+        for chat_id in taken:
+            del self._deadlines[chat_id]
+        return taken

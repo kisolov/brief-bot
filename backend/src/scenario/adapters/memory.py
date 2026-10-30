@@ -43,20 +43,17 @@ class InMemoryScenarioRepository(ScenarioRepository):
         self._draft = Draft(copy.deepcopy(data), base_revision + 1)
         return self._draft.revision
 
-    async def replace_draft(self, data: dict) -> int:
-        revision = self._draft.revision + 1 if self._draft else 1
-        self._draft = Draft(copy.deepcopy(data), revision)
-        return revision
-
     async def publish(self, data: dict) -> int:
         number = max(self._versions, default=0) + 1
         self._versions[number] = (copy.deepcopy(data), datetime.now(UTC))
         self._active = number
         return number
 
-    async def set_active(self, n: int) -> None:
+    async def activate_version(self, n: int) -> None:
         if n not in self._versions:
             raise NotFound(f"версии {n} нет")
+        revision = self._draft.revision + 1 if self._draft else 1
+        self._draft = Draft(copy.deepcopy(self._versions[n][0]), revision)
         self._active = n
 
     async def seed(self, data: dict) -> bool:

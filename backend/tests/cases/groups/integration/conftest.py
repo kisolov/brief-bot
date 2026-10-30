@@ -38,7 +38,7 @@ async def db() -> AsyncIterator[AsyncpgDatabase]:
 @pytest.fixture
 async def redis() -> AsyncIterator[Redis]:
     settings = RedisSettings(url=f"redis://localhost:56379/{TEST_REDIS_DB}")
-    client = Redis.from_url(settings.url, decode_responses=True)
+    client = Redis.from_url(settings.url.get_secret_value(), decode_responses=True)
     await client.flushdb()
     try:
         yield client

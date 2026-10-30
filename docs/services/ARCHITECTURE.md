@@ -32,7 +32,7 @@
 | Очередь напоминаний | redis ZSET `reminders` | [RedisReminderQueue](../../backend/src/dialog/adapters/redis.py) |
 | Заявки, администраторы, токены, настройки | postgres `leads`, `admins`, `editor_tokens`, `settings` | таблицы созданы в [001_init.sql](../../backend/migrations/001_init.sql), адаптеров ещё нет |
 
-Подключение: `POSTGRES_DSN` (по умолчанию `postgresql://brief:brief@localhost:55432/brief`) и `REDIS_URL` (по умолчанию `redis://localhost:56379/0`); значения по умолчанию совпадают с `docker-compose.yml`. DI-контейнера и точки входа пока нет.
+Подключение: `POSTGRES_DSN` (по умолчанию `postgresql://brief:brief@localhost:55432/brief`) и `REDIS_URL` (по умолчанию `redis://localhost:56379/0`, оба `SecretStr`); значения по умолчанию совпадают с `docker-compose.yml`. DI-контейнера и точки входа пока нет.
 
 ## Миграции
 

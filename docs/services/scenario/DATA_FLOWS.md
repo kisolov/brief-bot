@@ -22,7 +22,8 @@ lifespan (позже) -> ScenarioService.ensure_seeded
 ## Откат
 
 ```
-rollback(n) -> get_version(n) ---- нет --> NotFound
-            -> set_active(n)
-            -> replace_draft(dump_scenario(версия n))  (revision+1)
+rollback(n) -> activate_version(n)   одна транзакция:
+                 версии n нет --> NotFound
+                 active = n; черновик = данные версии n, revision+1
+                 сбой --> откат всего
 ```

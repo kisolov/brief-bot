@@ -66,7 +66,7 @@
 | Порт | Адаптеры | Что хранит |
 |---|---|---|
 | `SessionRepository` (`get`, `save`, `delete`) | [RedisSessionRepository](../../../backend/src/dialog/adapters/redis.py), [InMemorySessionRepository](../../../backend/src/dialog/adapters/memory.py) | Redis: JSON по ключу `session:<chat_id>`, TTL 30 дней, продлевается каждым `save` |
-| `ReminderQueue` (`schedule`, `cancel`, `due`) | [RedisReminderQueue](../../../backend/src/dialog/adapters/redis.py), [InMemoryReminderQueue](../../../backend/src/dialog/adapters/memory.py) | Redis: `ZSET reminders`, член `chat_id`, оценка это unix-время срабатывания |
+| `ReminderQueue` (`schedule`, `cancel`, `due`; `due` забирает записи) | [RedisReminderQueue](../../../backend/src/dialog/adapters/redis.py), [InMemoryReminderQueue](../../../backend/src/dialog/adapters/memory.py) | Redis: `ZSET reminders`, член `chat_id`, оценка это unix-время срабатывания |
 
 Сериализатор сессии (`session_to_json`, `session_from_json`) лежит в [adapters/redis.py](../../../backend/src/dialog/adapters/redis.py) и не требует подключения к Redis.
 

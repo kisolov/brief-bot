@@ -57,7 +57,7 @@
 | [AsyncpgScenarioRepository](../../../backend/src/scenario/adapters/asyncpg.py) | `scenario_versions` (номер, jsonb, `published_at`, `active`) и `scenario_draft` (одна строка `id = 1`: jsonb, `revision`) |
 | [InMemoryScenarioRepository](../../../backend/src/scenario/adapters/memory.py) | то же в словаре; для тестов |
 
-Методы порта: [ports.py](../../../backend/src/scenario/ports.py). Сверх интерфейса плана есть `replace_draft` (откат) и `seed` (первый запуск).
+Методы порта: [ports.py](../../../backend/src/scenario/ports.py). Сверх интерфейса плана вместо `set_active` есть `activate_version` (атомарный откат) и `seed` (первый запуск).
 
 ## Сервис
 
@@ -70,7 +70,7 @@
 | `draft()` | `Draft` |
 | `save_draft(data, base_revision)` | сохраняет и возвращает новый `revision`; устарел `base_revision`: `DraftConflict` |
 | `publish()` | проверяет черновик и записывает новой версией; возвращает номер |
-| `rollback(n)` | делает версию `n` активной и заменяет черновик её данными |
+| `rollback(n)` | `activate_version(n)`: версия `n` становится активной, черновик заменяется её данными, одной операцией |
 | `versions()` | `list[VersionInfo]` по возрастанию номера |
 | `ensure_seeded()` | при пустой таблице версий пишет сид версией 1 и черновиком; `True`, если записал. Из `lifespan` пока не вызывается |
 

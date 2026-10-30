@@ -68,7 +68,7 @@ def test_json_is_plain_json_text():
     assert json.loads(raw)["chat_id"] == session.chat_id
 
 
-def test_old_json_without_snapshots_is_padded_and_back_works():
+def test_old_json_without_snapshots_is_padded_with_current_keys_and_back_keeps_answers():
     session = play(SEED, START + BRANCHES["promo"][:5]).session
     data = json.loads(session_to_json(session))
     del data["history_answers"]
@@ -76,13 +76,15 @@ def test_old_json_without_snapshots_is_padded_and_back_works():
 
     restored = session_from_json(json.dumps(data))
 
+    keys = tuple(session.answers)
     assert len(restored.history) > 2
-    assert restored.history_answers == ((),) * len(restored.history)
+    assert restored.history_answers == (keys,) * len(restored.history)
     assert restored.history_returns == ((),) * len(restored.history)
     assert render(SEED, restored).can_back
     after = step(SEED, restored, Event("back", step=restored.step)).session
     assert after.step == session.history[-1]
     assert after.history == session.history[:-1]
+    assert after.answers == restored.answers
     assert len(after.history_answers) == len(after.history)
     assert len(after.history_returns) == len(after.history)
 
@@ -96,7 +98,7 @@ def test_short_snapshots_are_padded_to_history_length():
 
     assert len(restored.history_answers) == len(restored.history)
     assert restored.history_answers[0] == session.history_answers[0]
-    assert restored.history_answers[1:] == ((),) * (len(restored.history) - 1)
+    assert restored.history_answers[1:] == (tuple(session.answers),) * (len(restored.history) - 1)
 
 
 async def test_memory_session_repository_contract():
@@ -111,7 +113,7 @@ async def test_memory_session_repository_contract():
     await repo.delete(session.chat_id)
 
 
-async def test_memory_reminder_queue_returns_only_past_in_order():
+async def test_memory_reminder_queue_due_takes_entries_in_order():
     queue = InMemoryReminderQueue()
     now = datetime(2026, 10, 30, 12, 0, tzinfo=UTC)
     await queue.schedule(3, now + timedelta(hours=1))
@@ -119,9 +121,20 @@ async def test_memory_reminder_queue_returns_only_past_in_order():
     await queue.schedule(1, now - timedelta(hours=1))
     await queue.schedule(4, now - timedelta(minutes=30))
 
-    assert await queue.due(now, limit=10) == [1, 4, 2]
     assert await queue.due(now, limit=2) == [1, 4]
-    await queue.schedule(1, now + timedelta(hours=2))
-    await queue.cancel(4)
-    await queue.cancel(404)
     assert await queue.due(now, limit=10) == [2]
+    assert await queue.due(now, limit=10) == []
+
+
+async def test_memory_reminder_queue_schedule_after_due_and_cancel():
+    queue = InMemoryReminderQueue()
+    now = datetime(2026, 10, 30, 12, 0, tzinfo=UTC)
+    await queue.schedule(1, now - timedelta(hours=1))
+    await queue.schedule(2, now - timedelta(hours=1))
+    assert await queue.due(now, limit=10) == [1, 2]
+
+    await queue.schedule(1, now - timedelta(minutes=1))
+    await queue.cancel(2)
+    await queue.cancel(404)
+
+    assert await queue.due(now, limit=10) == [1]

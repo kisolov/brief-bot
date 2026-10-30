@@ -52,27 +52,26 @@ class AsyncpgScenarioRepository(ScenarioRepository):
             raise DraftConflict("черновик изменён")
         return revision
 
-    async def replace_draft(self, data: dict) -> int:
-        return await self._pool.fetchval(
-            "INSERT INTO scenario_draft (id, data, revision) VALUES (1, $1, 1) "
-            "ON CONFLICT (id) DO UPDATE SET data = $1, revision = scenario_draft.revision + 1, "
-            "updated_at = now() RETURNING revision",
-            data,
-        )
-
     async def publish(self, data: dict) -> int:
         async with self._pool.acquire() as conn, conn.transaction():
             await conn.execute("SELECT pg_advisory_xact_lock($1)", _VERSIONS_LOCK)
             return await _insert_active(conn, data)
 
-    async def set_active(self, n: int) -> None:
+    async def activate_version(self, n: int) -> None:
         async with self._pool.acquire() as conn, conn.transaction():
             await conn.execute("SELECT pg_advisory_xact_lock($1)", _VERSIONS_LOCK)
-            if not await conn.fetchval("SELECT 1 FROM scenario_versions WHERE number = $1", n):
+            data = await conn.fetchval("SELECT data FROM scenario_versions WHERE number = $1", n)
+            if data is None:
                 raise NotFound(f"версии {n} нет")
             # Два оператора: индекс не допускает две активные версии даже внутри одного UPDATE.
             await conn.execute("UPDATE scenario_versions SET active = false WHERE active")
             await conn.execute("UPDATE scenario_versions SET active = true WHERE number = $1", n)
+            await conn.execute(
+                "INSERT INTO scenario_draft (id, data, revision) VALUES (1, $1, 1) "
+                "ON CONFLICT (id) DO UPDATE SET data = $1, revision = scenario_draft.revision + 1, "
+                "updated_at = now()",
+                data,
+            )
 
     async def seed(self, data: dict) -> bool:
         async with self._pool.acquire() as conn, conn.transaction():

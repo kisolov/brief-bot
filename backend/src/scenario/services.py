@@ -45,9 +45,7 @@ class ScenarioService:
 
     async def rollback(self, n: int) -> None:
         """Делает версию n активной; черновик становится её копией, отменённое не остаётся."""
-        target = await self._repo.get_version(n)
-        await self._repo.set_active(n)
-        await self._repo.replace_draft(dump_scenario(target))
+        await self._repo.activate_version(n)
 
     async def ensure_seeded(self) -> bool:
         """Первый запуск: сценарий из ТЗ становится версией 1 и черновиком."""

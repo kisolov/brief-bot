@@ -17,10 +17,13 @@ _LOCK_KEY = 7_204_001
 async def apply_migrations(pool: asyncpg.Pool, directory: Path) -> list[str]:
     """Применяет новые файлы, возвращает их имена. Каждый файл идёт в своей транзакции."""
     async with pool.acquire() as conn:
-        await conn.execute(
-            "CREATE TABLE IF NOT EXISTS schema_migrations ("
-            "name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())"
-        )
+        # Под той же блокировкой: два процесса не создают таблицу одновременно.
+        async with conn.transaction():
+            await conn.execute("SELECT pg_advisory_xact_lock($1)", _LOCK_KEY)
+            await conn.execute(
+                "CREATE TABLE IF NOT EXISTS schema_migrations ("
+                "name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())"
+            )
         applied: list[str] = []
         for path in sorted(directory.glob("*.sql")):
             async with conn.transaction():

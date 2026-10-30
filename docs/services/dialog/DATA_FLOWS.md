@@ -21,14 +21,14 @@
 SessionRepository.get(chat_id) -> Session | None   (None: new_session)
 step(...) -> StepResult
 SessionRepository.save(result.session)             (JSON, TTL 30 дней)
-ReminderQueue.schedule(chat_id, at) | cancel(chat_id)
+ReminderQueue.schedule(chat_id, at) | cancel(chat_id)   (schedule после due создаёт новую запись)
 ```
 
 ## Напоминания (хранилище)
 
 ```
 задача раз в минуту (позже) -> ReminderQueue.due(now, limit) -> [chat_id]
-  -> для каждого: отправка и cancel(chat_id)   (usecase запланирован)
+  due забирает записи (повторно не выдаст); отправка (usecase запланирован)
 ```
 
 ## Прохождение с возвратом

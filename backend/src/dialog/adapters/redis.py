@@ -19,22 +19,27 @@ def session_to_json(session: Session) -> str:
 
 
 def session_from_json(raw: str) -> Session:
-    """Собирает Session из JSON. Старый JSON без снимков истории дополняется пустыми снимками."""
+    """Собирает Session из JSON.
+
+    Старый JSON без снимков истории дополняется: стек возврата пустым, ответы текущими ключами.
+    """
     data = json.loads(raw)
     history = tuple(data.get("history", ()))
+    answers = {k: _answer_from_dict(v) for k, v in data.get("answers", {}).items()}
     return Session(
         chat_id=data["chat_id"],
         version=data["version"],
         step=data["step"],
         history=history,
         returns=tuple(data.get("returns", ())),
-        answers={k: _answer_from_dict(v) for k, v in data.get("answers", {}).items()},
+        answers=answers,
         pending_input=data.get("pending_input"),
         finished=data.get("finished", False),
         reminded=data.get("reminded", False),
         # Снимки должны быть параллельны history, иначе "Назад" упадёт на IndexError.
         history_returns=_snapshots(data.get("history_returns"), len(history)),
-        history_answers=_snapshots(data.get("history_answers"), len(history)),
+        # Недостающие снимки ответов берут текущие ключи: "Назад" не должен стирать заявку.
+        history_answers=_snapshots(data.get("history_answers"), len(history), tuple(answers)),
         username=data.get("username"),
     )
 
@@ -78,9 +83,11 @@ def _answer_from_dict(data: dict[str, Any]) -> Answer:
     )
 
 
-def _snapshots(raw: list[list[str]] | None, length: int) -> tuple[tuple[str, ...], ...]:
+def _snapshots(
+    raw: list[list[str]] | None, length: int, filler: tuple[str, ...] = ()
+) -> tuple[tuple[str, ...], ...]:
     snaps = tuple(tuple(s) for s in raw or ())
-    return snaps + ((),) * (length - len(snaps))
+    return snaps + (filler,) * (length - len(snaps))
 
 
 class RedisSessionRepository(SessionRepository):
@@ -101,7 +108,10 @@ class RedisSessionRepository(SessionRepository):
 
 
 class RedisReminderQueue(ReminderQueue):
-    """ZSET reminders: член chat_id, оценка это время срабатывания в секундах unix."""
+    """ZSET reminders: член chat_id, оценка это время срабатывания в секундах unix.
+
+    `due` забирает записи: выдаёт только то, что сам убрал из ZSET.
+    """
 
     def __init__(self, redis: Redis) -> None:
         self._redis = redis
@@ -116,7 +126,12 @@ class RedisReminderQueue(ReminderQueue):
         members = await self._redis.zrangebyscore(
             REMINDERS_KEY, "-inf", now.timestamp(), start=0, num=limit
         )
-        return [int(m) for m in members]
+        taken = []
+        for member in members:
+            # ZREM вернёт 1 только одному из параллельных вызовов: запись достанется ему.
+            if await self._redis.zrem(REMINDERS_KEY, member):
+                taken.append(int(member))
+        return taken
 
 
 def _key(chat_id: int) -> str:

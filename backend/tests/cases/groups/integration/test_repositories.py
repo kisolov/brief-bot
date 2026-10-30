@@ -133,6 +133,24 @@ async def test_rollback_sets_active_and_replaces_draft(service):
     assert await service.publish() == 3
 
 
+async def test_rollback_failing_on_draft_keeps_active_version(db, service):
+    await service.save_draft(_edited("Вторая версия"), base_revision=1)
+    await service.publish()
+    await service.save_draft(_edited("Правка после публикации"), base_revision=2)
+    # Замена черновика при откате упадёт: revision 4 не проходит ограничение.
+    async with db.pool.acquire() as conn:
+        await conn.execute("ALTER TABLE scenario_draft ADD CONSTRAINT boom CHECK (revision < 4)")
+
+    with pytest.raises(asyncpg.CheckViolationError):
+        await service.rollback(1)
+
+    assert (await service.current()).version == 2
+    assert [(v.number, v.active) for v in await service.versions()] == [(1, False), (2, True)]
+    draft = await service.draft()
+    assert draft.revision == 3
+    assert draft.data["steps"]["privacy"]["text"] == "Правка после публикации"
+
+
 async def test_rollback_to_missing_version_raises(service):
     with pytest.raises(NotFound):
         await service.rollback(99)
@@ -213,8 +231,10 @@ async def test_due_returns_only_past(redis):
     await queue.schedule(10, now - timedelta(hours=1))
     await queue.schedule(40, now)
 
-    assert await queue.due(now, limit=10) == [10, 20, 40]
     assert await queue.due(now, limit=2) == [10, 20]
+    assert await queue.due(now, limit=10) == [40]
+    assert await queue.due(now, limit=10) == []
+    assert await redis.zrange("reminders", 0, -1) == ["30"]
 
 
 async def test_reschedule_moves_deadline_and_cancel_removes(redis):
@@ -229,3 +249,28 @@ async def test_reschedule_moves_deadline_and_cancel_removes(redis):
 
     assert await queue.due(now, limit=10) == []
     assert await redis.zcard("reminders") == 1
+
+
+async def test_parallel_due_hands_out_each_chat_exactly_once(redis):
+    queue = RedisReminderQueue(redis)
+    now = datetime(2026, 10, 30, 12, 0, tzinfo=UTC)
+    for chat_id in range(1, 41):
+        await queue.schedule(chat_id, now - timedelta(minutes=chat_id))
+
+    batches = await asyncio.gather(*(queue.due(now, limit=40) for _ in range(6)))
+
+    taken = [chat_id for batch in batches for chat_id in batch]
+    assert sorted(taken) == list(range(1, 41))
+    assert await redis.zcard("reminders") == 0
+
+
+async def test_schedule_after_due_creates_new_entry(redis):
+    queue = RedisReminderQueue(redis)
+    now = datetime(2026, 10, 30, 12, 0, tzinfo=UTC)
+    await queue.schedule(7, now - timedelta(minutes=1))
+    assert await queue.due(now, limit=10) == [7]
+
+    await queue.schedule(7, now + timedelta(hours=3))
+
+    assert await queue.due(now, limit=10) == []
+    assert await queue.due(now + timedelta(hours=4), limit=10) == [7]
