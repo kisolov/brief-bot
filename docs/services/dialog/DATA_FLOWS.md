@@ -6,7 +6,7 @@
 
 ```
 событие -> step(scenario, session, event)
-  finished?  -> кнопка finish-шага -> _restart (новый проход) | иначе тот же экран
+  finished?  -> кнопка finish-шага -> _restart (новый проход), версию выбирает DialogService.apply | иначе тот же экран
   чужой шаг? -> тот же экран
   pending?   -> _on_pending (текст опции | back отменяет опцию)
   иначе      -> _on_button | _on_done | _on_back | _on_text | _on_file

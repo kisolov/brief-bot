@@ -358,3 +358,54 @@ async def test_batch_limit_is_respected(h):
     # Лишний чат остался в очереди и уходит со следующим проходом.
     assert await h.remind(LATER) == 1
     assert len({chat for chat, _ in h.gateway.sent}) == BATCH_LIMIT + 1
+
+
+async def _during_partial(h: Harness, action) -> None:
+    """Выполняет action в момент записи частичной заявки: человек пишет прямо сейчас."""
+    save_partial = h.remind._leads.save_partial
+
+    async def racing(lead):
+        await action()
+        return await save_partial(lead)
+
+    h.remind._leads.save_partial = racing  # type: ignore[method-assign]
+
+
+async def test_reminder_does_not_overwrite_session_changed_during_pass(h):
+    await h.answer_name()
+    await _during_partial(
+        h, lambda: h.handle(CHAT, "anna", Event("button", step="branch", value="new"))
+    )
+
+    assert await h.remind(LATER) == 0
+
+    session = await h.sessions.get(CHAT)
+    assert session is not None and session.step == "hub"
+    assert not session.reminded
+    assert h.gateway.sent == []
+
+
+async def test_reminder_does_not_overwrite_finished_session(h):
+    await h.answer_name()
+    session = await h.sessions.get(CHAT)
+
+    async def finish():
+        await h.sessions.save(replace(session, finished=True))
+
+    await _during_partial(h, finish)
+
+    assert await h.remind(LATER) == 0
+
+    saved = await h.sessions.get(CHAT)
+    assert saved is not None and saved.finished and not saved.reminded
+    assert h.gateway.sent == []
+
+
+async def test_reminder_does_not_restore_session_deleted_during_pass(h):
+    await h.answer_name()
+    await _during_partial(h, lambda: h.sessions.delete(CHAT))
+
+    assert await h.remind(LATER) == 0
+
+    assert await h.sessions.get(CHAT) is None
+    assert h.gateway.sent == []

@@ -76,15 +76,15 @@
 
 ## Сервис
 
-[DialogService](../../../backend/src/dialog/services.py): единственная точка доступа usecase к `SessionRepository`, `ReminderQueue` и (через `ScenarioService.by_version`) к закреплённой версии сценария.
+[DialogService](../../../backend/src/dialog/services.py): единственная точка доступа usecase к `SessionRepository`, `ReminderQueue` и (через `ScenarioService`) к закреплённой и текущей версиям сценария.
 
 | Метод | Делает |
 |---|---|
 | `load(chat_id)`, `save(session)` | чтение и запись сессии |
 | `start(chat_id, username)` | новая сессия на текущей опубликованной версии, сохраняется, возвращает экран входа |
-| `apply(chat_id, event, username=None)` | событие к сохранённой сессии на её версии; обновляет `username`; **ничего не сохраняет**; нет сессии: `SessionNotFound` |
+| `apply(chat_id, event, username=None)` | событие к сохранённой сессии на её версии; кнопка финала идёт по текущей версии, а если там нет шага или кнопки, вызывает `start`; обновляет `username`; **сохраняет только этот запасной `start`**; нет сессии: `SessionNotFound` |
 | `reset(chat_id, username=None)` | снимает напоминание и делает `start`; `username` берётся из старой сессии, если не передан |
-| `screen(session)`, `scenario_of(session)` | экран и сценарий сессии |
+| `screen(session)`, `scenario_of(session)` | экран и сценарий сессии; `screen` при отсутствии версии в базе делает `reset` |
 | `schedule_reminder`, `cancel_reminder` | очередь напоминаний |
 | `due_reminders(now, limit)` | чаты с наступившим сроком, записи снимаются |
 | `reminder_settings()` | `ReminderSettings` из `SettingsRepository` |

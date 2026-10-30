@@ -44,6 +44,10 @@ class SendReminders:
         lead = build_lead(scenario, session, LeadStatus.PARTIAL, now)
         # Менеджер получает частичную заявку, даже если человек уже заблокировал бота.
         await self._leads.save_partial(lead)
+        # За время записи человек мог ответить или закончить: его сессию не затираем.
+        if await self._dialog.load(chat_id) != session:
+            logger.info("Reminder skipped: session changed", extra={"chat_id": chat_id})
+            return False
         # Флаг до отправки: при сбое отправки второе напоминание не уйдёт.
         await self._dialog.save(replace(session, reminded=True))
         settings = await self._dialog.reminder_settings()

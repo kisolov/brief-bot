@@ -17,6 +17,7 @@ from src.dialog.exceptions import SessionNotFound
 from src.dialog.ports import ReminderQueue, SessionRepository, SettingsRepository
 from src.scenario.entities import Scenario
 from src.scenario.services import ScenarioService
+from src.shared.exceptions import NotFound
 
 # Метка экрана возобновления: у него нет шага в сценарии.
 RESUME_STEP = "@resume"
@@ -70,7 +71,12 @@ class DialogService:
         return await self._scenarios.by_version(session.version)
 
     async def screen(self, session: Session) -> Screen:
-        return render(await self.scenario_of(session), session)
+        """Экран сессии. Версии нет в базе (восстановили старый дамп): анкета начинается заново."""
+        try:
+            scenario = await self.scenario_of(session)
+        except NotFound:
+            return (await self.reset(session.chat_id, session.username)).screen
+        return render(scenario, session)
 
     async def start(self, chat_id: int, username: str | None) -> StepResult:
         """Новая сессия на текущей опубликованной версии; показывает вход."""
@@ -80,13 +86,28 @@ class DialogService:
         return StepResult(session, render(scenario, session))
 
     async def apply(self, chat_id: int, event: Event, username: str | None = None) -> StepResult:
-        """Применяет событие к сохранённой сессии. Сама ничего не сохраняет."""
+        """Применяет событие к сохранённой сессии. Сохраняет только запасной вход нового прохода."""
         session = await self._sessions.get(chat_id)
         if session is None:
             raise SessionNotFound(f"сессии чата {chat_id} нет")
         if username is not None:
             session = replace(session, username=username)
-        return step(await self.scenario_of(session), session, event)
+        result = step(await self.scenario_of(session), session, event)
+        # У завершённой сессии эффект даёт только кнопка финала: это новый проход.
+        if session.finished and result.effects:
+            return await self._new_passage(session, event, result)
+        return result
+
+    async def _new_passage(self, session: Session, event: Event, pinned: StepResult) -> StepResult:
+        """Новый проход идёт по текущей версии: та же кнопка того же шага, иначе со входа."""
+        latest = await self._scenarios.current()
+        if latest.version == session.version:
+            return pinned
+        if session.step in latest.steps:
+            result = step(latest, replace(session, version=latest.version), event)
+            if result.effects:
+                return result
+        return await self.start(session.chat_id, session.username)
 
     async def reset(self, chat_id: int, username: str | None = None) -> StepResult:
         """Новая сессия вместо старой; напоминание старой снимается."""

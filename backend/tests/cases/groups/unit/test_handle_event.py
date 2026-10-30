@@ -286,3 +286,157 @@ async def test_lead_failure_keeps_session_on_previous_step(h):
 
     session = await h.sessions.get(CHAT)
     assert session is not None and session.step == "ready" and not session.finished
+
+
+# --- новый проход с кнопок финала идёт по текущей версии ---
+
+
+def _with_final_buttons() -> dict:
+    data = dump_scenario(sample_scenario())
+    data["steps"]["fin"]["options"] = [
+        {"id": "again", "label": "Ещё раз", "next": "name"},
+        {"id": "other", "label": "Другое", "next": "privacy"},
+    ]
+    return data
+
+
+async def _finished_on_final_buttons(h: Harness) -> int:
+    """Проходит анкету на версии с кнопками под финалом, возвращает номер версии."""
+    version = await h.scenario_repo.publish(_with_final_buttons())
+    await _walk_to_finish(h)
+    return version
+
+
+async def test_final_button_uses_same_version_when_nothing_published(h):
+    version = await _finished_on_final_buttons(h)
+
+    screen = await h.press("fin", "again")
+
+    assert screen.step == "name"
+    session = await h.sessions.get(CHAT)
+    assert session is not None and session.version == version and session.answers == {}
+
+
+async def test_final_button_follows_same_button_on_new_version(h):
+    version = await _finished_on_final_buttons(h)
+    data = _with_final_buttons()
+    data["steps"]["name"]["text"] = "Имя v3"
+    await h.scenario_repo.publish(data)
+
+    screen = await h.press("fin", "again")
+
+    assert screen.step == "name" and screen.text == "Имя v3"
+    session = await h.sessions.get(CHAT)
+    assert session is not None and session.version == version + 1
+    assert session.step == "name" and not session.finished and session.answers == {}
+
+
+async def test_final_button_uses_active_version_after_rollback(h):
+    first = await h.scenario_repo.publish(_with_final_buttons())
+    data = _with_final_buttons()
+    data["steps"]["name"]["text"] = "Имя новое"
+    await h.scenario_repo.publish(data)
+    await _walk_to_finish(h)
+    await h.scenario_repo.activate_version(first)
+
+    screen = await h.press("fin", "again")
+
+    assert screen.text == "Как вас зовут?"
+    session = await h.sessions.get(CHAT)
+    assert session is not None and session.version == first
+
+
+async def test_final_button_starts_over_when_button_gone(h):
+    await _finished_on_final_buttons(h)
+    data = _with_final_buttons()
+    data["steps"]["fin"]["options"] = data["steps"]["fin"]["options"][1:]
+    data["steps"]["privacy"]["text"] = "Политика v3"
+    await h.scenario_repo.publish(data)
+
+    screen = await h.press("fin", "again")
+
+    assert screen.text == "Политика v3"
+    session = await h.sessions.get(CHAT)
+    assert session is not None and session.step == "privacy" and not session.finished
+
+
+async def test_final_button_starts_over_when_step_gone(h):
+    await _finished_on_final_buttons(h)
+    data = _with_final_buttons()
+    data["steps"]["fin2"] = data["steps"].pop("fin")
+    data["blocks"]["final"] = "fin2"
+    await h.scenario_repo.publish(data)
+
+    screen = await h.press("fin", "again")
+
+    assert screen.step == "privacy"
+    session = await h.sessions.get(CHAT)
+    assert session is not None and session.version == 3
+
+
+async def test_final_button_starts_over_when_step_is_no_longer_final(h):
+    await _finished_on_final_buttons(h)
+    data = _with_final_buttons()
+    del data["steps"]["fin"]["finish"]
+    await h.scenario_repo.publish(data)
+
+    screen = await h.press("fin", "again")
+
+    assert screen.step == "privacy"
+
+
+async def test_dead_button_on_finished_session_ignores_new_version(h):
+    version = await _finished_on_final_buttons(h)
+    await h.scenario_repo.publish(_with_final_buttons())
+    before = await h.sessions.get(CHAT)
+
+    for event_step, option in (("fin", "zzz"), ("privacy", "ok")):
+        screen = await h.press(event_step, option)
+        assert screen.step == "fin"
+
+    assert await h.sessions.get(CHAT) == before
+    assert before.version == version
+
+
+async def test_new_passage_finish_writes_lead_of_new_version(h):
+    await _finished_on_final_buttons(h)
+    data = _with_final_buttons()
+    data["steps"]["fin"]["options"] = [{"id": "again", "label": "Ещё раз", "next": "bye"}]
+    data["steps"]["bye"] = {"type": "info", "text": "Пока", "finish": True}
+    await h.scenario_repo.publish(data)
+
+    screen = await h.press("fin", "again")
+
+    assert screen.step == "bye"
+    leads = await h.lead_repo.list(None)
+    assert len(leads) == 2 and {lead.last_step for lead in leads} >= {"Пока"}
+
+
+# --- версии сессии нет в базе: дамп старше последней публикации ---
+
+
+async def _session_on_lost_version(h: Harness, **fields) -> None:
+    await h.start()
+    await h.press("privacy", "ok")
+    session = await h.sessions.get(CHAT)
+    await h.sessions.save(replace(session, version=99, **fields))
+
+
+async def test_start_recovers_session_on_lost_version(h):
+    await _session_on_lost_version(h)
+
+    screen = await h.start()
+
+    assert screen.step == "privacy"
+    session = await h.sessions.get(CHAT)
+    assert session is not None and session.version == 1
+
+
+async def test_resume_continue_recovers_session_on_lost_version(h):
+    await _session_on_lost_version(h)
+
+    screen = await h.resume(CHAT, "continue")
+
+    assert screen.step == "privacy"
+    session = await h.sessions.get(CHAT)
+    assert session is not None and session.version == 1

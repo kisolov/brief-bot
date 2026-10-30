@@ -110,6 +110,7 @@ def test_final_buttons_start_new_passage():
     assert s.step == "menu" and s.finished is False and s.reminded is False
     assert s.answers == {} and s.history == () and s.returns == ()
     assert s.history_returns == () and s.history_answers == () and s.pending_input is None
+    # step() чистый: выбор текущей версии делает DialogService.apply.
     assert s.version == 7 and s.chat_id == 1
     assert [b.id for b in r2.screen.buttons] == ["go"]
     assert r2.screen.can_back is False
