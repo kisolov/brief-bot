@@ -35,7 +35,12 @@ def new_session(scenario: Scenario, chat_id: int) -> Session:
 
 def step(scenario: Scenario, session: Session, event: Event) -> StepResult:
     """Применяет событие к сессии и возвращает новую сессию, экран и эффекты."""
-    if session.finished or event.kind == "start":
+    if session.finished:
+        current = scenario.steps[session.step]
+        if current.finish and event.kind == "button" and event.step == session.step:
+            return _restart(scenario, session, current, event.value)
+        return _same(scenario, session)
+    if event.kind == "start":
         return _same(scenario, session)
     if event.kind in ("button", "done", "back") and event.step != session.step:
         return _same(scenario, session)
@@ -71,7 +76,13 @@ def render(scenario: Scenario, session: Session) -> Screen:
 
     text = _fill(current.text, session.answers)
     if session.finished:
-        return Screen(step=current.id, text=text, done_label=_done_label(current))
+        buttons = ()
+        if current.finish:
+            buttons = tuple(
+                Button(id=o.id, label=o.label, url=o.url)
+                for o in _visible_options(current, session.answers)
+            )
+        return Screen(step=current.id, text=text, buttons=buttons, done_label=_done_label(current))
 
     checked = session.answers[current.id].ids if current.id in session.answers else ()
     buttons = tuple(
@@ -123,6 +134,33 @@ def _on_button(scenario: Scenario, session: Session, current: Step, option_id: s
     elif current.type != StepType.INFO:
         return _same(scenario, session)
     return _advance(scenario, session, answers, option.next)
+
+
+def _restart(scenario: Scenario, session: Session, current: Step, option_id: str) -> StepResult:
+    """Кнопка под финалом начинает новый проход: ответы и история чистые, версия прежняя."""
+    option = next(
+        (o for o in _visible_options(current, session.answers) if o.id == option_id), None
+    )
+    if option is None or option.url is not None or option.next is None:
+        return _same(scenario, session)
+    fresh = replace(
+        session,
+        history=(),
+        history_returns=(),
+        history_answers=(),
+        returns=(),
+        answers={},
+        pending_input=None,
+        finished=False,
+        reminded=False,
+    )
+    dest, returns = _resolve(scenario, {}, (), option.next)
+    if dest is None:
+        return _same(scenario, session)
+    terminal = _is_terminal(scenario.steps[dest])
+    moved = replace(fresh, step=dest, returns=returns, finished=terminal)
+    effect = Effect.FINISHED if terminal else Effect.PROGRESS
+    return StepResult(moved, render(scenario, moved), (effect,))
 
 
 def _on_done(scenario: Scenario, session: Session, current: Step) -> StepResult:
@@ -309,6 +347,8 @@ def _same(scenario: Scenario, session: Session) -> StepResult:
 
 
 def _is_terminal(current: Step) -> bool:
+    if current.finish:
+        return True
     return current.type == StepType.INFO and not current.options and current.next is None
 
 
@@ -320,7 +360,9 @@ def _done_label(current: Step) -> str:
 
 def _met(when: When, answers: dict[str, Answer]) -> bool:
     answer = answers.get(when.step)
-    return answer is not None and any(i in answer.ids for i in when.any)
+    if answer is None:
+        return False
+    return any(i in answer.ids for i in when.any) and not any(i in answer.ids for i in when.none)
 
 
 def _visible_options(current: Step, answers: dict[str, Answer]) -> list[Option]:

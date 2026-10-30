@@ -71,6 +71,7 @@ def _parse_step(sid: str, raw: Any) -> Step:
         no_back=bool(_optional(raw, "no_back", bool, where)),
         validate=validate,
         done_label=_optional(raw, "done_label", str, where),
+        finish=bool(_optional(raw, "finish", bool, where)),
         pos=_parse_pos(raw.get("pos"), where),
     )
 
@@ -103,7 +104,10 @@ def _parse_when(raw: Any, where: str) -> When | None:
     values = _require(raw, "any", list, f"{where}, условие")
     if not all(isinstance(v, str) for v in values):
         raise ScenarioMalformed(f"{where}: условие any должно быть списком строк")
-    return When(step, tuple(values))
+    none = _optional(raw, "none", list, f"{where}, условие") or []
+    if not all(isinstance(v, str) for v in none):
+        raise ScenarioMalformed(f"{where}: условие none должно быть списком строк")
+    return When(step, tuple(values), tuple(none))
 
 
 def _parse_pos(raw: Any, where: str) -> tuple[float, float] | None:
@@ -131,6 +135,8 @@ def _dump_step(step: Step) -> dict:
         out["validate"] = step.validate
     if step.done_label is not None:
         out["done_label"] = step.done_label
+    if step.finish:
+        out["finish"] = True
     if step.pos is not None:
         out["pos"] = list(step.pos)
     return out
@@ -161,4 +167,7 @@ def _dump_target(target: Target) -> str | dict:
 
 
 def _dump_when(when: When) -> dict:
-    return {"step": when.step, "any": list(when.any)}
+    out: dict[str, Any] = {"step": when.step, "any": list(when.any)}
+    if when.none:
+        out["none"] = list(when.none)
+    return out

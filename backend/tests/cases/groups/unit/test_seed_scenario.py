@@ -229,6 +229,10 @@ def test_promo_link_not_asked_when_site_entered_or_absent():
     tail += ["Нужна консультация", "Один город", "Заявки"]
     assert play(SEED, site + tail).session.step == "fin_name"
 
+    both = [*START, "Продвижение сайта", "Сайт", "example.ru", "Соцсети", "vk.com/club"]
+    both += ["Готово", "SEO-продвижение", "Готово"]
+    assert play(SEED, both + tail).session.step == "fin_name"
+
     social = [*START, "Продвижение сайта", "Соцсети", "vk.com/club", "Готово", "SEO-продвижение"]
     result = play(SEED, [*social, "Готово", *tail])
     assert result.session.step == "promo_link"
@@ -292,10 +296,51 @@ def test_services_branch_has_no_design_question():
     assert "design" not in result.session.answers
 
 
-def test_thanks_has_no_buttons_and_fills_name():
-    result = play(SEED, START + BRANCHES["promo"] + [])
-    assert result.screen.buttons == ()
+def test_thanks_has_three_buttons_and_fills_name():
+    result = play(SEED, START + BRANCHES["promo"])
+    assert [b.label.split(" ", 1)[1] for b in result.screen.buttons] == [
+        "Вернуться в главное меню",
+        "Примеры наших работ",
+        "Связаться напрямую",
+    ]
     assert "{name}" not in result.screen.text
+    assert result.screen.can_back is False
+
+
+def test_final_buttons_start_new_passage():
+    targets = {
+        "Вернуться в главное меню": "menu",
+        "Примеры наших работ": "works_sphere",
+        "Связаться напрямую": "contact",
+    }
+    for label, target in targets.items():
+        done = play(SEED, START + BRANCHES["goods"])
+        result = step(
+            SEED,
+            done.session,
+            Event("button", step="fin_thanks", value=_option_id(done.screen, label)),
+        )
+        s = result.session
+        assert result.effects == (Effect.PROGRESS,)
+        assert s.step == target and not s.finished and not s.reminded
+        assert s.answers == {} and s.history == () and s.returns == ()
+        assert result.screen.buttons, target
+
+
+def _option_id(screen: Screen, label: str) -> str:
+    return next(b.id for b in screen.buttons if b.label.endswith(label))
+
+
+def test_new_passage_runs_to_thanks_again():
+    done = play(SEED, START + BRANCHES["goods"])
+    again = step(
+        SEED,
+        done.session,
+        Event(
+            "button", step="fin_thanks", value=_option_id(done.screen, "Вернуться в главное меню")
+        ),
+    )
+    assert "Здравствуйте" in again.screen.text
 
 
 def test_walker_rejects_unknown_label():
@@ -359,7 +404,7 @@ def _explore(scenario: Scenario):
     while queue:
         session = queue.popleft()
         screen = render(scenario, session)
-        if session.finished:
+        if session.finished and not screen.buttons:
             continue
         for event in _events(scenario, session, screen):
             result = step(scenario, session, event)
@@ -378,6 +423,9 @@ def test_every_step_can_go_back():
         reached.add(result.session.step)
         after = result.session
         if after.finished or after.step in _NO_BACK_STEPS:
+            continue
+        if before.finished:
+            # Новый проход после финала начинается с чистой историей: "Назад" некуда.
             continue
         assert result.screen.can_back, f"нет кнопки Назад на шаге {after.step}"
 
@@ -400,6 +448,7 @@ def test_thanks_is_the_only_terminal_step():
     terminals = [
         sid
         for sid, s in SEED.steps.items()
-        if s.type == StepType.INFO and not s.options and s.next is None
+        if s.finish or (s.type == StepType.INFO and not s.options and s.next is None)
     ]
     assert terminals == ["fin_thanks"]
+    assert SEED.steps["fin_thanks"].finish

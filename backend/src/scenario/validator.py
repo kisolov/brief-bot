@@ -111,7 +111,7 @@ def _check_option(s: Scenario, step: Step, opt: Option) -> list[Issue]:
             )
         )
     issues.extend(_check_target(s, sid, opt.id, opt.next))
-    if opt.next is None and opt.url is None and step.type in _OPTION_NEXT_TYPES:
+    if opt.next is None and opt.url is None and (step.type in _OPTION_NEXT_TYPES or step.finish):
         issues.append(
             Issue(
                 "missing_next",
@@ -188,7 +188,7 @@ def _reachable(s: Scenario) -> set[str]:
             continue
         seen.add(sid)
         targets = [step.next]
-        if step.type in _OPTION_NEXT_TYPES:
+        if step.type in _OPTION_NEXT_TYPES or step.finish:
             targets.extend(o.next for o in step.options)
         for t in targets:
             stack.extend(_targets_of(s, t))

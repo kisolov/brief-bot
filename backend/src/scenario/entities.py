@@ -18,10 +18,12 @@ class StepType(StrEnum):
 
 @dataclass(frozen=True)
 class When:
-    """Условие показа: ответ на шаг `step` входит в `any`."""
+    """Условие показа: ответ на шаг `step` входит в `any` и не входит в `none`."""
 
     step: str
     any: tuple[str, ...]
+    # Условие ложно, если отмечен хотя бы один id из none.
+    none: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,8 @@ class Step:
     no_back: bool = False
     validate: Literal["phone", "url"] | None = None
     done_label: str | None = None
+    # Конечный шаг с кнопками: вход в него завершает анкету, кнопка начинает новую.
+    finish: bool = False
     # Координаты ноды в редакторе, движок их не читает.
     pos: tuple[float, float] | None = None
 
