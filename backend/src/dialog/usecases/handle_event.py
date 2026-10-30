@@ -19,12 +19,10 @@ class HandleEvent:
         dialog: DialogService,
         leads: LeadService,
         clock: Callable[[], datetime],
-        reminder_hours: int = 3,
     ) -> None:
         self._dialog = dialog
         self._leads = leads
         self._clock = clock
-        self._reminder_hours = reminder_hours
 
     async def __call__(self, chat_id: int, username: str | None, event: Event) -> Screen:
         session = await self._dialog.load(chat_id)
@@ -67,7 +65,8 @@ class HandleEvent:
 
     async def _plan_reminder(self, session: Session) -> None:
         if not session.reminded and has_reminder_progress(session):
-            at = self._clock() + timedelta(hours=self._reminder_hours)
+            settings = await self._dialog.reminder_settings()
+            at = self._clock() + timedelta(hours=settings.hours)
             await self._dialog.schedule_reminder(session.chat_id, at)
         else:
             await self._dialog.cancel_reminder(session.chat_id)

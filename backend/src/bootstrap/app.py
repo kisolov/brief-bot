@@ -10,6 +10,7 @@ from fastapi import FastAPI
 
 from src.bootstrap.di import Container
 from src.bootstrap.di import container as default_container
+from src.bootstrap.jobs.reminders import run_reminders
 from src.shared.logger import get_logger
 from src.shared.migrate import MIGRATIONS_DIR, apply_migrations
 
@@ -33,7 +34,7 @@ def create_app(container: Container = default_container) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Настройки первыми: неверная конфигурация падает до подключения к базам.
         settings = container.telegram_settings()
-        polling: asyncio.Task[None] | None = None
+        tasks: list[asyncio.Task[None]] = []
         try:
             await container.init_resources()
             db = await container.asyncpg_db()
@@ -43,14 +44,17 @@ def create_app(container: Container = default_container) -> FastAPI:
             if settings.polling_enabled:
                 dispatcher = await container.dispatcher()
                 bot = await container.bot()
-                polling = asyncio.create_task(_poll(dispatcher, bot))
-                logger.info("Polling started")
+                tasks.append(asyncio.create_task(_poll(dispatcher, bot)))
+                send_reminders = await container.send_reminders()
+                tasks.append(asyncio.create_task(run_reminders(send_reminders)))
+                logger.info("Polling and reminders started")
             yield
         finally:
-            if polling is not None:
-                polling.cancel()
+            for task in tasks:
+                task.cancel()
+            for task in tasks:
                 with contextlib.suppress(asyncio.CancelledError):
-                    await polling
+                    await task
             await container.shutdown_resources()
 
     app = FastAPI(lifespan=lifespan)

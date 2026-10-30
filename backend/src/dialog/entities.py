@@ -92,3 +92,15 @@ def answer_text(answer: Answer) -> str:
         extra = answer.texts.get(option_id)
         parts.append(f"{label} ({extra})" if extra else label)
     return ", ".join(parts)
+
+
+DEFAULT_REMINDER_HOURS = 3
+DEFAULT_REMINDER_TEXT = "Вы не закончили анкету. Продолжим с того же места?"
+
+
+@dataclass(frozen=True)
+class ReminderSettings:
+    """Через сколько часов тишины напомнить и что написать."""
+
+    hours: int = DEFAULT_REMINDER_HOURS
+    text: str = DEFAULT_REMINDER_TEXT

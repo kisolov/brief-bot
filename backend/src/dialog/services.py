@@ -4,9 +4,17 @@ from dataclasses import replace
 from datetime import datetime
 
 from src.dialog.engine import new_session, render, step
-from src.dialog.entities import BRANCH_KEY, Button, Event, Screen, Session, StepResult
+from src.dialog.entities import (
+    BRANCH_KEY,
+    Button,
+    Event,
+    ReminderSettings,
+    Screen,
+    Session,
+    StepResult,
+)
 from src.dialog.exceptions import SessionNotFound
-from src.dialog.ports import ReminderQueue, SessionRepository
+from src.dialog.ports import ReminderQueue, SessionRepository, SettingsRepository
 from src.scenario.entities import Scenario
 from src.scenario.services import ScenarioService
 
@@ -44,10 +52,12 @@ class DialogService:
         sessions: SessionRepository,
         reminders: ReminderQueue,
         scenarios: ScenarioService,
+        settings: SettingsRepository,
     ) -> None:
         self._sessions = sessions
         self._reminders = reminders
         self._scenarios = scenarios
+        self._settings = settings
 
     async def load(self, chat_id: int) -> Session | None:
         return await self._sessions.get(chat_id)
@@ -91,3 +101,10 @@ class DialogService:
 
     async def cancel_reminder(self, chat_id: int) -> None:
         await self._reminders.cancel(chat_id)
+
+    async def due_reminders(self, now: datetime, limit: int) -> list[int]:
+        """Чаты с наступившим сроком; записи снимаются с очереди при выдаче."""
+        return await self._reminders.due(now, limit)
+
+    async def reminder_settings(self) -> ReminderSettings:
+        return await self._settings.get_reminder()

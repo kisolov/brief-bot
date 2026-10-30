@@ -29,7 +29,9 @@
 | `returns` | стек возврата из блоков: id шагов, на которые вернёмся по `@return` |
 | `answers` | ответы по id шага |
 | `pending_input` | id опции `multi_input`, текст которой сейчас ждём |
-| `finished`, `reminded` | анкета закончена; напоминание уже отправлено |
+| `finished`, `reminded` | анкета закончена; напоминание этой анкете уже отправлено (новая анкета начинается с `reminded = False`) |
+
+`ReminderSettings(hours, text)` ([entities.py](../../../backend/src/dialog/entities.py)): через сколько часов после последнего действия напомнить и текст напоминания; по умолчанию `3` и «Вы не закончили анкету. Продолжим с того же места?».
 
 Константа `BRANCH_KEY = "Направление"`: ключ шага главного меню, по нему заявка узнаёт направление.
 
@@ -67,6 +69,8 @@
 |---|---|---|
 | `SessionRepository` (`get`, `save`, `delete`) | [RedisSessionRepository](../../../backend/src/dialog/adapters/redis.py), [InMemorySessionRepository](../../../backend/src/dialog/adapters/memory.py) | Redis: JSON по ключу `session:<chat_id>`, TTL 30 дней, продлевается каждым `save` |
 | `ReminderQueue` (`schedule`, `cancel`, `due`; `due` забирает записи) | [RedisReminderQueue](../../../backend/src/dialog/adapters/redis.py), [InMemoryReminderQueue](../../../backend/src/dialog/adapters/memory.py) | Redis: `ZSET reminders`, член `chat_id`, оценка это unix-время срабатывания |
+| `SettingsRepository` (`get_reminder`, `save_reminder`) | [AsyncpgSettingsRepository](../../../backend/src/dialog/adapters/asyncpg.py), [InMemorySettingsRepository](../../../backend/src/dialog/adapters/memory.py) | postgres: таблица `settings`, ключ `reminder`, `value` jsonb `{hours, text}`; записи нет: значения по умолчанию |
+| `ChatGateway` (`send_reminder(chat_id, text)`; бросает `ChatBlocked`) | [TelegramChatGateway](../../../backend/src/bootstrap/telegram/gateway.py) | сообщение с кнопками экрана возобновления (`r:continue`, `r:restart`); `TelegramForbiddenError` и `TelegramBadRequest "chat not found"` становятся `ChatBlocked` |
 
 Сериализатор сессии (`session_to_json`, `session_from_json`) лежит в [adapters/redis.py](../../../backend/src/dialog/adapters/redis.py) и не требует подключения к Redis.
 
@@ -82,6 +86,8 @@
 | `reset(chat_id, username=None)` | снимает напоминание и делает `start`; `username` берётся из старой сессии, если не передан |
 | `screen(session)`, `scenario_of(session)` | экран и сценарий сессии |
 | `schedule_reminder`, `cancel_reminder` | очередь напоминаний |
+| `due_reminders(now, limit)` | чаты с наступившим сроком, записи снимаются |
+| `reminder_settings()` | `ReminderSettings` из `SettingsRepository` |
 
 Экран возобновления: `resume_screen()` с маркером `RESUME_STEP = "@resume"`, кнопки `continue` "Продолжить" и `restart` "Начать заново", `can_back = False`. Для `Screen.step == "@resume"` клавиатура пакует кнопки как `r:continue` и `r:restart`.
 
@@ -91,6 +97,7 @@
 |---|---|
 | [HandleEvent](../../../backend/src/dialog/usecases/handle_event.py) `(chat_id, username, event) -> Screen` | единственный вход событий диалога, порядок решений в [INVARIANTS](INVARIANTS.md) |
 | [ResumeOrRestart](../../../backend/src/dialog/usecases/resume_or_restart.py) `(chat_id, choice, username=None) -> Screen` | `continue` показывает текущий экран; `restart` и отсутствие сессии: новая сессия |
+| [SendReminders](../../../backend/src/dialog/usecases/send_reminders.py) `(now) -> int` | напоминание о брошенной анкете и частичная заявка менеджеру, порядок в [DATA_FLOWS](DATA_FLOWS.md) |
 
 [build_lead](../../../backend/src/dialog/lead_builder.py)`(scenario, session, status, now) -> Lead`: чистая функция. `answers` в порядке записи, только с `key` и без `BRANCH_KEY`, значение через `answer_text`; `branch` это подпись последнего ответа с `BRANCH_KEY` (иначе пусто); `file_id` последнего ответа с файлом; `last_step` первая строка текста текущего шага до 100 символов. Пустые значения не пропускаются.
 

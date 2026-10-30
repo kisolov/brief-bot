@@ -1,9 +1,9 @@
-"""Порты хранения диалога: сессии и очередь напоминаний."""
+"""Порты диалога: сессии, очередь напоминаний, настройки напоминания и отправка в чат."""
 
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from src.dialog.entities import Session
+from src.dialog.entities import ReminderSettings, Session
 
 
 class SessionRepository(ABC):
@@ -32,4 +32,22 @@ class ReminderQueue(ABC):
 
         Атомарно: параллельные вызовы не получат один чат дважды. Новое `schedule` после
         `due` создаёт новую запись.
+        """
+
+
+class SettingsRepository(ABC):
+    @abstractmethod
+    async def get_reminder(self) -> ReminderSettings:
+        """Настройки напоминания; если их ещё не сохраняли, значения по умолчанию."""
+
+    @abstractmethod
+    async def save_reminder(self, settings: ReminderSettings) -> None: ...
+
+
+class ChatGateway(ABC):
+    @abstractmethod
+    async def send_reminder(self, chat_id: int, text: str) -> None:
+        """Шлёт напоминание с кнопками "Продолжить" и "Начать заново".
+
+        Бросает ChatBlocked, если пользователь заблокировал бота.
         """

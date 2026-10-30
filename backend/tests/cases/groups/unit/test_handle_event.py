@@ -3,7 +3,11 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.dialog.adapters.memory import InMemoryReminderQueue, InMemorySessionRepository
+from src.dialog.adapters.memory import (
+    InMemoryReminderQueue,
+    InMemorySessionRepository,
+    InMemorySettingsRepository,
+)
 from src.dialog.entities import Event
 from src.dialog.services import RESUME_STEP, DialogService
 from src.dialog.usecases.handle_event import HandleEvent
@@ -55,7 +59,9 @@ async def h() -> Harness:
     reminders = InMemoryReminderQueue()
     lead_repo = InMemoryLeadRepository()
     notifier = MockManagerNotifier()
-    dialog = DialogService(sessions, reminders, ScenarioService(scenario_repo))
+    dialog = DialogService(
+        sessions, reminders, ScenarioService(scenario_repo), InMemorySettingsRepository()
+    )
     handle = HandleEvent(dialog, LeadService(lead_repo, notifier), clock=lambda: NOW)
     return Harness(
         handle,

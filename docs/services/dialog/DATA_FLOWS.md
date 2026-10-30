@@ -1,6 +1,6 @@
 # dialog: потоки
 
-Описано то, что работает сейчас: движок, хранилища, usecase и Telegram-слой. Отправка напоминаний по таймеру ещё не написана.
+Описано то, что работает сейчас: движок, хранилища, usecase, Telegram-слой и фоновое напоминание.
 
 ## Одно событие
 
@@ -24,11 +24,19 @@ SessionRepository.save(result.session)             (JSON, TTL 30 дней)
 ReminderQueue.schedule(chat_id, at) | cancel(chat_id)   (schedule после due создаёт новую запись)
 ```
 
-## Напоминания (хранилище)
+## Напоминания
 
 ```
-задача раз в минуту (позже) -> ReminderQueue.due(now, limit) -> [chat_id]
-  due забирает записи (повторно не выдаст); отправка запланирована, задачи пока нет
+run_reminders (раз в 60 с, только при polling_enabled) -> SendReminders(datetime.now(UTC))
+  DialogService.due_reminders(now, 100) -> ReminderQueue.due: [chat_id], записи сняты
+  для каждого chat_id (сбой одного логируется и не мешает остальным):
+    нет сессии | finished | reminded | нет ответа с key кроме BRANCH_KEY -> пропуск
+    build_lead(..., PARTIAL, now) -> LeadService.save_partial (запись, затем менеджер)
+    session.reminded = True -> save
+    ChatGateway.send_reminder(chat_id, ReminderSettings.text)
+      ChatBlocked -> INFO в лог, не считается отправкой
+  возвращает число отправленных
+экран напоминания = экран возобновления с текстом из настроек; r:continue | r:restart
 ```
 
 ## Прохождение с возвратом
@@ -48,7 +56,7 @@ Update -> router -> Event (start | button | done | back | text | file)
     start в середине анкеты          -> экран возобновления (@resume) | текущий экран
     иначе DialogService.apply -> StepResult
       FINISHED -> build_lead -> LeadService.finish (запись, затем менеджер) -> cancel -> save
-      PROGRESS -> save -> schedule | cancel напоминания
+      PROGRESS -> save -> schedule на now + ReminderSettings.hours | cancel напоминания
   Screen -> render: edit_text на нажатом сообщении | снять клавиатуру + новое сообщение
 r:continue | r:restart -> ResumeOrRestart -> Screen
 ```
@@ -57,6 +65,6 @@ r:continue | r:restart -> ResumeOrRestart -> Screen
 
 ```
 lifespan: init_resources (postgres, redis, бот) -> apply_migrations -> EnsureSeeded
-  -> polling_enabled? start_polling(handle_as_tasks=False) задачей
-выход: отмена задачи -> shutdown_resources
+  -> polling_enabled? start_polling(handle_as_tasks=False) задачей + run_reminders задачей
+выход: отмена обеих задач -> shutdown_resources
 ```

@@ -52,6 +52,7 @@ async def stand():
     container.scenario_repository.override(container.memory_scenario_repository)
     container.session_repository.override(container.memory_session_repository)
     container.reminder_queue.override(container.memory_reminder_queue)
+    container.settings_repository.override(container.memory_settings_repository)
     container.lead_repository.override(container.memory_lead_repository)
     container.manager_notifier.override(container.mock_manager_notifier)
     await container.scenario_service().ensure_seeded()

@@ -2,8 +2,8 @@
 
 from datetime import datetime
 
-from src.dialog.entities import Session
-from src.dialog.ports import ReminderQueue, SessionRepository
+from src.dialog.entities import ReminderSettings, Session
+from src.dialog.ports import ReminderQueue, SessionRepository, SettingsRepository
 
 
 class InMemorySessionRepository(SessionRepository):
@@ -36,3 +36,14 @@ class InMemoryReminderQueue(ReminderQueue):
         for chat_id in taken:
             del self._deadlines[chat_id]
         return taken
+
+
+class InMemorySettingsRepository(SettingsRepository):
+    def __init__(self) -> None:
+        self._reminder = ReminderSettings()
+
+    async def get_reminder(self) -> ReminderSettings:
+        return self._reminder
+
+    async def save_reminder(self, settings: ReminderSettings) -> None:
+        self._reminder = settings
