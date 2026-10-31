@@ -325,6 +325,7 @@ function onRemove() {
 .step-panel {
   width: 336px;
   flex: none;
+  overflow-y: auto;
   box-sizing: border-box;
   padding: 16px;
   background: var(--bg-card);

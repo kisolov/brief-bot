@@ -53,12 +53,17 @@ const failed = computed(() => props.data.state === 'error')
   color: var(--ink);
   box-shadow: var(--shadow-node);
 }
+/* Толщина рамки постоянна: второй пиксель рисует тень, иначе выделение сдвигает содержимое */
 .step-node.selected {
-  border: 2px solid var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-ring);
 }
 .step-node.error {
-  border: 2px solid var(--danger);
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger);
+}
+.step-node.selected.error {
+  box-shadow: 0 0 0 1px var(--danger), 0 0 0 4px var(--accent-ring);
 }
 .head {
   height: 26px;

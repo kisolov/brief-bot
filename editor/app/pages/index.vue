@@ -97,7 +97,8 @@ function reload() {
 
 <style scoped>
 .work {
-  flex: 1 1 auto;
+  /* высота от экрана, а не от содержимого: длинная панель прокручивается сама и не сдвигает схему */
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   align-items: stretch;

@@ -24,6 +24,7 @@ defineEmits<{ select: [view: GraphView] }>()
 
 <style scoped>
 .graph-tabs {
+  flex: none;
   height: 44px;
   box-sizing: border-box;
   padding: 0 20px;

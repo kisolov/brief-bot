@@ -47,8 +47,13 @@ class Component extends DCLogic {
     });
     const borders = {
       normal: '1px solid #C8CFD9',
-      selected: '2px solid #1F4FBF',
-      error: '2px solid #B3261E'
+      selected: '1px solid #1F4FBF',
+      error: '1px solid #B3261E'
+    };
+    const shadows = {
+      normal: '0 1px 2px rgba(24,33,44,.08)',
+      selected: '0 0 0 1px #1F4FBF, 0 0 0 4px rgba(31,79,191,.16)',
+      error: '0 0 0 1px #B3261E'
     };
     return {
       title: this.props.title ?? 'Нужно ли подключать оплату на сайте?',
@@ -58,7 +63,7 @@ class Component extends DCLogic {
       rows,
       height: 26 + 46 + rows.length * 28 + 6,
       border: borders[state],
-      shadow: state === 'selected' ? '0 0 0 3px rgba(31,79,191,.16)' : '0 1px 2px rgba(24,33,44,.08)',
+      shadow: shadows[state],
       errorNum: this.props.errorNum || ''
     };
   }

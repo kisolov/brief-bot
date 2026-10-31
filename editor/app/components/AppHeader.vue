@@ -47,6 +47,7 @@ const { activeVersion } = storeToRefs(useScenarioStore())
 
 <style scoped>
 .app-header {
+  flex: none;
   height: 56px;
   box-sizing: border-box;
   padding: 0 20px;
