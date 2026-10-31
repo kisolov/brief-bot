@@ -107,9 +107,18 @@ function onConnectEnd(event?: MouseEvent | TouchEvent) {
   pulling = null
   if (!from || !event || props.locked) return
   const point = 'changedTouches' in event ? event.changedTouches[0] : event
-  const hit = event.target instanceof Element ? event.target : null
-  // отпущена над нодой, подсказкой, кнопками масштаба или миникартой: меню не нужно
-  if (!point || !hit?.closest('.vue-flow__pane') || hit.closest('.vue-flow__node')) return
+  if (!point) return
+  // для touchend event.target указывает на начало касания, поэтому элемент берётся по точке
+  const hit = document.elementFromPoint(point.clientX, point.clientY)
+  const onNode = hit?.closest('.vue-flow__node')
+  if (onNode) {
+    // отпущена на теле ноды, не на порту: соединяем с этой нодой, но не саму с собой
+    const id = onNode.getAttribute('data-id')
+    if (id && id !== from.node) onConnected(from.node, from.handle, id)
+    return
+  }
+  // над подсказкой, кнопками масштаба или миникартой меню не нужно
+  if (!hit?.closest('.vue-flow__pane')) return
   const box = root.value?.getBoundingClientRect()
   if (!box) return
   const at = screenToFlowCoordinate({ x: point.clientX, y: point.clientY })

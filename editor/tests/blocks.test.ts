@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAddStep } from '~/composables/useAddStep'
 import { useConnectSteps } from '~/composables/useConnectSteps'
 import { useManageBlocks } from '~/composables/useManageBlocks'
+import { useTargetMenu } from '~/composables/useTargetMenu'
 import { __setContainer } from '~/container'
 import { MockScenarioRepository } from '~/repositories/adapters/scenario.mock'
 import { useScenarioStore } from '~/stores/scenario.store'
@@ -200,6 +202,17 @@ describe('меню целей', () => {
     expect(labels).toEqual(['Перейти в блок: Оплата заказа'])
   })
 
+  it('от выхода карточки блока нет пунктов входа в блок', async () => {
+    const { store } = await setup()
+    const menu = useTargetMenu(ref('main'))
+    const card = nodeOf(store, 'main', 'call:sphere>fin')
+    menu.open(card, 'out', { x: 0, y: 0 }, [0, 0])
+    expect(menu.choices.value.some((c) => c.value.startsWith('block:'))).toBe(false)
+    expect(menu.choices.value.some((c) => c.value === 'step:menu')).toBe(true)
+    menu.open(nodeOf(store, 'main', 'menu'), 'a', { x: 0, y: 0 }, [0, 0])
+    expect(menu.choices.value.some((c) => c.value.startsWith('block:'))).toBe(true)
+  })
+
   it('«После блока вернуться на» на вкладке блока предлагает выход из блока', async () => {
     const { store } = await setup()
     expect(thenChoices(store.scenario, 'main').some((c) => c.value === '@return')).toBe(false)
@@ -291,6 +304,18 @@ describe('блоки: переименование', () => {
     expect(store.renameBlock('sphere', 'Сфера деятельности').ok).toBe(true)
     expect(Object.keys(store.blocks)).toEqual(['Сфера деятельности', 'two'])
     expect(store.renameBlock('Сфера деятельности', 'Сфера деятельности').ok).toBe(true)
+  })
+
+  it('название main занято: это вкладка основного сценария', async () => {
+    const { store } = await setup()
+    expect(store.addBlock('Main')).toEqual({ ok: false, error: 'Такой блок уже есть.' })
+    expect(store.renameBlock('sphere', 'MAIN')).toEqual({ ok: false, error: 'Такой блок уже есть.' })
+  })
+
+  it('переименование возвращает выбранный шаг', async () => {
+    const { store } = await setup()
+    store.select('sph')
+    expect(store.renameBlock('sphere', 'Новое')).toEqual({ ok: true, name: 'Новое', stepId: 'sph' })
   })
 
   it('незнакомый блок не переименовывается', async () => {

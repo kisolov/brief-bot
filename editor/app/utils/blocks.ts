@@ -17,6 +17,8 @@ export function blockNameError(s: Pick<Scenario, 'blocks'>, raw: string, except?
   if (name === '') return NAME_EMPTY
   if (name.length > BLOCK_NAME_LIMIT) return NAME_TOO_LONG
   const key = name.toLowerCase()
+  // `main` это вкладка основного сценария
+  if (key === MAIN_VIEW) return NAME_TAKEN
   for (const other of Object.keys(s.blocks ?? {})) {
     if (other === except) continue
     if (other.toLowerCase() === key || blockLabel(other).toLowerCase() === key) return NAME_TAKEN

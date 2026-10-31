@@ -214,7 +214,8 @@ export const useScenarioStore = defineStore('scenario', () => {
     const error = blockNameError(scenario.value, raw, old)
     if (error) return { ok: false, error }
     const name = raw.trim()
-    if (name === old) return { ok: true, name }
+    // выбранный шаг возвращается, чтобы смена вкладки его не сбросила
+    if (name === old) return { ok: true, name, stepId: selectedId.value ?? undefined }
     if (!touch()) return { ok: false, error: CONFLICT_TEXT }
     blocks.value = Object.fromEntries(Object.entries(blocks.value).map(([k, first]) => [k === old ? name : k, first]))
     steps.value = Object.fromEntries(
@@ -224,7 +225,7 @@ export const useScenarioStore = defineStore('scenario', () => {
       ]),
     )
     homes.value = Object.fromEntries(Object.entries(homes.value).map(([sid, view]) => [sid, view === old ? name : view]))
-    return { ok: true, name }
+    return { ok: true, name, stepId: selectedId.value ?? undefined }
   }
 
   /**

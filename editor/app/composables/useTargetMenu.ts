@@ -30,7 +30,11 @@ export function useTargetMenu(view: Ref<GraphView>) {
   const addStep = useAddStep()
   const state = ref<MenuState | null>(null)
 
-  const choices = computed(() => menuChoices(scenario.value, view.value, ''))
+  // блок не ведёт в блок: от выхода карточки пункты входа в блок не предлагаются
+  const choices = computed(() => {
+    const all = menuChoices(scenario.value, view.value, '')
+    return state.value && 'block' in state.value.origin ? all.filter((c) => !c.value.startsWith('block:')) : all
+  })
 
   /** Открыть меню. Если от этой ноды стрелку вести нельзя, меню не открывается. */
   function open(node: GraphNodeRef, handle: string, at: { x: number; y: number }, pos: [number, number]): boolean {
