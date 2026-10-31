@@ -83,10 +83,10 @@ function reload() {
     <button type="button" class="reload" @click="reload">Обновить страницу</button>
   </p>
   <p v-if="notice" class="banner" role="alert">{{ notice }}</p>
-  <p v-if="hint" class="banner hint" role="status">{{ hint }}</p>
   <div class="work">
     <StepPalette :disabled="conflict" @add="addFromPalette" />
     <div class="graph">
+      <GraphHint :text="hint" />
       <ScenarioGraph
         ref="graph"
         :nodes="nodes"
@@ -115,6 +115,7 @@ function reload() {
   align-items: stretch;
 }
 .graph {
+  position: relative;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -125,9 +126,6 @@ function reload() {
   color: var(--danger);
   background: var(--bg-card);
   border-bottom: 1px solid var(--line);
-}
-.hint {
-  color: var(--ink-2);
 }
 .reload {
   font: inherit;

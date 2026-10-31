@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Подсказка на схеме</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div role="status" style="width: max-content; max-width: 520px; box-sizing: border-box; padding: 10px 14px; display: flex; align-items: center; gap: 10px; background: #18212C; color: #FFFFFF; border-radius: 8px; box-shadow: 0 6px 20px rgba(24,33,44,.24); font-family: 'Golos Text', system-ui, sans-serif; font-size: 13px; line-height: 18px">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="flex: none; color: #C8CFD9"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"></circle><path d="M8 7.2v3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path><circle cx="8" cy="5" r="0.9" fill="currentColor"></circle></svg>
+<span>{{text}}</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"text":{"editor":null,"default":"Здесь блок заканчивается: бот возвращается на шаг, указанный при входе в блок."},"$preview":{"width":520,"height":40}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { text: this.props.text ?? 'Здесь блок заканчивается: бот возвращается на шаг, указанный при входе в блок.' };
+  }
+}
+</script>
+</body>
+</html>

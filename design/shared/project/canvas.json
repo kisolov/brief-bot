@@ -26,6 +26,7 @@
     "GraphTabs.dc.html": {"x": 0, "y": 136, "w": 1440, "h": 44, "page": "components"},
     "StepNode.dc.html": {"x": 0, "y": 260, "w": 190, "h": 134, "page": "components"},
     "BlockNode.dc.html": {"x": 270, "y": 260, "w": 190, "h": 64, "page": "components"},
+    "GraphHint.dc.html": {"x": 0, "y": 420, "w": 520, "h": 40, "page": "components"},
     "StepPalette.dc.html": {"x": 540, "y": 260, "w": 144, "h": 800, "page": "components"},
     "ScenarioGraph.dc.html": {"x": 764, "y": 260, "w": 960, "h": 800, "page": "components"},
     "StepPanel.dc.html": {"x": 1804, "y": 260, "w": 336, "h": 800, "page": "components"},
@@ -36,7 +37,7 @@
     "VersionsList.dc.html": {"x": 5756, "y": 260, "w": 1440, "h": 844, "page": "components"}
   },
   "order": [
-    "AppHeader.dc.html", "GraphTabs.dc.html", "StepNode.dc.html", "BlockNode.dc.html", "StepPalette.dc.html",
+    "AppHeader.dc.html", "GraphTabs.dc.html", "StepNode.dc.html", "BlockNode.dc.html", "GraphHint.dc.html", "StepPalette.dc.html",
     "ScenarioGraph.dc.html", "StepPanel.dc.html", "ErrorsPanel.dc.html", "LeadsTable.dc.html", "LeadDetail.dc.html",
     "SettingsForm.dc.html", "VersionsList.dc.html",
     "Main.dc.html", "PublishErrors.dc.html", "Leads.dc.html", "Settings.dc.html", "Versions.dc.html",
