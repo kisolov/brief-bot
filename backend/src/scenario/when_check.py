@@ -210,11 +210,18 @@ class _Paths:
 
 
 def _targets(step: Step) -> list[Target]:
-    # Кнопки финала начинают новый проход с пустыми ответами: пути из них нет.
-    # Для остальных опции любого типа: завышение безопасно.
+    # Кнопки финала сюда не входят (см. `_final_targets`); у остальных опции любого типа:
+    # завышение безопасно.
     options = () if step.finish else step.options
     found = [step.next, *(o.next for o in options)]
     return [t for t in found if t is not None]
+
+
+def _final_targets(step: Step) -> list[Target]:
+    """Цели кнопок финала: они начинают новый проход, ответы до них не доходят."""
+    if not step.finish:
+        return []
+    return [o.next for o in step.options if o.next is not None]
 
 
 def _build_edges(s: Scenario) -> dict[str, set[str]]:
@@ -222,6 +229,11 @@ def _build_edges(s: Scenario) -> dict[str, set[str]]:
     sites: list[tuple[str, Call]] = []
     returners: set[str] = set()
     for sid, step in s.steps.items():
+        # У кнопок финала обычных рёбер нет, но внутри нового прохода граф полный:
+        # их Call нужен, чтобы @return блока вёл на then. Ребра финал -> блок не добавляем.
+        for t in _final_targets(step):
+            if isinstance(t, Call):
+                sites.append((sid, t))
         for t in _targets(step):
             if t == RETURN:
                 returners.add(sid)

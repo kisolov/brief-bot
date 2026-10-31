@@ -375,6 +375,28 @@ def test_final_button_does_not_hide_not_before():
     assert _where(s, "when_not_before") == [("x", None)]
 
 
+def test_block_entered_from_final_button_keeps_its_return_edges():
+    # Новый проход идёт через блок, поэтому ответ b1 к шагу m будет.
+    q = Step(id="q", type=StepType.TEXT, key="К", text="?", next="fin")
+    fin = Step(
+        id="fin",
+        type=StepType.INFO,
+        text="Спасибо",
+        finish=True,
+        options=(Option(id="again", label="Заново", next=Call("blk", then="m")),),
+    )
+    b1 = Step(
+        id="b1",
+        type=StepType.CHOICE,
+        text="?",
+        options=(Option(id="p", label="P", next="b2"),),
+    )
+    b2 = Step(id="b2", type=StepType.TEXT, key="Б", text="?", next=RETURN)
+    m = Step(id="m", type=StepType.TEXT, key="М", text="?", when=When("b1", ("p",)), next="end")
+    s = _scn([q, fin, b1, b2, m, _end()], blocks={"blk": "b1"})
+    assert _where(s, "when_not_before") == []
+
+
 def test_never_after_option_hidden_by_step_condition():
     # Кнопка b противоречит условию шага x, значит, ответа b не будет и шаг y не покажется.
     x = Step(
