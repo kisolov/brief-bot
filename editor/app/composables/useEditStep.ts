@@ -81,6 +81,8 @@ export function useEditStep(options: Options = {}) {
   function setAnswer(stepId: string, kind: 'any' | 'none', answerId: string, on: boolean, optionId?: string): void {
     const w = whenOf(stepId, optionId)
     if (!w) return
+    // Ответ из соседнего списка занять нельзя: условие противоречило бы само себе.
+    if (on && ((kind === 'any' ? w.none : w.any) ?? []).includes(answerId)) return
     const list = [...(w[kind] ?? []).filter((x) => x !== answerId), ...(on ? [answerId] : [])]
     const next: When = { ...w, [kind]: list }
     if (kind === 'none' && !list.length) delete next.none

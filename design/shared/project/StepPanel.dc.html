@@ -17,7 +17,7 @@ body{margin:0}
 <fieldset style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 14px; border: 0; margin: 0; padding: 0; min-width: 0">
 <sc-if value="{{hasErrors}}" hint-placeholder-val="{{ false }}">
 <div role="alert" style="display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid #E9B9B5; border-radius: 6px">
-<div style="display: flex; gap: 10px; line-height: 19px"><span style="flex: none; width: 20px; height: 20px; border-radius: 10px; background: #B3261E; color: #FFFFFF; font-size: 12px; font-weight: 600; text-align: center; line-height: 20px">1</span><span>Кнопка "Да" никуда не ведёт. Выберите следующий шаг.</span></div>
+<div style="display: flex; gap: 10px; line-height: 19px"><span style="flex: none; width: 20px; height: 20px; border-radius: 10px; background: #B3261E; color: #FFFFFF; font-size: 12px; font-weight: 600; text-align: center; line-height: 20px">1</span><span>После ответа бот не знает, куда идти. Выберите следующий шаг.</span></div>
 <span style="color: #1F4FBF; text-decoration: underline">Ко всем ошибкам</span>
 </div>
 </sc-if>
@@ -31,6 +31,7 @@ body{margin:0}
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-weight: 500">Кнопки</div>
 <div style="border: 1px solid #D9DEE5; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px">
+<sc-if value="{{hasErrors}}" hint-placeholder-val="{{ false }}"><div role="alert" style="display: flex; gap: 10px; line-height: 19px"><span style="flex: none; width: 20px; height: 20px; border-radius: 10px; background: #B3261E; color: #FFFFFF; font-size: 12px; font-weight: 600; text-align: center; line-height: 20px">2</span><span>Эта кнопка никогда не покажется: её условие противоречит условию шага.</span></div></sc-if>
 <label style="display: flex; flex-direction: column; gap: 4px; color: #3A4656"><span style="display: flex; justify-content: space-between">Подпись<span style="color: #546070">2/40</span></span><input type="text" value="Да" style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 36px; padding: 0 10px; border: 1px solid #A9B3C0; border-radius: 6px; color: #18212C"></label>
 <label style="display: flex; flex-direction: column; gap: 4px; color: #3A4656">Куда ведёт<select style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 36px; padding: 0 8px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C"><option>Нужен ли расчёт стоимости доставки?</option></select></label>
 <div style="display: flex; flex-direction: column; gap: 6px"><label style="font-weight: 500">Когда показывать</label><select style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 38px; padding: 0 8px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C"><option>Всегда</option></select></div>
@@ -88,7 +89,7 @@ body{margin:0}
 <label style="display: flex; flex-direction: column; gap: 4px; color: #3A4656">Адрес ссылки<input type="text" value="" placeholder="https://" style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 36px; padding: 0 10px; border: 1px solid #A9B3C0; border-radius: 6px; color: #18212C"></label>
 <div style="display: flex; flex-direction: column; gap: 6px"><label style="font-weight: 500">Когда показывать</label><select style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 38px; padding: 0 8px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C"><option>После вопроса: Что вы хотите разместить на сайте?</option></select>
 <div style="font-size: 12px; color: #3A4656; margin-top: 4px">Показывать, если отмечено</div>
-<label style="display: flex; align-items: flex-start; gap: 8px; line-height: 18px"><input type="checkbox" style="margin: 2px 0 0">Товары</label>
+<label style="display: flex; align-items: flex-start; gap: 8px; line-height: 18px; color: #8A94A3"><input type="checkbox" disabled style="margin: 2px 0 0">Товары</label>
 <div style="color: #B3261E; line-height: 18px">Отметьте хотя бы один ответ в «Показывать, если отмечено», иначе кнопка никогда не покажется.</div>
 <div style="font-size: 12px; color: #3A4656; margin-top: 4px">И не отмечено</div>
 <label style="display: flex; align-items: flex-start; gap: 8px; line-height: 18px"><input type="checkbox" checked style="margin: 2px 0 0">Товары</label></div>
@@ -99,7 +100,7 @@ body{margin:0}
 <label for="step-when" style="font-weight: 500">Когда показывать</label>
 <select id="step-when" style="font: inherit; font-size: 14px; box-sizing: border-box; width: 100%; height: 38px; padding: 0 8px; border: 1px solid #A9B3C0; border-radius: 6px; background: #FFFFFF; color: #18212C"><option>После вопроса: Что вы хотите разместить на сайте?</option></select>
 <div style="font-size: 12px; color: #3A4656; margin-top: 4px">Показывать, если отмечено</div>
-<label style="display: flex; align-items: flex-start; gap: 8px; line-height: 18px"><input type="checkbox" style="margin: 2px 0 0">Товары</label>
+<label style="display: flex; align-items: flex-start; gap: 8px; line-height: 18px; color: #8A94A3"><input type="checkbox" disabled style="margin: 2px 0 0">Товары</label>
 <label style="display: flex; align-items: flex-start; gap: 8px; line-height: 18px"><input type="checkbox" style="margin: 2px 0 0">Услуги</label>
 <div style="color: #B3261E; line-height: 18px">Отметьте хотя бы один ответ в «Показывать, если отмечено», иначе шаг никогда не покажется.</div>
 <div style="font-size: 12px; color: #3A4656; margin-top: 4px">И не отмечено</div>

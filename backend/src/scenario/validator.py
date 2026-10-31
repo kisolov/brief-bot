@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 
 from src.scenario.entities import RETURN, Call, Option, Scenario, Step, StepType, Target
+from src.scenario.when_check import check_conditions
 
 _ID_RE = re.compile(r"[a-z0-9_]{1,24}")
 _CALLBACK_LIMIT = 64
@@ -85,6 +86,7 @@ def validate_scenario(s: Scenario) -> list[Issue]:
                 )
             )
     issues.extend(_check_returns(s, reachable))
+    issues.extend(Issue(p.code, p.step_id, p.option_id, p.message) for p in check_conditions(s))
     return issues
 
 

@@ -35,6 +35,16 @@ function setStep(sid: string) {
   setCondition(props.stepId, { step: sid, any: first ? [first] : [] }, props.optionId)
 }
 
+/** Ответ, отмеченный в соседнем списке, недоступен: иначе условие противоречило бы само себе. */
+function taken(kind: 'any' | 'none', answerId: string): boolean {
+  const w = when.value
+  if (!w) return false
+  const here = (w[kind] ?? []).includes(answerId)
+  const other = ((kind === 'any' ? w.none : w.any) ?? []).includes(answerId)
+  // Уже сохранённое противоречие можно разобрать, поэтому отмеченное не блокируется.
+  return other && !here
+}
+
 function mark(kind: 'any' | 'none', answerId: string, on: boolean) {
   setAnswer(props.stepId, kind, answerId, on, props.optionId)
 }
@@ -51,7 +61,7 @@ function mark(kind: 'any' | 'none', answerId: string, on: boolean) {
     <template v-if="when && answers.length">
       <div class="caption">Показывать, если отмечено</div>
       <label v-for="o in answers" :key="o.id" class="check">
-        <input type="checkbox" :checked="when.any.includes(o.id)" @change="mark('any', o.id, checked($event))" />
+        <input type="checkbox" :checked="when.any.includes(o.id)" :disabled="taken('any', o.id)" @change="mark('any', o.id, checked($event))" />
         {{ o.label }}
       </label>
       <div v-if="needsAnswer" class="warn">
@@ -59,7 +69,7 @@ function mark(kind: 'any' | 'none', answerId: string, on: boolean) {
       </div>
       <div class="caption">И не отмечено</div>
       <label v-for="o in answers" :key="`n-${o.id}`" class="check">
-        <input type="checkbox" :checked="(when.none ?? []).includes(o.id)" @change="mark('none', o.id, checked($event))" />
+        <input type="checkbox" :checked="(when.none ?? []).includes(o.id)" :disabled="taken('none', o.id)" @change="mark('none', o.id, checked($event))" />
         {{ o.label }}
       </label>
     </template>

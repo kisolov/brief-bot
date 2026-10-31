@@ -43,6 +43,7 @@
 |---|---|
 | [parser.py](../../../backend/src/scenario/parser.py) | `parse_scenario(data, version)` JSON в `Scenario`, `dump_scenario` обратно. Ошибка формы: `ScenarioMalformed` |
 | [validator.py](../../../backend/src/scenario/validator.py) | `validate_scenario(s)` возвращает `list[Issue]`, тексты написаны для заказчика |
+| [when_check.py](../../../backend/src/scenario/when_check.py) | `check_conditions(s)`: проверка условий показа шагов и кнопок, вызывается из `validate_scenario` |
 | [seed/](../../../backend/src/scenario/seed/__init__.py) | `load_seed()`: начальный сценарий из ТЗ ([scenario.json](../../../backend/src/scenario/seed/scenario.json)), версия 1 |
 | [ports.py](../../../backend/src/scenario/ports.py) | `ScenarioRepository` |
 | [services.py](../../../backend/src/scenario/services.py) | `ScenarioService` |
@@ -86,6 +87,13 @@
 | `no_options` | `choice`, `multi`, `multi_input` без кнопок |
 | `missing_next` | нет перехода там, где он нужен: у `text`, `file`, `multi`, `multi_input`, у любого шага с `when`, у `info` без `finish`, без `next` и без кнопки с переходом, у кнопки `choice`/`info`/`finish`-шага без `next` и без `url` (пустой `url` редактор хранит, пока человек не ввёл адрес, поэтому пустая строка не считается ссылкой). Плюс `@return` там, где стек возврата может быть пуст: `Call` без `then` на блок, из которого достижим `@return`, вне другого блока ("После блока бот не знает, куда идти. Выберите шаг возврата.") и прямой `@return` вне блока |
 | `when_unknown_step` | условие ссылается на несуществующий шаг |
+| `when_conflict` | один id и в `any`, и в `none` условия шага или кнопки ([when_check.py](../../../backend/src/scenario/when_check.py)) |
+| `when_empty` | `any` условия пуст: условие не выполнится никогда |
+| `when_unknown_answer` | id из `any` или `none` нет среди кнопок шага из `when.step` (либо у него нет кнопок) |
+| `when_self` | `when.step` равен своему шагу, для шага и его кнопок |
+| `when_not_before` | от `when.step` нет пути к шагу: ответа на вопрос к этому моменту не будет |
+| `when_never` | неподвижная точка: ответы, нужные условию, сами недостижимы (каскад, первопричина с другим кодом не повторяется) |
+| `when_option_conflict` | условие кнопки и условие её шага на один `choice` не пересекаются |
 | `empty_text` | текст шага или запрос `input` у опции `multi_input` пуст после `strip` |
 | `text_too_long` | текст шага или запрос `input` длиннее 4096 единиц UTF-16 |
 | `empty_label` | подпись кнопки пуста после `strip` |

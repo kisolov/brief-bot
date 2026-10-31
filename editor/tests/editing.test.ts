@@ -496,6 +496,26 @@ describe('публикация', () => {
     expect(issueItems(s, found).map((i) => i.text)).toEqual(found.map((i) => i.message))
   })
 
+  it('ошибки условий показа ведут на шаг, у кнопки тоже', async () => {
+    await setup(3)
+    const s = fixture()
+    const codes = [
+      'when_conflict',
+      'when_empty',
+      'when_unknown_answer',
+      'when_self',
+      'when_not_before',
+      'when_never',
+      'when_option_conflict',
+    ]
+    for (const code of codes) {
+      expect(locateIssue(s, { code, stepId: 'menu', optionId: null, message: code })).toEqual({ view: 'main', stepId: 'menu' })
+      expect(locateIssue(s, { code, stepId: 'menu', optionId: 'a', message: code })).toEqual({ view: 'main', stepId: 'menu' })
+    }
+    const items = issueItems(s, [{ code: 'when_never', stepId: 'menu', optionId: 'a', message: 'Эта кнопка никогда не покажется.' }])
+    expect(items[0]!.title).toBe('Меню')
+  })
+
   it('ошибки со страницы вне схемы ведут на схему и снимают выбор шага', async () => {
     const router = stubRouter('/leads')
     const { repo, store } = await setup(3)
@@ -804,9 +824,9 @@ describe('условие показа кнопки', () => {
     const edit = useEditStep()
     edit.setCondition('menu', { step: 'pick', any: ['p1'] }, 'a')
     edit.setAnswer('menu', 'none', 'p2', true, 'a')
-    edit.setAnswer('menu', 'any', 'p2', true, 'a')
+    edit.setAnswer('menu', 'any', 'p1', true, 'a')
     const option = store.steps.menu!.options![0]!
-    expect(option.when).toEqual({ step: 'pick', any: ['p1', 'p2'], none: ['p2'] })
+    expect(option.when).toEqual({ step: 'pick', any: ['p1'], none: ['p2'] })
     expect(option.next).toBe('pay')
     edit.setCondition('menu', { step: 'pick', any: ['p1'] }, 'u')
     expect(store.steps.menu!.options![2]!.url).toBe('https://example.com')
@@ -818,6 +838,53 @@ describe('условие показа кнопки', () => {
     edit.setCondition('menu', { step: 'pick', any: ['p1'] }, 'b')
     edit.setAnswer('menu', 'any', 'p1', false, 'b')
     expect(store.steps.menu!.options![1]).not.toHaveProperty('when')
+  })
+
+  it('ответ из соседнего списка занять нельзя, ни у шага, ни у кнопки', async () => {
+    const { store } = await setup()
+    const edit = useEditStep()
+    edit.setCondition('pay', { step: 'pick', any: ['p1'], none: ['p2'] })
+    edit.setAnswer('pay', 'any', 'p2', true)
+    edit.setAnswer('pay', 'none', 'p1', true)
+    expect(store.steps.pay!.when).toEqual({ step: 'pick', any: ['p1'], none: ['p2'] })
+    edit.setCondition('menu', { step: 'pick', any: ['p1'], none: ['p2'] }, 'b')
+    edit.setAnswer('menu', 'any', 'p2', true, 'b')
+    expect(store.steps.menu!.options![1]!.when).toEqual({ step: 'pick', any: ['p1'], none: ['p2'] })
+  })
+
+  it('сохранённое противоречие можно разобрать: отметку снять можно', async () => {
+    const { store } = await setup()
+    const edit = useEditStep()
+    edit.setCondition('pay', { step: 'pick', any: ['p1', 'p2'], none: ['p2'] })
+    edit.setAnswer('pay', 'none', 'p2', false)
+    expect(store.steps.pay!.when).toEqual({ step: 'pick', any: ['p1', 'p2'] })
+  })
+
+  it('смена типа на текст снимает условия на ответы этого шага', async () => {
+    const { store } = await setup()
+    const edit = useEditStep({ confirm: () => true })
+    edit.setCondition('pay', { step: 'pick', any: ['p1'], none: ['p2'] })
+    expect(edit.changeType('pick', 'text')).toBe(true)
+    expect(store.steps.pay).not.toHaveProperty('when')
+    expect(store.steps.menu!.options![0]).not.toHaveProperty('when')
+    expect(store.steps.fin).not.toHaveProperty('when')
+  })
+
+  it('смена типа с кнопками на кнопки условия не трогает', async () => {
+    const { store } = await setup()
+    const edit = useEditStep({ confirm: () => true })
+    edit.setCondition('pay', { step: 'pick', any: ['p1'] })
+    expect(edit.changeType('pick', 'multi_input')).toBe(true)
+    expect(store.steps.pay!.when).toEqual({ step: 'pick', any: ['p1'] })
+  })
+
+  it('удаление шага снимает условия на него', async () => {
+    const { store } = await setup()
+    const edit = useEditStep({ confirm: () => true })
+    edit.setCondition('pay', { step: 'pick', any: ['p1'] })
+    edit.removeStep('pick')
+    expect(store.steps.pay).not.toHaveProperty('when')
+    expect(store.steps.menu!.options![0]).not.toHaveProperty('when')
   })
 
   it('whenOf читает условие шага и кнопки', async () => {

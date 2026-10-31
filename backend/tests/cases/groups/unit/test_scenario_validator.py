@@ -376,6 +376,12 @@ def test_when_step_with_next_is_valid():
         [
             Step(
                 id="a",
+                type=StepType.CHOICE,
+                text="?",
+                options=(Option(id="y", label="Да", next="b"),),
+            ),
+            Step(
+                id="b",
                 type=StepType.TEXT,
                 text="?",
                 when=When("a", ("y",)),

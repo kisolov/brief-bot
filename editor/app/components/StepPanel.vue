@@ -53,6 +53,11 @@ const stepIssues = computed(() =>
     .map((issue, i) => ({ number: i + 1, issue }))
     .filter((x) => x.issue.stepId === id.value),
 )
+/** Ошибки самого шага наверху панели; ошибки кнопки показываются в её карточке. */
+const ownIssues = computed(() => stepIssues.value.filter((x) => x.issue.optionId === null))
+function optionIssues(optionId: string) {
+  return stepIssues.value.filter((x) => x.issue.optionId === optionId)
+}
 
 function text(e: Event): string {
   return (e.target as HTMLInputElement).value
@@ -147,8 +152,8 @@ function onRemove() {
 <template>
   <aside v-if="step" class="step-panel" aria-label="Настройки шага">
     <fieldset class="body" :disabled="conflict">
-    <div v-if="stepIssues.length" class="problems" role="alert">
-      <div v-for="p in stepIssues" :key="p.number" class="problem">
+    <div v-if="ownIssues.length" class="problems" role="alert">
+      <div v-for="p in ownIssues" :key="p.number" class="problem">
         <span class="num">{{ p.number }}</span>
         <span>{{ p.issue.message }}</span>
       </div>
@@ -222,6 +227,10 @@ function onRemove() {
     <div v-if="hasButtons" class="field">
       <div class="caption">Кнопки</div>
       <div v-for="o in step.options ?? []" :key="o.id" class="card">
+        <div v-for="p in optionIssues(o.id)" :key="p.number" class="problem" role="alert">
+          <span class="num">{{ p.number }}</span>
+          <span>{{ p.issue.message }}</span>
+        </div>
         <label class="sub">
           <span class="row-between">Подпись <span class="count">{{ o.label.length }}/{{ LABEL_LIMIT }}</span></span>
           <input

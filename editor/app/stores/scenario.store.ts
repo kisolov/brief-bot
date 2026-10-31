@@ -157,7 +157,15 @@ export const useScenarioStore = defineStore('scenario', () => {
   function changeStepType(id: string, type: StepType): boolean {
     const step = steps.value[id]
     if (!step || step.type === type || !touch()) return false
-    steps.value = { ...steps.value, [id]: convertStep(step, type).step }
+    const converted = convertStep(step, type).step
+    const next: Record<string, Step> = { ...steps.value, [id]: converted }
+    // Без кнопок условия на ответы этого шага повисли бы: ответов у него больше нет.
+    if (step.options?.length && !converted.options) {
+      for (const [sid, other] of Object.entries(next)) {
+        if (sid !== id) next[sid] = scrubWhen(other, (w) => (w.step === id ? undefined : w))
+      }
+    }
+    steps.value = next
     return true
   }
 
