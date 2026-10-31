@@ -37,8 +37,11 @@ def check_conditions(s: Scenario) -> list[WhenProblem]:
             own.add((sid, oid))
         problems.extend(found)
 
-    problems.extend(_never(s, conds, own))
-    problems.extend(_option_conflicts(s, conds))
+    conflicts = _option_conflicts(s, conds)
+    problems.extend(conflicts)
+    # Кнопка, противоречащая своему шагу, не покажется: зависимые от неё условия тоже.
+    hidden = {(p.step_id, p.option_id) for p in conflicts}
+    problems.extend(_never(s, conds, own, hidden))
     return _in_step_order(s, problems)
 
 
@@ -106,13 +109,16 @@ def _allowed(w: When, question: Step) -> set[str]:
     return ids
 
 
-def _never(s: Scenario, conds: dict[_Owner, When], own: set[_Owner]) -> list[WhenProblem]:
+def _never(
+    s: Scenario, conds: dict[_Owner, When], own: set[_Owner], hidden: set[_Owner]
+) -> list[WhenProblem]:
     """Неподвижная точка: что не покажется, если исключать невозможные ответы."""
     dead_steps: set[str] = set()
-    dead_opts: set[_Owner] = set()
+    dead_opts: set[_Owner] = set(hidden)
 
     def possible(sid: str) -> set[str]:
-        if sid in dead_steps:
+        # Кнопки info ответа не пишут: условие на такой шаг не выполнится никогда.
+        if sid in dead_steps or s.steps[sid].type == StepType.INFO:
             return set()
         return {o.id for o in s.steps[sid].options if (sid, o.id) not in dead_opts}
 
@@ -204,19 +210,21 @@ class _Paths:
 
 
 def _targets(step: Step) -> list[Target]:
-    # Опции любого типа: завышение безопасно.
-    found = [step.next, *(o.next for o in step.options)]
+    # Кнопки финала начинают новый проход с пустыми ответами: пути из них нет.
+    # Для остальных опции любого типа: завышение безопасно.
+    options = () if step.finish else step.options
+    found = [step.next, *(o.next for o in options)]
     return [t for t in found if t is not None]
 
 
 def _build_edges(s: Scenario) -> dict[str, set[str]]:
     edges: dict[str, set[str]] = {sid: set() for sid in s.steps}
     sites: list[tuple[str, Call]] = []
-    returners: dict[str, bool] = {}
+    returners: set[str] = set()
     for sid, step in s.steps.items():
         for t in _targets(step):
             if t == RETURN:
-                returners[sid] = True
+                returners.add(sid)
             elif isinstance(t, Call):
                 sites.append((sid, t))
                 entry = s.blocks.get(t.block)

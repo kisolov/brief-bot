@@ -358,6 +358,50 @@ def test_nested_call_without_then_returns_to_outer_then():
     assert validate_scenario(sc) == []
 
 
+# --- раунд исправлений ---
+
+
+def test_final_button_does_not_hide_not_before():
+    # Кнопка финала начинает новый проход с пустыми ответами: пути к x из неё нет.
+    x = Step(id="x", type=StepType.TEXT, key="К", text="?", next="q", when=When("q", ("y",)))
+    fin = Step(
+        id="fin",
+        type=StepType.INFO,
+        text="Спасибо",
+        finish=True,
+        options=(Option(id="again", label="Заново", next="x"),),
+    )
+    s = _scn([x, _q(next_="fin"), fin], entry="x")
+    assert _where(s, "when_not_before") == [("x", None)]
+
+
+def test_never_after_option_hidden_by_step_condition():
+    # Кнопка b противоречит условию шага x, значит, ответа b не будет и шаг y не покажется.
+    x = Step(
+        id="x",
+        type=StepType.CHOICE,
+        text="?",
+        when=When("q", ("y",)),
+        next="end",
+        options=(Option(id="b", label="B", next="y", when=When("q", ("n",))),),
+    )
+    y = Step(id="y", type=StepType.TEXT, key="Y", text="?", when=When("x", ("b",)), next="end")
+    s = _scn([_q(), x, y, _end()])
+    assert _where(s, "when_option_conflict") == [("x", "b")]
+    assert _where(s, "when_never") == [("y", None)]
+
+
+def test_never_when_depending_on_info_answer():
+    q = Step(
+        id="q",
+        type=StepType.INFO,
+        text="Сообщение",
+        options=(Option(id="go", label="Дальше", next="x"),),
+    )
+    s = _scn([q, _x(When("q", ("go",))), _end()])
+    assert _where(s, "when_never") == [("x", None)]
+
+
 # --- сид ---
 
 
