@@ -168,7 +168,7 @@ export function toFlow(s: Scenario, view: GraphView, homes: Homes = {}): { nodes
       const kind = id === RETURN_TARGET ? 'return' : s.steps[id] ? 'link' : 'broken'
       const label = kind === 'return' ? 'Возврат из блока' : kind === 'link' ? titleOf(s.steps[id]!) : id
       const kindLabel = { return: 'Выход из блока', link: 'Переход на шаг', broken: 'Нет такого шага' }[kind]
-      extra.set(key, node(key, 'stub', { label, title: label, kind, kindLabel, width: NODE_WIDTH, height: BLOCK_HEIGHT }))
+      extra.set(key, node(key, 'stub', { label, title: label, kind, kindLabel, stepId: id, width: NODE_WIDTH, height: BLOCK_HEIGHT }))
     }
     return key
   }

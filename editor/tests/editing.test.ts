@@ -205,6 +205,48 @@ describe('правка схемы', () => {
     expect(store.steps[id]).toBeDefined()
   })
 
+  it('клик по шагу выбирает его', async () => {
+    const { store } = await setup()
+    const { selectNode } = useScenarioLayout()
+    expect(selectNode('pay')).toEqual({})
+    expect(store.selectedId).toBe('pay')
+  })
+
+  it('клик по общему блоку открывает его вкладку', async () => {
+    const { store } = await setup()
+    store.select('pay')
+    const { view, selectNode, nodes } = useScenarioLayout()
+    const call = nodes.value.find((n) => n.type === 'block')!
+    expect(selectNode(call.id)).toEqual({})
+    expect(view.value).toBe('sphere')
+    expect(store.selectedId).toBeNull()
+  })
+
+  it('клик по переходу на шаг открывает шаг на его вкладке', async () => {
+    const { store } = await setup()
+    const { view, setView, selectNode, nodes } = useScenarioLayout()
+    setView('late')
+    await nextTick()
+    const stub = nodes.value.find((n) => n.type === 'stub' && n.data.kind === 'link')!
+    const target = stub.data.stepId as string
+    expect(selectNode(stub.id)).toEqual({ reveal: target })
+    expect(store.selectedId).toBe(target)
+    expect(view.value).toBe('main')
+  })
+
+  it('клик по выходу из блока объясняет, куда идёт бот', async () => {
+    const { store } = await setup()
+    const { setView, selectNode, nodes, view } = useScenarioLayout()
+    setView('sphere')
+    await nextTick()
+    const stub = nodes.value.find((n) => n.type === 'stub' && n.data.kind === 'return')!
+    expect(selectNode(stub.id)).toEqual({
+      hint: 'Здесь блок заканчивается: бот возвращается на шаг, указанный при входе в блок.',
+    })
+    expect(store.selectedId).toBeNull()
+    expect(view.value).toBe('sphere')
+  })
+
   it('кнопка "Новый шаг" в списке переходов создаёт шаг и соединяет', async () => {
     const { store } = await setup()
     const id = useAddStep()('info', { from: { step: 'menu', handle: 'a' } })

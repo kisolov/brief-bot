@@ -44,9 +44,20 @@ function connectNodes(source: string, handle: string, target: string) {
   if (!scenario.value.steps[source]) return
   if (scenario.value.steps[target]) return connect(source, handle, target)
   // блок и заглушка выбираются в списке панели: молчание выглядело бы как поломка
-  hint.value = 'Выберите шаг в панели справа.'
+  showHint('Выберите шаг в панели справа.')
+}
+
+function showHint(text: string) {
+  hint.value = text
   if (hintTimer) clearTimeout(hintTimer)
   hintTimer = setTimeout(() => (hint.value = null), 5000)
+}
+
+/** Клик по ноде схемы: шаг, общий блок или заглушка. */
+function openNode(id: string) {
+  const { reveal, hint: text } = selectNode(id)
+  if (reveal) graph.value?.reveal(reveal)
+  if (text) showHint(text)
 }
 
 /** Клик по ошибке: вкладка, выбранный шаг и схема, прокрученная к нему. */
@@ -82,7 +93,7 @@ function reload() {
         :edges="edges"
         :view="view"
         :locked="conflict"
-        @select="selectNode"
+        @select="openNode"
         @deselect="deselect"
         @relayout="relayout"
         @move="moveStep"

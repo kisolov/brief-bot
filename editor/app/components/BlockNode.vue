@@ -36,6 +36,7 @@ const shared = computed(() => props.type === 'block')
   gap: 2px;
   font-family: var(--font);
   color: var(--ink);
+  cursor: pointer;
 }
 .block-node.shared {
   background: var(--block-bg);
