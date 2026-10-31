@@ -19,10 +19,13 @@ const emit = defineEmits<{
   relayout: []
   move: [id: string, pos: [number, number]]
   connect: [source: string, handle: string, target: string]
+  /** Стрелка от порта `handle` ноды `source` отпущена в пустом месте: `at` в координатах холста, `pos` в координатах схемы. */
+  connectEmpty: [source: string, handle: string, at: { x: number; y: number }, pos: [number, number]]
   drop: [type: string, pos: [number, number]]
 }>()
 
 const { zoomIn, zoomOut, fitView, viewport, dimensions, screenToFlowCoordinate, onNodesInitialized } = useVueFlow()
+const root = ref<HTMLElement | null>(null)
 const zoomPercent = computed(() => `${Math.round(viewport.value.zoom * 100)}%`)
 
 const START_SPAN = 520
@@ -87,6 +90,35 @@ function visibleCenter(): [number, number] {
 }
 defineExpose({ visibleCenter, reveal })
 
+// Стрелка, начатая от порта выхода: если она не дошла до порта, а отпущена на пустом холсте, открывается меню целей.
+let pulling: { node: string; handle: string } | null = null
+
+function onConnectStart(e: { nodeId: string; handleId: string | null; handleType: string | null }) {
+  pulling = e.handleType === 'source' && e.handleId ? { node: e.nodeId, handle: e.handleId } : null
+}
+
+function onConnected(source: string, handle: string | null | undefined, target: string) {
+  pulling = null
+  if (handle) emit('connect', source, handle, target)
+}
+
+function onConnectEnd(event?: MouseEvent | TouchEvent) {
+  const from = pulling
+  pulling = null
+  if (!from || !event || props.locked) return
+  const point = 'changedTouches' in event ? event.changedTouches[0] : event
+  const hit = event.target instanceof Element ? event.target : null
+  // отпущена над нодой, подсказкой, кнопками масштаба или миникартой: меню не нужно
+  if (!point || !hit?.closest('.vue-flow__pane') || hit.closest('.vue-flow__node')) return
+  const box = root.value?.getBoundingClientRect()
+  if (!box) return
+  const at = screenToFlowCoordinate({ x: point.clientX, y: point.clientY })
+  emit('connectEmpty', from.node, from.handle, { x: point.clientX - box.left, y: point.clientY - box.top }, [
+    Math.round(at.x - NODE_WIDTH / 2),
+    Math.round(at.y - NODE_HALF_HEIGHT),
+  ])
+}
+
 function onDrop(event: DragEvent) {
   const type = event.dataTransfer?.getData('application/x-step-type')
   if (!type || props.locked) return
@@ -107,7 +139,7 @@ function relayout() {
 </script>
 
 <template>
-  <div class="scenario-graph" @dragover.prevent @drop.prevent="onDrop">
+  <div ref="root" class="scenario-graph" @dragover.prevent @drop.prevent="onDrop">
     <VueFlow
       :nodes="nodes"
       :edges="edges"
@@ -120,7 +152,9 @@ function relayout() {
       @node-click="({ node }) => emit('select', node.id)"
       @pane-click="emit('deselect')"
       @node-drag-stop="({ node }) => emit('move', node.id, [node.position.x, node.position.y])"
-      @connect="(c) => c.sourceHandle && emit('connect', c.source, c.sourceHandle, c.target)"
+      @connect-start="onConnectStart"
+      @connect="(c) => onConnected(c.source, c.sourceHandle, c.target)"
+      @connect-end="onConnectEnd"
     >
       <template #node-step="props"><StepNode v-bind="props" /></template>
       <template #node-block="props"><BlockNode v-bind="props" /></template>

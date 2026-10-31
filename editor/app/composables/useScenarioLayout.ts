@@ -36,9 +36,10 @@ export function useScenarioLayout() {
       return {
         ...n,
         selected: isStep && n.id === selectedId.value,
-        // перетаскивать и соединять можно только шаги: блоки и заглушки это отражение переходов
+        // двигать можно только шаги: блоки и заглушки это отражение переходов; соединять можно все:
+        // стрелка на карточку или заглушку пишет переход, а от выхода карточки меняет её «вернуться на»
         draggable: isStep,
-        connectable: isStep,
+        connectable: true,
         data: numbers ? { ...n.data, state: 'error', errorNumbers: numbers } : n.data,
       }
     }),
@@ -57,9 +58,10 @@ export function useScenarioLayout() {
     ),
   )
 
-  function setView(next: GraphView) {
+  /** Смена вкладки; `stepId` это шаг, который нужно выбрать сразу (первый шаг нового блока). */
+  function setView(next: GraphView, stepId?: string) {
     view.value = next
-    store.select(null)
+    store.select(stepId ?? null)
   }
 
   /** Кнопка «Разложить»: позиции шагов этого вида очищаются, шаги ложатся по раскладке заново. */

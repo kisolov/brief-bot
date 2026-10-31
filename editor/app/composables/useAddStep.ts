@@ -1,3 +1,5 @@
+import { useConnectSteps } from '~/composables/useConnectSteps'
+import type { ConnectOrigin } from '~/composables/useConnectSteps'
 import { useScenarioStore } from '~/stores/scenario.store'
 import type { GraphView, StepType } from '~/types/scenario'
 
@@ -9,19 +11,21 @@ interface Place {
   pos?: [number, number]
   /** Вкладка, на которой шаг создан: пока он не подключён, он остаётся на ней. */
   view?: GraphView
-  /** Создать шаг как цель кнопки (или выхода шага): переход ставится сразу. */
-  from?: { step: string; handle: string }
+  /** Создать шаг как цель кнопки, выхода шага или выхода карточки блока: переход ставится сразу. */
+  from?: ConnectOrigin
 }
 
-/** Сценарий «добавить шаг»: из палитры или из списка «Куда ведёт». Возвращает id нового шага. */
+/** Сценарий «добавить шаг»: из палитры, из списка «Куда ведёт» или из меню у стрелки. Возвращает id нового шага. */
 export function useAddStep() {
   const store = useScenarioStore()
+  const { connectTo } = useConnectSteps()
 
   return function addStep(type: StepType, place: Place = {}): string {
-    const source = place.from ? store.steps[place.from.step] : undefined
+    const origin = place.from
+    const source = origin && 'step' in origin ? store.steps[origin.step] : undefined
     const pos = place.pos ?? (source?.pos ? ([source.pos[0] + SHIFT_X, source.pos[1]] as [number, number]) : undefined)
     const id = store.addStep(type, undefined, { pos, view: place.view })
-    if (place.from) store.connect(place.from.step, place.from.handle, id)
+    if (origin) connectTo(origin, id)
     return id
   }
 }

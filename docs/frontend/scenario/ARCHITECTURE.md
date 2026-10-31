@@ -22,7 +22,7 @@
 
 [scenario.store.ts](../../../editor/app/stores/scenario.store.ts): `steps`, `entry`, `blocks`, `selectedId`, `revision`, `issues`, `activeVersion`, `versions` (список версий для страницы "Версии" и бейджа), `draftMatchesActive`, `needsRollbackConfirm`, `scenario` (сборка для схемы), `homes` (вид, где создан ещё не подключённый шаг), состояние сохранения (`edits`, `dirty`, `saving`, `savedAt`, `saveFailed`, `conflict`), `publishing`, `notice`.
 
-Действия правки, все неизменяемые: `updateStep`, `changeStepType`, `clearPositions`, `addStep`, `removeStep`, `addOption`, `updateOption`, `removeOption`, `connect` (без цели снимает переход). Каждая принятая правка увеличивает `edits`; при `conflict` правки не принимаются. Остальное: `load`, `loadVersions` (список и бейдж без загрузки схемы), `activate(n)` (откат), `select`, `setIssues`, `setNotice`, `blocksStartingAt`, `toDraftData`, `flush` (очередь сохранений), `publish` (дожать черновик, опубликовать, при 422 положить `issues`).
+Действия правки, все неизменяемые: `updateStep`, `changeStepType`, `clearPositions`, `addStep`, `removeStep`, `addOption`, `updateOption`, `removeOption`, `connect` (без цели снимает переход), `retargetCall` (новый `then` у ссылок карточки блока), `addBlock`, `renameBlock`, `removeBlock` (первые два возвращают `BlockOutcome`: имя или текст ошибки). Каждая принятая правка увеличивает `edits`; при `conflict` правки не принимаются. Остальное: `load`, `loadVersions` (список и бейдж без загрузки схемы), `activate(n)` (откат), `select`, `setIssues`, `setNotice`, `blocksStartingAt`, `toDraftData`, `flush` (очередь сохранений), `publish` (дожать черновик, опубликовать, при 422 положить `issues`).
 
 ## Композаблы
 
@@ -31,8 +31,10 @@
 | [useLoadScenario](../../../editor/app/composables/useLoadScenario.ts) | открыть редактор: загрузить черновик, один раз за сеанс (при `store.loaded` не читает заново, возврат на схему не затирает правки; перезагрузка только через `store.load()` после отката), 401 ведёт на `/login`, иное возвращает текст ошибки | [index.vue](../../../editor/app/pages/index.vue) |
 | [useScenarioLayout](../../../editor/app/composables/useScenarioLayout.ts) | вкладка графа, раскладка, выбор ноды, "Разложить" (очищает `pos` шагов вида), пометки ошибок на нодах, переход по ошибке (`jumpTo`) | index.vue |
 | [useEditStep](../../../editor/app/composables/useEditStep.ts) | править шаг: поля, подпись ответа (`setKey`), смена типа (`changeType`), кнопки, условие показа (`setAnswer`), позиция, удаление шага (начальный нельзя, шаг-начало блока с подтверждением) | [StepPanel](../../../editor/app/components/StepPanel.vue), index.vue |
-| [useAddStep](../../../editor/app/composables/useAddStep.ts) | добавить шаг: из палитры (в видимой части или в месте броска) или как цель кнопки "Новый шаг…" | [StepPanel](../../../editor/app/components/StepPanel.vue), index.vue |
-| [useConnectSteps](../../../editor/app/composables/useConnectSteps.ts) | соединить шаги: стрелка на схеме и список "Куда ведёт" пишут один переход | StepPanel, index.vue |
+| [useAddStep](../../../editor/app/composables/useAddStep.ts) | добавить шаг: из палитры (в видимой части или в месте броска), как цель кнопки "Новый шаг…" или из меню у стрелки (`from`: выход шага или выход карточки блока) | [StepPanel](../../../editor/app/components/StepPanel.vue), index.vue |
+| [useConnectSteps](../../../editor/app/composables/useConnectSteps.ts) | соединить: стрелка на схеме и список "Куда ведёт" пишут один переход. `connectNodes` разбирает цель-ноду (шаг, карточка блока, заглушка), `originOf` определяет начало стрелки (выход шага или выход карточки блока), `connectTo` пишет переход и возвращает подсказку, если так нельзя | StepPanel, index.vue |
+| [useTargetMenu](../../../editor/app/composables/useTargetMenu.ts) | меню целей у стрелки, отпущенной в пустом месте: состояние меню, пункты (`menuChoices`), выбор пункта (шаг, блок, выход из блока или новый шаг на месте) | index.vue |
+| [useManageBlocks](../../../editor/app/composables/useManageBlocks.ts) | создать, переименовать, удалить общий блок; проверка названия (`check`), числа для вопроса при удалении (`usage`), `locked` при конфликте | [GraphTabs](../../../editor/app/components/GraphTabs.vue) |
 | [useAutosaveDraft](../../../editor/app/composables/useAutosaveDraft.ts) | сохранять черновик через 800 мс тишины; отдаёт текст статуса для шапки | [layouts/default.vue](../../../editor/app/layouts/default.vue) |
 | [usePublishScenario](../../../editor/app/composables/usePublishScenario.ts) | опубликовать: `store.publish`, ошибки сценария остаются в store, сбой сети становится `notice` | layouts/default.vue |
 | [useLoadVersions](../../../editor/app/composables/useLoadVersions.ts) | загрузить версии для бейджа и страницы, схема не нужна | layouts/default.vue, [versions.vue](../../../editor/app/pages/versions.vue) |
@@ -43,14 +45,19 @@
 | Файл | Роль |
 |---|---|
 | [utils/scenarioGraph.ts](../../../editor/app/utils/scenarioGraph.ts) | `viewTabs`, `toFlow(сценарий, вид, homes)`: чистая функция, шаги и переходы в ноды и рёбра; `viewOfStep`, `stepIdsOf` |
-| [utils/stepTargets.ts](../../../editor/app/utils/stepTargets.ts) | пункты списка "Куда ведёт": шаги по первой строке текста, "Перейти в блок: ...", внутри блока "Вернуться из блока"; кодирование цели в значение списка |
+| [utils/stepTargets.ts](../../../editor/app/utils/stepTargets.ts) | пункты списка "Куда ведёт": шаги по первой строке текста, "Перейти в блок: ...", внутри блока "Вернуться из блока"; кодирование цели в значение списка; `menuChoices` (меню у стрелки: блоки, выход из блока, шаги, поиск без учёта регистра) и `thenChoices` ("После блока вернуться на": шаги, а на вкладке блока и выход из блока) |
+| [utils/blocks.ts](../../../editor/app/utils/blocks.ts) | `blockNameError` (название блока), `callsTo` (сколько переходов ведёт в блок), `ownBlockSteps` (шаги, что уходят вместе с блоком) |
 | [utils/stepKeys.ts](../../../editor/app/utils/stepKeys.ts) | подписи ответа: занятые ботом (`name`, `Направление`), `keyInfo` (блокировка, подпись для человека, использование в текстах, дубль) |
 | [utils/stepType.ts](../../../editor/app/utils/stepType.ts) | `convertStep`: шаг после смены типа и число потерянных кнопок и переходов |
 | [utils/issues.ts](../../../editor/app/utils/issues.ts) | `issueItems` (строки панели ошибок с номерами), `locateIssue` (вкладка и шаг для клика), `errorNumbers` (номера на нодах) |
 | [utils/scenarioLayout.ts](../../../editor/app/utils/scenarioLayout.ts) | `autoLayout`: dagre `LR`, без `all` не трогает шаги с `pos` |
 | [AppHeader](../../../editor/app/components/AppHeader.vue), [GraphTabs](../../../editor/app/components/GraphTabs.vue), [StepNode](../../../editor/app/components/StepNode.vue), [BlockNode](../../../editor/app/components/BlockNode.vue), [ScenarioGraph](../../../editor/app/components/ScenarioGraph.vue), [StepPalette](../../../editor/app/components/StepPalette.vue), [StepPanel](../../../editor/app/components/StepPanel.vue), [ErrorsPanel](../../../editor/app/components/ErrorsPanel.vue) | одноимённые артборды [макета](../../../design/shared/project); `BlockNode` рисует и вход в общий блок (тёмный), и заглушку-ссылку (светлый) |
 
-Ноды Vue Flow: `step`, `block` (вход в общий блок), `stub` (заглушка). Подписи типов шагов и блоков заданы в `scenarioGraph.ts`: "Один выбор", "Несколько ответов", "Несколько + поле", "Текст", "Файл", "Сообщение"; блоки "Разделы сайта", "Сфера деятельности", "Финальные вопросы", "Примеры сайтов" (прочие по имени).
+Ноды Vue Flow: `step`, `block` (вход в общий блок), `stub` (заглушка). Данные карточки блока: `block`, `then`, `sources` (шаги этого вида, из переходов которых она собрана). Соединять можно все ноды (двигать только шаги): шаг ведёт стрелкой на карточку, заглушку и шаг, выход карточки меняет её `then`. Подписи типов шагов и блоков заданы в `scenarioGraph.ts`: "Один выбор", "Несколько ответов", "Несколько + поле", "Текст", "Файл", "Сообщение"; блоки "Разделы сайта", "Сфера деятельности", "Финальные вопросы", "Примеры сайтов" (прочие по имени).
+
+Стрелка от порта выхода, отпущенная на пустом холсте, открывает [TargetMenu](../../../editor/app/components/TargetMenu.vue) (артборд `TargetMenu`): `ScenarioGraph` ловит `connect-start` и `connect-end` и сообщает точку отпускания, меню строит `useTargetMenu`.
+
+Вкладки: [GraphTabs](../../../editor/app/components/GraphTabs.vue) держит поле ввода на панели ("+ Блок", переименование) и две кнопки активного блока ("Переименовать", "Удалить"); сами правки идут через `useManageBlocks`.
 
 Миникарта и зум из `@vue-flow`; панель зума и кнопка "Разложить" свои, по артборду `ScenarioGraph`.
 

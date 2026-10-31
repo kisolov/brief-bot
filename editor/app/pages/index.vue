@@ -5,6 +5,7 @@ import { useConnectSteps } from '~/composables/useConnectSteps'
 import { useEditStep } from '~/composables/useEditStep'
 import { useLoadScenario } from '~/composables/useLoadScenario'
 import { useScenarioLayout } from '~/composables/useScenarioLayout'
+import { useTargetMenu } from '~/composables/useTargetMenu'
 import { CONFLICT_TEXT } from '~/errors/presentation'
 import { useScenarioStore } from '~/stores/scenario.store'
 import type { Issue, StepType } from '~/types/scenario'
@@ -13,8 +14,9 @@ import { issueItems } from '~/utils/issues'
 const loadScenario = useLoadScenario()
 const { tabs, view, nodes, edges, setView, relayout, selectNode, deselect, jumpTo } = useScenarioLayout()
 const { moveStep } = useEditStep()
-const { connect } = useConnectSteps()
+const { connectNodes: connectGraphNodes } = useConnectSteps()
 const addStep = useAddStep()
+const targetMenu = useTargetMenu(view)
 const { scenario, selectedId, issues, activeVersion, conflict, notice } = storeToRefs(useScenarioStore())
 
 const failure = ref<string | null>(null)
@@ -36,15 +38,29 @@ function dropStep(type: string, pos: [number, number]) {
   addStep(type as StepType, { pos, view: view.value })
 }
 
-/** Стрелку можно вести только от шага к шагу: блоки и заглушки это отражение переходов. */
 const hint = ref<string | null>(null)
 let hintTimer: ReturnType<typeof setTimeout> | null = null
 
+const nodeById = (id: string) => nodes.value.find((n) => n.id === id)
+
+/** Стрелка доведена до ноды: шаг, карточка блока или заглушка. Если так соединить нельзя, подсказка. */
 function connectNodes(source: string, handle: string, target: string) {
-  if (!scenario.value.steps[source]) return
-  if (scenario.value.steps[target]) return connect(source, handle, target)
-  // блок и заглушка выбираются в списке панели: молчание выглядело бы как поломка
-  showHint('Выберите шаг в панели справа.')
+  const from = nodeById(source)
+  const to = nodeById(target)
+  if (!from || !to) return
+  const text = connectGraphNodes(from, handle, to)
+  if (text) showHint(text)
+}
+
+/** Стрелка отпущена в пустом месте: меню целей в этой точке. */
+function openTargetMenu(source: string, handle: string, at: { x: number; y: number }, pos: [number, number]) {
+  const from = nodeById(source)
+  if (from) targetMenu.open(from, handle, at, pos)
+}
+
+function pickTarget(value: string) {
+  const text = targetMenu.pick(value)
+  if (text) showHint(text)
 }
 
 function showHint(text: string) {
@@ -98,7 +114,16 @@ function reload() {
         @relayout="relayout"
         @move="moveStep"
         @connect="connectNodes"
+        @connect-empty="openTargetMenu"
         @drop="dropStep"
+      />
+      <TargetMenu
+        v-if="targetMenu.state.value"
+        :x="targetMenu.state.value.at.x"
+        :y="targetMenu.state.value.at.y"
+        :choices="targetMenu.choices.value"
+        @pick="pickTarget"
+        @close="targetMenu.close"
       />
     </div>
     <StepPanel v-if="selectedId" :view="view" @all-errors="deselect" @goto="goToStep" />

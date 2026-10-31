@@ -2,7 +2,10 @@ from dataclasses import replace
 
 import pytest
 
+from src.dialog.engine import new_session, step
+from src.dialog.entities import Event
 from src.scenario.entities import RETURN, Call, Option, Scenario, Step, StepType, When
+from src.scenario.parser import dump_scenario, parse_scenario
 from src.scenario.validator import validate_scenario
 
 _KEYED = (StepType.TEXT, StepType.FILE, StepType.MULTI, StepType.MULTI_INPUT)
@@ -578,3 +581,28 @@ def test_return_after_final_button_is_missing_next():
         blocks={"blk": "b"},
     )
     assert _codes(s) == [("missing_next", "after", None)]
+
+
+def test_block_with_cyrillic_name_passes_contract_and_engine():
+    # Редактор называет блоки как угодно: имя блока лишь ключ `blocks`,
+    # в сессию и callback_data оно не попадает.
+    data = {
+        "entry": "a",
+        "blocks": {"Оплата": "pay"},
+        "steps": {
+            "a": {"type": "info", "text": "Вход", "next": {"call": "Оплата", "then": "end"}},
+            "pay": {"type": "info", "text": "Новый шаг", "next": "@return"},
+            "end": {"type": "info", "text": "Спасибо", "finish": True},
+        },
+    }
+    s = parse_scenario(data, version=1)
+    assert validate_scenario(s) == []
+    assert dump_scenario(s)["blocks"] == {"Оплата": "pay"}
+
+    first = new_session(s, chat_id=1)
+    inside = step(s, first, Event("done", step="a"))
+    assert inside.session.step == "pay"
+    assert inside.session.returns == ("end",)
+    out = step(s, inside.session, Event("done", step="pay"))
+    assert out.session.step == "end"
+    assert out.session.finished is True

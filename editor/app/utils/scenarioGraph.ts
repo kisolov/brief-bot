@@ -175,12 +175,30 @@ export function toFlow(s: Scenario, view: GraphView, homes: Homes = {}): { nodes
 
   const resolve = (id: string): string => (inView.has(id) ? id : stubFor(id))
 
-  const callFor = (block: string, then: string | undefined): string => {
+  /**
+   * Карточка общего блока одна на пару «блок, куда вернуться». `sources` это шаги этой схемы,
+   * из переходов которых она собрана: стрелка от её выхода меняет `then` именно у них.
+   */
+  const callFor = (block: string, then: string | undefined, from: string): string => {
     const key = `call:${block}>${then ?? ''}`
-    if (!extra.has(key)) {
-      extra.set(key, node(key, 'block', { block, title: blockLabel(block), kindLabel: 'Общий блок', width: NODE_WIDTH, height: BLOCK_HEIGHT }))
-      if (then) link(key, 'out', resolve(then))
+    const existing = extra.get(key)
+    if (existing) {
+      if (!existing.data.sources.includes(from)) existing.data.sources.push(from)
+      return key
     }
+    extra.set(
+      key,
+      node(key, 'block', {
+        block,
+        then: then || undefined,
+        sources: [from],
+        title: blockLabel(block),
+        kindLabel: 'Общий блок',
+        width: NODE_WIDTH,
+        height: BLOCK_HEIGHT,
+      }),
+    )
+    if (then) link(key, 'out', resolve(then))
     return key
   }
 
@@ -206,7 +224,7 @@ export function toFlow(s: Scenario, view: GraphView, homes: Homes = {}): { nodes
     )
     for (const { handle, target } of exitsOf(step)) {
       if (typeof target === 'string') link(id, handle, target === RETURN_TARGET ? stubFor(target) : resolve(target))
-      else link(id, handle, callFor(target.call, target.then))
+      else link(id, handle, callFor(target.call, target.then, id))
     }
   }
 

@@ -54,3 +54,28 @@ export function isConnected(s: Scenario, id: string): boolean {
     ([sid, step]) => sid !== id && (hits(step.next) || (step.options ?? []).some((o) => hits(o.next))),
   )
 }
+
+/**
+ * Пункты меню у стрелки, отпущенной в пустом месте: вход в блок, выход из блока (только на вкладке
+ * блока), потом шаги. Поиск без учёта регистра по подписи.
+ */
+export function menuChoices(s: Scenario, view: GraphView, query: string): TargetChoice[] {
+  const all = targetChoices(s, view)
+  const ordered = [
+    ...all.filter((c) => c.value.startsWith(BLOCK_PREFIX)),
+    ...all.filter((c) => c.value === RETURN_TARGET),
+    ...all.filter((c) => c.value.startsWith(STEP_PREFIX)),
+  ]
+  return filterChoices(ordered, query)
+}
+
+export function filterChoices(list: TargetChoice[], query: string): TargetChoice[] {
+  const needle = query.trim().toLowerCase()
+  return needle === '' ? list : list.filter((c) => c.label.toLowerCase().includes(needle))
+}
+
+/** Куда вернуться после блока: шаги по id, а на вкладке блока ещё и выход из него (вход в блок изнутри). */
+export function thenChoices(s: Scenario, view: GraphView): TargetChoice[] {
+  const steps = Object.entries(s.steps).map(([id, step]) => ({ value: id, label: stepLabel(step) }))
+  return view === MAIN_VIEW ? steps : [...steps, { value: RETURN_TARGET, label: 'Вернуться из блока' }]
+}

@@ -2,15 +2,20 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useContainer } from '~/container'
 import { SessionExpired } from '~/errors/base'
+import { CONFLICT_TEXT } from '~/errors/presentation'
 import { DraftConflict, RollbackNotRefreshed, ScenarioInvalid } from '~/errors/scenario'
-import { NEXT_HANDLE } from '~/types/scenario'
+import { NEXT_HANDLE, RETURN_TARGET } from '~/types/scenario'
 import type { GraphView, Issue, Option, Scenario, Step, StepType, Target, VersionInfo, When } from '~/types/scenario'
+import { blockNameError, isCallTo, ownBlockSteps } from '~/utils/blocks'
 import { convertStep } from '~/utils/stepType'
 
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
 const ID_LENGTH = 8
 /** Пустой текст бот не отправит: шаг сразу получает черновой. */
 const NEW_STEP_TEXT = 'Новый шаг'
+
+/** Итог правки блока: новое имя или текст ошибки рядом с полем. */
+export type BlockOutcome = { ok: true; name: string; stepId?: string } | { ok: false; error: string }
 
 /** Сервис сценария: хранит черновик как есть и отдаёт правки через действия. */
 export const useScenarioStore = defineStore('scenario', () => {
@@ -166,17 +171,94 @@ export const useScenarioStore = defineStore('scenario', () => {
   /** Начальный шаг не удаляется. Возвращает, удалён ли шаг. */
   function removeStep(id: string): boolean {
     if (id === entry.value || !steps.value[id] || !touch()) return false
-    const rest = { ...steps.value }
-    delete rest[id]
-    for (const [sid, step] of Object.entries(rest)) {
-      rest[sid] = detach(step, id)
+    dropSteps([id])
+    return true
+  }
+
+  /** Убирает шаги и все ссылки на них: переходы, возврат, условия показа, блоки с этим первым шагом. */
+  function dropSteps(ids: Iterable<string>): void {
+    const gone = new Set(ids)
+    gone.delete(entry.value)
+    const rest: Record<string, Step> = {}
+    for (const [sid, step] of Object.entries(steps.value)) {
+      if (gone.has(sid)) continue
+      let cleaned = step
+      for (const id of gone) cleaned = detach(cleaned, id)
+      rest[sid] = cleaned
     }
     steps.value = rest
-    blocks.value = Object.fromEntries(Object.entries(blocks.value).filter(([, first]) => first !== id))
-    const { [id]: _gone, ...otherHomes } = homes.value
-    homes.value = otherHomes
-    if (selectedId.value === id) selectedId.value = null
+    blocks.value = Object.fromEntries(Object.entries(blocks.value).filter(([, first]) => !gone.has(first)))
+    homes.value = Object.fromEntries(Object.entries(homes.value).filter(([sid]) => !gone.has(sid)))
+    if (selectedId.value && gone.has(selectedId.value)) selectedId.value = null
+  }
+
+  /**
+   * Новый общий блок: первый шаг «Новый шаг» сразу возвращает назад. Шаг достижим от первого шага
+   * блока, поэтому остаётся на его вкладке и после перезагрузки.
+   */
+  function addBlock(raw: string): BlockOutcome {
+    const error = blockNameError(scenario.value, raw)
+    if (error) return { ok: false, error }
+    if (!touch()) return { ok: false, error: CONFLICT_TEXT }
+    const name = raw.trim()
+    const stepId = freshId('s_', new Set(Object.keys(steps.value)))
+    steps.value = { ...steps.value, [stepId]: { type: 'info', text: NEW_STEP_TEXT, next: RETURN_TARGET } }
+    blocks.value = { ...blocks.value, [name]: stepId }
+    selectedId.value = stepId
+    return { ok: true, name, stepId }
+  }
+
+  /** Ключ `blocks` и все `call` на него меняются разом; блоки остаются в прежнем порядке. */
+  function renameBlock(old: string, raw: string): BlockOutcome {
+    if (blocks.value[old] === undefined) return { ok: false, error: 'Такого блока нет.' }
+    const error = blockNameError(scenario.value, raw, old)
+    if (error) return { ok: false, error }
+    const name = raw.trim()
+    if (name === old) return { ok: true, name }
+    if (!touch()) return { ok: false, error: CONFLICT_TEXT }
+    blocks.value = Object.fromEntries(Object.entries(blocks.value).map(([k, first]) => [k === old ? name : k, first]))
+    steps.value = Object.fromEntries(
+      Object.entries(steps.value).map(([sid, step]) => [
+        sid,
+        rewriteTargets(step, (t) => (isCallTo(t, old) ? { ...t, call: name } : t)),
+      ]),
+    )
+    homes.value = Object.fromEntries(Object.entries(homes.value).map(([sid, view]) => [sid, view === old ? name : view]))
+    return { ok: true, name }
+  }
+
+  /**
+   * Удаляет блок, его собственные шаги (через ту же чистку, что `removeStep`) и все переходы в него.
+   * Шаги, видимые ещё и в другом виде, остаются.
+   */
+  function removeBlock(name: string): boolean {
+    if (blocks.value[name] === undefined || !touch()) return false
+    const own = ownBlockSteps(scenario.value, name, homes.value)
+    steps.value = Object.fromEntries(
+      Object.entries(steps.value).map(([sid, step]) => [sid, rewriteTargets(step, (t) => (isCallTo(t, name) ? undefined : t))]),
+    )
+    const { [name]: _gone, ...left } = blocks.value
+    blocks.value = left
+    dropSteps(own)
+    homes.value = Object.fromEntries(Object.entries(homes.value).filter(([, view]) => view !== name))
     return true
+  }
+
+  /**
+   * Стрелка от выхода карточки блока: у всех ссылок `{call: block, then}`, из которых она собрана,
+   * ставится новый `then`. `sources` это шаги, из которых карточка собрана на своей схеме.
+   */
+  function retargetCall(block: string, then: string | undefined, sources: readonly string[], to: string): void {
+    if (!touch()) return
+    const next = { ...steps.value }
+    for (const sid of sources) {
+      const step = next[sid]
+      if (!step) continue
+      next[sid] = rewriteTargets(step, (t) =>
+        isCallTo(t, block) && (t.then || undefined) === (then || undefined) ? { call: block, then: to } : t,
+      )
+    }
+    steps.value = next
   }
 
   function addOption(stepId: string): string | null {
@@ -345,6 +427,10 @@ export const useScenarioStore = defineStore('scenario', () => {
     updateOption,
     removeOption,
     connect,
+    addBlock,
+    renameBlock,
+    removeBlock,
+    retargetCall,
     flush,
     publish,
     toDraftData,
@@ -414,4 +500,19 @@ function cleanTarget(target: Target | undefined, gone: string): Target | undefin
 function setTarget(holder: { next?: Target }, target: Target | undefined): void {
   if (target === undefined) delete holder.next
   else holder.next = target
+}
+
+/** Применяет `fn` к `next` шага и его кнопок; `undefined` снимает переход. Остальное не трогается. */
+function rewriteTargets(step: Step, fn: (t: Target) => Target | undefined): Step {
+  const out: Step = { ...step }
+  if (step.next !== undefined) setTarget(out, fn(step.next))
+  if (step.options) {
+    out.options = step.options.map((o) => {
+      if (o.next === undefined) return o
+      const copy = { ...o }
+      setTarget(copy, fn(o.next))
+      return copy
+    })
+  }
+  return out
 }

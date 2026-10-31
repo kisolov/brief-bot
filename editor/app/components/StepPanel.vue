@@ -9,7 +9,7 @@ import type { Option, Step, StepType, Target } from '~/types/scenario'
 import { STEP_TYPE_LABELS } from '~/utils/scenarioGraph'
 import { keyInfo } from '~/utils/stepKeys'
 import { canChangeType, canFinish } from '~/utils/stepType'
-import { decodeTarget, encodeTarget, isConnected, stepLabel, targetChoices } from '~/utils/stepTargets'
+import { decodeTarget, encodeTarget, isConnected, stepLabel, targetChoices, thenChoices } from '~/utils/stepTargets'
 
 const props = defineProps<{ view: string }>()
 const emit = defineEmits<{ allErrors: []; goto: [id: string] }>()
@@ -32,6 +32,8 @@ const type = computed<StepType>(() => step.value?.type ?? 'info')
 const typeChoices = (Object.keys(STEP_TYPE_LABELS) as StepType[]).map((t) => ({ value: t, label: STEP_TYPE_LABELS[t] }))
 const choices = computed(() => targetChoices(scenario.value, props.view))
 const stepChoices = computed(() => choices.value.filter((c) => c.value.startsWith('step:')))
+/** Куда вернуться после блока: шаги, а на вкладке блока ещё и выход из него (вход в блок изнутри блока). */
+const returnChoices = computed(() => thenChoices(scenario.value, props.view))
 
 const hasButtons = computed(() => type.value !== 'text' && type.value !== 'file')
 const multiButtons = computed(() => type.value === 'multi' || type.value === 'multi_input')
@@ -247,7 +249,7 @@ function onRemove() {
             После блока вернуться на
             <select :value="thenOf(o.next)" @change="setOptionThen(o, text($event))">
               <option value="">Не выбрано</option>
-              <option v-for="c in stepChoices" :key="c.value" :value="c.value.slice(5)">{{ c.label }}</option>
+              <option v-for="c in returnChoices" :key="c.value" :value="c.value">{{ c.label }}</option>
             </select>
           </label>
         </template>
@@ -287,7 +289,7 @@ function onRemove() {
         <label for="step-then">После блока вернуться на</label>
         <select id="step-then" :value="thenOf(step.next)" @change="setThen(text($event))">
           <option value="">Не выбрано</option>
-          <option v-for="c in stepChoices" :key="c.value" :value="c.value.slice(5)">{{ c.label }}</option>
+          <option v-for="c in returnChoices" :key="c.value" :value="c.value">{{ c.label }}</option>
         </select>
       </template>
     </div>
