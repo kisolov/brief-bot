@@ -6,7 +6,7 @@ import { CONFLICT_TEXT } from '~/errors/presentation'
 import { MockScenarioRepository } from '~/repositories/adapters/scenario.mock'
 import { useScenarioStore } from '~/stores/scenario.store'
 import type { Scenario } from '~/types/scenario'
-import { EDGE_HIT_WIDTH, selectEdge, toFlow } from '~/utils/scenarioGraph'
+import { EDGE_HIT_WIDTH, edgeDropOutcome, selectEdge, toFlow } from '~/utils/scenarioGraph'
 
 function fixture(): Scenario {
   return {
@@ -136,5 +136,35 @@ describe('рёбра схемы', () => {
       expect(String(e.class ?? '')).not.toContain('selected')
     }
     expect(out[0]!.class).toBe('back')
+  })
+})
+
+describe('куда попал конец стрелки', () => {
+  const edge = { source: 'a', sourceHandle: 'x', target: 'b' }
+
+  it('на другой ноде переподключает', () => {
+    expect(edgeDropOutcome(edge, { nodeId: 'c', onPane: false }, false)).toEqual({ kind: 'connect', source: 'a', handle: 'x', target: 'c' })
+  })
+
+  it('в пустом месте холста отсоединяет', () => {
+    expect(edgeDropOutcome(edge, { nodeId: null, onPane: true }, false)).toEqual({ kind: 'detach', source: 'a', handle: 'x' })
+  })
+
+  it('на прежней цели и на ноде-источнике ничего не меняет', () => {
+    expect(edgeDropOutcome(edge, { nodeId: 'b', onPane: false }, false)).toEqual({ kind: 'none' })
+    expect(edgeDropOutcome(edge, { nodeId: 'a', onPane: false }, false)).toEqual({ kind: 'none' })
+  })
+
+  it('над зумом, подсказкой и миникартой (не нода, не холст) ничего не меняет', () => {
+    expect(edgeDropOutcome(edge, { nodeId: null, onPane: false }, false)).toEqual({ kind: 'none' })
+  })
+
+  it('при конфликте ничего не меняет, где бы ни отпустили', () => {
+    expect(edgeDropOutcome(edge, { nodeId: 'c', onPane: false }, true)).toEqual({ kind: 'none' })
+    expect(edgeDropOutcome(edge, { nodeId: null, onPane: true }, true)).toEqual({ kind: 'none' })
+  })
+
+  it('у стрелки без порта источника ничего не меняет', () => {
+    expect(edgeDropOutcome({ source: 'a', target: 'b' }, { nodeId: null, onPane: true }, false)).toEqual({ kind: 'none' })
   })
 })

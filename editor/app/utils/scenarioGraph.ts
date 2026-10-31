@@ -162,13 +162,46 @@ export function selectEdge(edges: Edge[], id: string | null): Edge[] {
     return {
       ...e,
       selected: true,
-      // выше соседних стрелок: на общей цели якорь выделенной не должен прятаться под чужой областью попадания
+      // слой над нодами: линия видна поверх карточки, якорь цели не прячется под чужими областями попадания;
+      // указатель линия не принимает (стили схемы), так что карточку под ней можно тянуть
       zIndex: 1,
       class: [...classes, 'selected'].join(' '),
       // линия толще, а маркер Vue Flow растёт вместе с ней: уменьшаем, чтобы стрелка не стала громоздкой
       markerEnd: typeof e.markerEnd === 'object' ? { ...e.markerEnd, color: ACCENT, width: 9, height: 9 } : e.markerEnd,
     }
   })
+}
+
+/** Что находится под точкой, где отпущен конец стрелки. */
+export interface DropTarget {
+  /** Нода под точкой (шаг, карточка, порт), если есть. */
+  nodeId: string | null
+  /** Точка на пустом холсте, а не над подсказкой, зумом или миникартой. */
+  onPane: boolean
+}
+
+export type EdgeDrop =
+  | { kind: 'none' }
+  | { kind: 'connect'; source: string; handle: string; target: string }
+  | { kind: 'detach'; source: string; handle: string }
+
+/**
+ * Решение по отпущенному концу стрелки: на другой ноде переподключить, на пустом холсте отсоединить.
+ * Прежняя цель, нода-источник, зум, подсказка, миникарта, конфликт версий и стрелка без порта ничего не меняют.
+ */
+export function edgeDropOutcome(
+  edge: { source: string; sourceHandle?: string | null; target: string },
+  at: DropTarget,
+  locked: boolean,
+): EdgeDrop {
+  const handle = edge.sourceHandle
+  if (locked || !handle) return { kind: 'none' }
+  if (at.nodeId) {
+    return at.nodeId === edge.target || at.nodeId === edge.source
+      ? { kind: 'none' }
+      : { kind: 'connect', source: edge.source, handle, target: at.nodeId }
+  }
+  return at.onPane ? { kind: 'detach', source: edge.source, handle } : { kind: 'none' }
 }
 
 export function toFlow(s: Scenario, view: GraphView, homes: Homes = {}): { nodes: Node[]; edges: Edge[] } {

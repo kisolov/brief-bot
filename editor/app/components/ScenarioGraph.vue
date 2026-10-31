@@ -5,7 +5,7 @@ import { MiniMap } from '@vue-flow/minimap'
 import BlockNode from './BlockNode.vue'
 import ScenarioEdge from './ScenarioEdge.vue'
 import StepNode from './StepNode.vue'
-import { selectEdge } from '~/utils/scenarioGraph'
+import { edgeDropOutcome, selectEdge } from '~/utils/scenarioGraph'
 
 const props = defineProps<{
   nodes: Node[]
@@ -127,33 +127,30 @@ function isTyping(target: EventTarget | null): boolean {
 
 function onKey(event: KeyboardEvent) {
   if (event.key !== 'Delete' && event.key !== 'Backspace') return
-  if (!selectedEdge.value || isTyping(event.target)) return
+  if (!selectedEdge.value || props.locked || isTyping(event.target)) return
   event.preventDefault()
   detachSelected()
 }
 onMounted(() => document.addEventListener('keydown', onKey))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 
-// Конец стрелки, взятый за якорь у цели. Пока он тянется, `connect-end` меню целей не открывает.
+// Конец стрелки, взятый за якорь у цели: Vue Flow начинает от него обычное соединение, меню целей ему не нужно.
 let reconnecting = false
 
 function onEdgeUpdateEnd({ edge, event }: { edge: { source: string; sourceHandle?: string | null; target: string }; event: MouseEvent | TouchEvent }) {
   reconnecting = false
-  const handle = edge.sourceHandle
   const point = pointOf(event)
-  if (!handle || !point || props.locked) return
+  if (!point) return
   const hit = document.elementFromPoint(point.clientX, point.clientY)
-  const onNode = hit?.closest('.vue-flow__node')
-  if (onNode) {
-    // шаг, тело карточки или порт: переподключаем; та же цель или сама нода, откуда ведёт стрелка, ничего не меняют
-    const id = onNode.getAttribute('data-id')
-    if (id && id !== edge.target && id !== edge.source) emit('connect', edge.source, handle, id)
-    return
-  }
-  // пустое место холста: стрелка отсоединяется; над подсказкой, зумом и миникартой ничего не происходит
-  if (hit?.closest('.vue-flow__pane')) {
+  const outcome = edgeDropOutcome(
+    edge,
+    { nodeId: hit?.closest('.vue-flow__node')?.getAttribute('data-id') ?? null, onPane: Boolean(hit?.closest('.vue-flow__pane')) },
+    Boolean(props.locked),
+  )
+  if (outcome.kind === 'connect') emit('connect', outcome.source, outcome.handle, outcome.target)
+  else if (outcome.kind === 'detach') {
     selectedEdge.value = null
-    emit('detach', edge.source, handle)
+    emit('detach', outcome.source, outcome.handle)
   }
 }
 
@@ -176,7 +173,11 @@ function onConnected(source: string, handle: string | null | undefined, target: 
 function onConnectEnd(event?: MouseEvent | TouchEvent) {
   const from = pulling
   pulling = null
-  if (!from || !event || props.locked || reconnecting) return
+  // конец стрелки тоже начинает соединение от порта источника (проверено мышью: без этого меню открывалось);
+  // флаг гаснет здесь же, поэтому залипнуть дольше одного отпускания он не может
+  const wasReconnect = reconnecting
+  reconnecting = false
+  if (!from || !event || props.locked || wasReconnect) return
   const point = pointOf(event)
   if (!point) return
   // для touchend event.target указывает на начало касания, поэтому элемент берётся по точке
@@ -335,7 +336,15 @@ function relayout() {
   stroke: var(--accent);
   stroke-width: 3;
 }
-/* кнопка "×" выше выделенной стрелки (её слой поднят), иначе область попадания стрелки перехватит клик */
+/* Выделенная стрелка поднята над нодами только как рисунок: линия и область попадания не принимают
+   указатель, карточку под линией можно тянуть, порты и клики работают. Принимает его якорь конца. */
+.scenario-graph .vue-flow__edge.selected {
+  pointer-events: none;
+}
+.scenario-graph .vue-flow__edge.selected .vue-flow__edgeupdater {
+  pointer-events: all;
+}
+/* кнопка "×" выше слоя выделенной стрелки */
 .scenario-graph .vue-flow__edge-labels {
   z-index: 2;
 }
