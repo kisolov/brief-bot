@@ -255,16 +255,16 @@ export const useScenarioStore = defineStore('scenario', () => {
 
   /**
    * Стрелка от выхода карточки блока: у всех ссылок `{call: block, then}`, из которых она собрана,
-   * ставится новый `then`. `sources` это шаги, из которых карточка собрана на своей схеме.
+   * ставится новый `then`, а без `to` он снимается. `sources` это шаги, из которых карточка собрана на своей схеме.
    */
-  function retargetCall(block: string, then: string | undefined, sources: readonly string[], to: string): void {
+  function retargetCall(block: string, then: string | undefined, sources: readonly string[], to?: string): void {
     if (!touch()) return
     const next = { ...steps.value }
     for (const sid of sources) {
       const step = next[sid]
       if (!step) continue
       next[sid] = rewriteTargets(step, (t) =>
-        isCallTo(t, block) && (t.then || undefined) === (then || undefined) ? { call: block, then: to } : t,
+        isCallTo(t, block) && (t.then || undefined) === (then || undefined) ? (to ? { call: block, then: to } : { call: block }) : t,
       )
     }
     steps.value = next

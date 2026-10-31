@@ -1,4 +1,5 @@
 import { useScenarioStore } from '~/stores/scenario.store'
+import { CONFLICT_TEXT } from '~/errors/presentation'
 import { RETURN_TARGET } from '~/types/scenario'
 import type { Target } from '~/types/scenario'
 
@@ -83,5 +84,18 @@ export function useConnectSteps() {
     return connectTo(origin, to)
   }
 
-  return { connect, disconnect, originOf, connectTo, connectNodes }
+  /**
+   * Отсоединить стрелку от выхода `handle` ноды `source`. Кнопка и выход шага теряют переход,
+   * у карточки блока все собранные в неё ссылки теряют `then`. Причина, если правка не принята.
+   */
+  function detach(source: GraphNodeRef, handle: string): string | undefined {
+    const origin = originOf(source, handle)
+    if (!origin) return undefined
+    if (store.conflict) return CONFLICT_TEXT
+    if ('step' in origin) store.connect(origin.step, origin.handle, undefined)
+    else store.retargetCall(origin.block, origin.then, origin.sources)
+    return undefined
+  }
+
+  return { connect, disconnect, originOf, connectTo, connectNodes, detach }
 }

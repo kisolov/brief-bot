@@ -14,7 +14,7 @@ import { issueItems } from '~/utils/issues'
 const loadScenario = useLoadScenario()
 const { tabs, view, nodes, edges, setView, relayout, selectNode, deselect, jumpTo } = useScenarioLayout()
 const { moveStep } = useEditStep()
-const { connectNodes: connectGraphNodes } = useConnectSteps()
+const { connectNodes: connectGraphNodes, detach: detachGraphEdge } = useConnectSteps()
 const addStep = useAddStep()
 const targetMenu = useTargetMenu(view)
 const { scenario, selectedId, issues, activeVersion, conflict, notice } = storeToRefs(useScenarioStore())
@@ -49,6 +49,14 @@ function connectNodes(source: string, handle: string, target: string) {
   const to = nodeById(target)
   if (!from || !to) return
   const text = connectGraphNodes(from, handle, to)
+  if (text) showHint(text)
+}
+
+/** Стрелка отсоединена; подсказка только при отказе (конфликт версий), иначе результат виден на схеме. */
+function detachEdge(source: string, handle: string) {
+  const from = nodeById(source)
+  if (!from) return
+  const text = detachGraphEdge(from, handle)
   if (text) showHint(text)
 }
 
@@ -114,6 +122,7 @@ function reload() {
         @relayout="relayout"
         @move="moveStep"
         @connect="connectNodes"
+        @detach="detachEdge"
         @connect-empty="openTargetMenu"
         @drop="dropStep"
       />

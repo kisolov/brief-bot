@@ -29,6 +29,13 @@ body{margin:0}
 <path d="M 706 300 C 746 300 716 272 755 272" marker-end="url(#edge-head)"></path>
 <path d="M 706 372 C 746 372 716 433 755 433" marker-end="url(#edge-head)"></path>
 </svg>
+<sc-if value="{{edgeMode}}" hint-placeholder-val="{{ false }}">
+<svg role="img" aria-label="Выделенная стрелка перехода" width="960" height="800" viewBox="0 0 960 800" style="position: absolute; left: 0; top: 0; fill: none; stroke: #1F4FBF; stroke-width: 3">
+<defs><marker id="edge-head-selected" orient="auto" markerWidth="7" markerHeight="7" refX="5" refY="3" overflow="visible"><path d="M0 0 L6 3 L0 6 Z" fill="#1F4FBF" stroke="none"></path></marker></defs>
+<path d="M 214 154 C 254 154 224 336 263 336" marker-end="url(#edge-head-selected)"></path>
+</svg>
+<button type="button" aria-label="Отсоединить" style="position: absolute; left: 227px; top: 234px; width: 22px; height: 22px; padding: 0; display: grid; place-items: center; box-sizing: border-box; border: 1.5px solid #1F4FBF; border-radius: 50%; background: #FFFFFF; color: #1F4FBF; font: 600 16px/1 'Golos Text', system-ui, sans-serif">×</button>
+</sc-if>
 <div style="position: absolute; left: 24px; top: 40px"><dc-import name="StepNode" step-type="choice" title="Главное меню" options="Заказать новый сайт|Доработать текущий сайт|Продвижение сайта|Примеры наших работ|Связаться с нами" hint-size="190px,218px"></dc-import></div>
 <div style="position: absolute; left: 270px; top: 113px"><dc-import name="StepNode" step-type="choice" title="Что вы хотите разместить на сайте?" options="Товары|Услуги|Товары и услуги|Иное" hint-size="190px,190px"></dc-import></div>
 <div style="position: absolute; left: 270px; top: 323px"><dc-import name="StepNode" step-type="choice" title="На какой платформе сделан ваш сайт?" options="WordPress|ещё 7 кнопок" hint-size="190px,134px"></dc-import></div>
@@ -61,12 +68,15 @@ body{margin:0}
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["selected","errors"],"default":"selected"},"$preview":{"width":960,"height":800}}'>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["selected","errors","edge"],"default":"selected"},"$preview":{"width":960,"height":800}}'>
 class Component extends DCLogic {
   renderVals() {
-    const errors = (this.props.mode ?? 'selected') === 'errors';
+    const mode = this.props.mode ?? 'selected';
+    const errors = mode === 'errors';
     return {
-      payState: errors ? 'normal' : 'selected',
+      // режим edge: выделена стрелка (толще, цвета accent, "×" в середине); шаг не выбран, панель шага не меняется
+      edgeMode: mode === 'edge',
+      payState: mode === 'selected' ? 'selected' : 'normal',
       priorityState: errors ? 'error' : 'normal',
       priorityError: errors ? '1' : '',
       otherState: errors ? 'error' : 'normal',

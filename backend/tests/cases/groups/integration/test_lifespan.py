@@ -84,7 +84,9 @@ async def test_lifespan_without_polling(monkeypatch, schema_dsn):
         assert scenario.version == 1
 
 
-async def test_missing_setting_fails_before_database(monkeypatch):
+async def test_missing_setting_fails_before_database(monkeypatch, tmp_path):
+    # Настройки читают .env из текущего каталога: пустой каталог делает тест независимым от файла.
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("TELEGRAM_TOKEN", "123456:TEST-token")
     monkeypatch.setenv("TELEGRAM_INVITE_CODE", "invite")
     monkeypatch.setenv("EDITOR_BASE_URL", "https://editor.example.com")
@@ -174,7 +176,8 @@ async def test_editor_login_on_real_adapters(monkeypatch, schema_dsn):
             assert draft.json()["revision"] == 1
 
 
-async def test_missing_editor_url_fails_before_database(monkeypatch):
+async def test_missing_editor_url_fails_before_database(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("TELEGRAM_TOKEN", "123456:TEST-token")
     monkeypatch.setenv("TELEGRAM_MANAGER_CHAT_ID", "1")
     monkeypatch.setenv("TELEGRAM_INVITE_CODE", "invite")

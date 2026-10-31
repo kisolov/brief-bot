@@ -3,7 +3,9 @@ import { VueFlow, useVueFlow } from '@vue-flow/core'
 import type { Edge, Node } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import BlockNode from './BlockNode.vue'
+import ScenarioEdge from './ScenarioEdge.vue'
 import StepNode from './StepNode.vue'
+import { selectEdge } from '~/utils/scenarioGraph'
 
 const props = defineProps<{
   nodes: Node[]
@@ -22,6 +24,8 @@ const emit = defineEmits<{
   /** Стрелка от порта `handle` ноды `source` отпущена в пустом месте: `at` в координатах холста, `pos` в координатах схемы. */
   connectEmpty: [source: string, handle: string, at: { x: number; y: number }, pos: [number, number]]
   drop: [type: string, pos: [number, number]]
+  /** Стрелку от порта `handle` ноды `source` нужно отсоединить: кнопка "×", Delete или конец отпущен в пустом месте. */
+  detach: [source: string, handle: string]
 }>()
 
 const { zoomIn, zoomOut, fitView, viewport, dimensions, screenToFlowCoordinate, onNodesInitialized } = useVueFlow()
@@ -90,6 +94,73 @@ function visibleCenter(): [number, number] {
 }
 defineExpose({ visibleCenter, reveal })
 
+// Выделенная стрелка: id вида `источник:порт`, переживает пересборку схемы. Состояние только на экране.
+const selectedEdge = ref<string | null>(null)
+const shownEdges = computed(() =>
+  selectEdge(
+    // при конфликте версий стрелки не тянутся
+    props.locked ? props.edges.map((e) => ({ ...e, updatable: false })) : props.edges,
+    selectedEdge.value,
+  ),
+)
+watch(
+  () => props.view,
+  () => (selectedEdge.value = null),
+)
+watch(
+  () => props.edges,
+  (all) => {
+    if (selectedEdge.value && !all.some((e) => e.id === selectedEdge.value)) selectedEdge.value = null
+  },
+)
+
+function detachSelected() {
+  const edge = props.edges.find((e) => e.id === selectedEdge.value)
+  selectedEdge.value = null
+  if (edge && edge.sourceHandle && !props.locked) emit('detach', edge.source, edge.sourceHandle)
+}
+
+/** В поле ввода Delete и Backspace стирают текст, а не стрелку. */
+function isTyping(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+}
+
+function onKey(event: KeyboardEvent) {
+  if (event.key !== 'Delete' && event.key !== 'Backspace') return
+  if (!selectedEdge.value || isTyping(event.target)) return
+  event.preventDefault()
+  detachSelected()
+}
+onMounted(() => document.addEventListener('keydown', onKey))
+onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
+
+// Конец стрелки, взятый за якорь у цели. Пока он тянется, `connect-end` меню целей не открывает.
+let reconnecting = false
+
+function onEdgeUpdateEnd({ edge, event }: { edge: { source: string; sourceHandle?: string | null; target: string }; event: MouseEvent | TouchEvent }) {
+  reconnecting = false
+  const handle = edge.sourceHandle
+  const point = pointOf(event)
+  if (!handle || !point || props.locked) return
+  const hit = document.elementFromPoint(point.clientX, point.clientY)
+  const onNode = hit?.closest('.vue-flow__node')
+  if (onNode) {
+    // шаг, тело карточки или порт: переподключаем; та же цель или сама нода, откуда ведёт стрелка, ничего не меняют
+    const id = onNode.getAttribute('data-id')
+    if (id && id !== edge.target && id !== edge.source) emit('connect', edge.source, handle, id)
+    return
+  }
+  // пустое место холста: стрелка отсоединяется; над подсказкой, зумом и миникартой ничего не происходит
+  if (hit?.closest('.vue-flow__pane')) {
+    selectedEdge.value = null
+    emit('detach', edge.source, handle)
+  }
+}
+
+function pointOf(event: MouseEvent | TouchEvent): { clientX: number; clientY: number } | undefined {
+  return 'changedTouches' in event ? event.changedTouches[0] : event
+}
+
 // Стрелка, начатая от порта выхода: если она не дошла до порта, а отпущена на пустом холсте, открывается меню целей.
 let pulling: { node: string; handle: string } | null = null
 
@@ -105,8 +176,8 @@ function onConnected(source: string, handle: string | null | undefined, target: 
 function onConnectEnd(event?: MouseEvent | TouchEvent) {
   const from = pulling
   pulling = null
-  if (!from || !event || props.locked) return
-  const point = 'changedTouches' in event ? event.changedTouches[0] : event
+  if (!from || !event || props.locked || reconnecting) return
+  const point = pointOf(event)
   if (!point) return
   // для touchend event.target указывает на начало касания, поэтому элемент берётся по точке
   const hit = document.elementFromPoint(point.clientX, point.clientY)
@@ -126,6 +197,17 @@ function onConnectEnd(event?: MouseEvent | TouchEvent) {
     Math.round(at.x - NODE_WIDTH / 2),
     Math.round(at.y - NODE_HALF_HEIGHT),
   ])
+}
+
+function onNodeClick({ node }: { node: Node }) {
+  selectedEdge.value = null
+  emit('select', node.id)
+}
+
+/** Клик в пустое место снимает выделение стрелки и выбор шага. */
+function onPaneClick() {
+  selectedEdge.value = null
+  emit('deselect')
 }
 
 function onDrop(event: DragEvent) {
@@ -151,15 +233,20 @@ function relayout() {
   <div ref="root" class="scenario-graph" @dragover.prevent @drop.prevent="onDrop">
     <VueFlow
       :nodes="nodes"
-      :edges="edges"
+      :edges="shownEdges"
       :nodes-draggable="!locked"
       :nodes-connectable="!locked"
+      :edges-updatable="!locked"
+      :elements-selectable="false"
       :delete-key-code="null"
       :min-zoom="0.1"
       :max-zoom="2"
       fit-view-on-init
-      @node-click="({ node }) => emit('select', node.id)"
-      @pane-click="emit('deselect')"
+      @node-click="onNodeClick"
+      @edge-click="({ edge }) => (selectedEdge = edge.id)"
+      @pane-click="onPaneClick"
+      @edge-update-start="reconnecting = true"
+      @edge-update-end="onEdgeUpdateEnd"
       @node-drag-stop="({ node }) => emit('move', node.id, [node.position.x, node.position.y])"
       @connect-start="onConnectStart"
       @connect="(c) => onConnected(c.source, c.sourceHandle, c.target)"
@@ -168,6 +255,9 @@ function relayout() {
       <template #node-step="props"><StepNode v-bind="props" /></template>
       <template #node-block="props"><BlockNode v-bind="props" /></template>
       <template #node-stub="props"><BlockNode v-bind="props" /></template>
+      <template #edge-default="edgeProps">
+        <ScenarioEdge v-bind="edgeProps" :locked="locked" @detach="detachSelected" />
+      </template>
       <MiniMap :node-color="nodeColor" :width="150" :height="96" aria-label="Миникарта схемы" />
     </VueFlow>
 
@@ -239,6 +329,15 @@ function relayout() {
 .scenario-graph .vue-flow__edge.back.highlight .vue-flow__edge-path {
   stroke: var(--port);
   stroke-width: 1.5;
+}
+.scenario-graph .vue-flow__edge.selected .vue-flow__edge-path,
+.scenario-graph .vue-flow__edge.back.selected .vue-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+/* кнопка "×" выше выделенной стрелки (её слой поднят), иначе область попадания стрелки перехватит клик */
+.scenario-graph .vue-flow__edge-labels {
+  z-index: 2;
 }
 .scenario-graph .vue-flow__minimap {
   right: 16px;

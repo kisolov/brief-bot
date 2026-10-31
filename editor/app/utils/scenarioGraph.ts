@@ -145,6 +145,31 @@ export function titleOf(step: Step): string {
 }
 
 const ARROW = { type: 'arrowclosed' as MarkerType, color: '#7c8796', width: 14, height: 14 }
+/** Цвет `--accent`: цвет маркера Vue Flow это значение атрибута, переменная CSS в нём не работает. */
+const ACCENT = '#1f4fbf'
+/** Область попадания по стрелке шире линии: тонкую стрелку иначе не поймать. */
+export const EDGE_HIT_WIDTH = 18
+
+/**
+ * Выделяет стрелку `id` (`null` снимает выделение): класс `selected` (толщина и цвет в стилях схемы)
+ * и стрелка цвета `--accent`. Поля `selected`, `zIndex` и `class` пишутся у всех рёбер: Vue Flow сливает новое ребро
+ * с прежним и не снимет выделение, которого в новом ребре нет.
+ */
+export function selectEdge(edges: Edge[], id: string | null): Edge[] {
+  return edges.map((e) => {
+    const classes = String(e.class ?? '').split(' ').filter((c) => c && c !== 'selected')
+    if (e.id !== id) return { ...e, selected: false, zIndex: 0, class: classes.join(' ') }
+    return {
+      ...e,
+      selected: true,
+      // выше соседних стрелок: на общей цели якорь выделенной не должен прятаться под чужой областью попадания
+      zIndex: 1,
+      class: [...classes, 'selected'].join(' '),
+      // линия толще, а маркер Vue Flow растёт вместе с ней: уменьшаем, чтобы стрелка не стала громоздкой
+      markerEnd: typeof e.markerEnd === 'object' ? { ...e.markerEnd, color: ACCENT, width: 9, height: 9 } : e.markerEnd,
+    }
+  })
+}
 
 export function toFlow(s: Scenario, view: GraphView, homes: Homes = {}): { nodes: Node[]; edges: Edge[] } {
   const inView = stepsOf(s, view, homes)
@@ -160,6 +185,9 @@ export function toFlow(s: Scenario, view: GraphView, homes: Homes = {}): { nodes
       target,
       targetHandle: 'in',
       markerEnd: ARROW,
+      interactionWidth: EDGE_HIT_WIDTH,
+      // тянуть можно только конец у цели: начало стрелки принадлежит кнопке или выходу шага
+      updatable: 'target',
     })
 
   const stubFor = (id: string): string => {
