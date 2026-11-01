@@ -1,7 +1,7 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 import { SessionExpired } from '~/errors/base'
 import { useScenarioStore } from '~/stores/scenario.store'
-import { editorHotkey } from '~/utils/editorHotkeys'
+import { editorHotkey, isTextField } from '~/utils/editorHotkeys'
 
 export const UNDONE_TEXT = 'Отменено'
 export const REDONE_TEXT = 'Возвращено'
@@ -9,7 +9,7 @@ export const REDONE_TEXT = 'Возвращено'
 interface Options {
   /** Открыто меню целей: оно забирает клавиши себе. */
   menuOpen: () => boolean
-  /** Esc: закрыть меню, снять выделение шага и стрелки. */
+  /** Esc: закрыть меню целей, а если меню не было, снять выделение шага и стрелки. */
   escape: () => void
   /** Состояние схемы заменено отменой или возвратом: сбросить то, что живёт только на экране (выделенная стрелка). */
   restored: () => void
@@ -19,9 +19,9 @@ interface Options {
   sessionExpired: () => void
 }
 
-/** В поле ввода Ctrl+Z, Ctrl+Y и Esc остаются браузерными: они правят текст поля. */
+/** В текстовом поле Ctrl+Z, Ctrl+Y и Esc остаются браузерными: они правят текст поля. */
 function isTyping(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+  return target instanceof HTMLElement && isTextField(target as HTMLInputElement)
 }
 
 /**
@@ -55,6 +55,8 @@ export function useEditorHotkeys(options: Options) {
   }
 
   function onKey(event: KeyboardEvent): void {
+    // меню целей уже разобрало клавишу (Esc закрыл его): страница её не повторяет
+    if (event.defaultPrevented) return
     const action = editorHotkey(event, { typing: isTyping(event.target), menuOpen: options.menuOpen() })
     if (!action) return
     if (action === 'escape') {

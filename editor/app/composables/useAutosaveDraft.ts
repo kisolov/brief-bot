@@ -25,7 +25,10 @@ export function useAutosaveDraft() {
       await store.flush()
     } catch (e) {
       // статус показывает состояние store; здесь только уход на вход при кончившейся сессии
-      if (e instanceof SessionExpired) await router.replace('/login')
+      if (e instanceof SessionExpired) {
+        store.expireSession()
+        await router.replace('/login')
+      }
     }
   }
 

@@ -18,6 +18,7 @@ export function useLoadScenario() {
       return null
     } catch (e) {
       if (e instanceof SessionExpired) {
+        store.expireSession()
         await router.replace('/login')
         return null
       }

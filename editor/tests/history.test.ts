@@ -9,7 +9,7 @@ import { DraftConflict } from '~/errors/scenario'
 import { MockScenarioRepository } from '~/repositories/adapters/scenario.mock'
 import { HISTORY_LIMIT, useScenarioStore } from '~/stores/scenario.store'
 import type { Issue, Scenario } from '~/types/scenario'
-import { editorHotkey } from '~/utils/editorHotkeys'
+import { editorHotkey, isTextField } from '~/utils/editorHotkeys'
 
 function fixture(): Scenario {
   return {
@@ -384,6 +384,57 @@ describe('отмена и возврат', () => {
     expect(snap(store)).toEqual(frozen)
   })
 
+  it('публикация: отмена во время сохранения не делает черновик «равным версии»', async () => {
+    const { store, repo } = await setup()
+    store.updateStep('pay', { text: 'Х' })
+    repo.hold = true
+    const publishing = store.publish()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(store.saving).toBe(true)
+    store.undo()
+    repo.finish()
+    await publishing
+    expect(store.dirty).toBe(true)
+    expect(store.draftMatchesActive).toBe(false)
+    expect(store.needsRollbackConfirm).toBe(true)
+  })
+
+  it('публикация без гонки: черновик равен версии', async () => {
+    const { store } = await setup()
+    store.updateStep('pay', { text: 'Х' })
+    await store.publish()
+    expect(store.draftMatchesActive).toBe(true)
+    expect(store.needsRollbackConfirm).toBe(false)
+  })
+
+  it('правка без изменений не кладёт снимок и не стирает возврат', async () => {
+    const { store } = await setup()
+    store.updateStep('menu', { pos: [9, 9] })
+    store.undo()
+    expect(store.canRedo).toBe(true)
+    expect(store.canUndo).toBe(false)
+    const edits = store.edits
+    store.connect('menu', 'a', 'pay')
+    store.updateStep('pay', { text: 'Оплата' })
+    store.updateStep('menu', { pos: [0, 0] })
+    store.updateOption('menu', 'a', { label: 'А' })
+    store.retargetCall('sphere', 'pay', [], 'fin')
+    store.retargetCall('sphere', 'nope', ['pay'], 'fin')
+    expect(store.canRedo).toBe(true)
+    expect(store.canUndo).toBe(false)
+    expect(store.edits).toBe(edits)
+  })
+
+  it('конец сессии: история очищена, сценарий считается незагруженным', async () => {
+    const { store } = await setup()
+    store.updateStep('pay', { text: 'Х' })
+    store.undo()
+    store.expireSession()
+    expect(store.canUndo).toBe(false)
+    expect(store.canRedo).toBe(false)
+    expect(store.loaded).toBe(false)
+  })
+
   it('`load` очищает историю', async () => {
     const { store } = await setup()
     store.updateStep('pay', { text: 'Х' })
@@ -405,12 +456,13 @@ describe('отмена и возврат', () => {
 })
 
 describe('горячие клавиши', () => {
-  const key = (code: string, mods: Partial<{ ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; altKey: boolean }> = {}) => ({
+  const key = (code: string, mods: Partial<{ ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; altKey: boolean; repeat: boolean }> = {}) => ({
     code,
     ctrlKey: false,
     metaKey: false,
     shiftKey: false,
     altKey: false,
+    repeat: false,
     ...mods,
   })
   const free = { typing: false, menuOpen: false }
@@ -446,9 +498,26 @@ describe('горячие клавиши', () => {
     expect(editorHotkey(key('KeyS', { ctrlKey: true }), typing)).toBe('save')
   })
 
-  it('открытое меню целей забирает Esc и отмену себе, Ctrl+S остаётся', () => {
+  it('удержание клавиши не повторяет отмену и возврат', () => {
+    expect(editorHotkey(key('KeyZ', { ctrlKey: true, repeat: true }), free)).toBeNull()
+    expect(editorHotkey(key('KeyY', { ctrlKey: true, repeat: true }), free)).toBeNull()
+  })
+
+  it('полем считаются только текстовые input, textarea и contenteditable', () => {
+    expect(isTextField({ tagName: 'INPUT', type: 'text' })).toBe(true)
+    expect(isTextField({ tagName: 'INPUT', type: 'number' })).toBe(true)
+    expect(isTextField({ tagName: 'TEXTAREA' })).toBe(true)
+    expect(isTextField({ tagName: 'DIV', isContentEditable: true })).toBe(true)
+    expect(isTextField({ tagName: 'SELECT' })).toBe(false)
+    expect(isTextField({ tagName: 'INPUT', type: 'checkbox' })).toBe(false)
+    expect(isTextField({ tagName: 'INPUT', type: 'radio' })).toBe(false)
+    expect(isTextField({ tagName: 'BUTTON' })).toBe(false)
+    expect(isTextField(null)).toBe(false)
+  })
+
+  it('открытое меню целей забирает отмену себе, Esc доходит до страницы, Ctrl+S остаётся', () => {
     const menu = { typing: false, menuOpen: true }
-    expect(editorHotkey(key('Escape'), menu)).toBeNull()
+    expect(editorHotkey(key('Escape'), menu)).toBe('escape')
     expect(editorHotkey(key('KeyZ', { ctrlKey: true }), menu)).toBeNull()
     expect(editorHotkey(key('KeyS', { ctrlKey: true }), menu)).toBe('save')
   })

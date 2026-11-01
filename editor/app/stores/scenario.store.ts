@@ -229,8 +229,11 @@ export const useScenarioStore = defineStore('scenario', () => {
 
   function updateStep(id: string, patch: Partial<Step>): void {
     const step = steps.value[id]
-    if (!step || !touch(typedKey(`step:${id}`, patch, TYPED_STEP_FIELDS))) return
-    steps.value = { ...steps.value, [id]: applyPatch(step, patch) }
+    if (!step) return
+    const next = applyPatch(step, patch)
+    // правка без изменений не кладёт снимок и не стирает возврат
+    if (isSame(step, next) || !touch(typedKey(`step:${id}`, patch, TYPED_STEP_FIELDS))) return
+    steps.value = { ...steps.value, [id]: next }
   }
 
   /** «Разложить»: шаги без `pos` ложатся по раскладке, поэтому позиции вида очищаются. */
@@ -367,16 +370,19 @@ export const useScenarioStore = defineStore('scenario', () => {
    * ставится новый `then`, а без `to` он снимается. `sources` это шаги, из которых карточка собрана на своей схеме.
    */
   function retargetCall(block: string, then: string | undefined, sources: readonly string[], to?: string): void {
-    if (!touch()) return
     const next = { ...steps.value }
+    let changed = false
     for (const sid of sources) {
       const step = next[sid]
       if (!step) continue
-      next[sid] = rewriteTargets(step, (t) =>
+      const rewritten = rewriteTargets(step, (t) =>
         isCallTo(t, block) && (t.then || undefined) === (then || undefined) ? (to ? { call: block, then: to } : { call: block }) : t,
       )
+      if (isSame(step, rewritten)) continue
+      next[sid] = rewritten
+      changed = true
     }
-    steps.value = next
+    if (changed && touch()) steps.value = next
   }
 
   function addOption(stepId: string): string | null {
@@ -391,7 +397,7 @@ export const useScenarioStore = defineStore('scenario', () => {
   /** Ссылка на сайт и переход на шаг взаимоисключают друг друга: побеждает то, что задано сейчас. */
   function updateOption(stepId: string, optionId: string, patch: Partial<Option>): void {
     const step = steps.value[stepId]
-    if (!step || !touch(typedKey(`option:${stepId}:${optionId}`, patch, TYPED_OPTION_FIELDS))) return
+    if (!step) return
     const options = (step.options ?? []).map((o) => {
       if (o.id !== optionId) return o
       const rule: Partial<Option> = { ...patch }
@@ -399,7 +405,9 @@ export const useScenarioStore = defineStore('scenario', () => {
       else if (rule.next !== undefined) rule.url = undefined
       return applyPatch(o, rule)
     })
-    steps.value = { ...steps.value, [stepId]: { ...step, options } }
+    const next = { ...step, options }
+    if (isSame(step, next) || !touch(typedKey(`option:${stepId}:${optionId}`, patch, TYPED_OPTION_FIELDS))) return
+    steps.value = { ...steps.value, [stepId]: next }
   }
 
   /** Кнопка уходит и из условий показа, что на неё ссылались. */
@@ -439,6 +447,12 @@ export const useScenarioStore = defineStore('scenario', () => {
       throw new RollbackNotRefreshed()
     }
     draftMatchesActive.value = true
+  }
+
+  /** Конец сессии: история и загруженный сценарий не переживают нового входа. */
+  function expireSession(): void {
+    resetHistory()
+    loaded.value = false
   }
 
   /** Данные для `saveDraft`: исходный JSON плюс правки, без потери незнакомых полей. */
@@ -484,12 +498,13 @@ export const useScenarioStore = defineStore('scenario', () => {
     if (conflict.value) throw new DraftConflict()
     publishing.value = true
     notice.value = null
+    // счётчик берётся до сохранения: отмена во время него тоже расходится с версией
+    const stamp = edits.value
     try {
       await flush()
-      const stamp = edits.value
       const version = await repository.publish()
-      // публикуется сохранённый черновик: правка за время запроса в версию не попала
-      draftMatchesActive.value = edits.value === stamp
+      // публикуется сохранённый черновик: правка за время сохранения или запроса в версию не попала
+      draftMatchesActive.value = edits.value === stamp && !dirty.value
       // список для страницы «Версии» обновляется по возможности; номер из ответа верен и без него
       await loadVersions().catch(() => undefined)
       activeVersion.value = version
@@ -549,6 +564,7 @@ export const useScenarioStore = defineStore('scenario', () => {
     renameBlock,
     removeBlock,
     retargetCall,
+    expireSession,
     canUndo,
     canRedo,
     undo,
@@ -559,6 +575,11 @@ export const useScenarioStore = defineStore('scenario', () => {
     toDraftData,
   }
 })
+
+/** Структурное равенство шагов: данные сценария это чистый JSON. */
+function isSame(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
 
 /** Ключ слияния: правка одного текстового поля. Остальные правки не сливаются. */
 function typedKey(scope: string, patch: object, fields: readonly string[]): string | undefined {

@@ -33,6 +33,7 @@ export function usePublishScenario(): () => Promise<void> {
         return
       }
       if (e instanceof SessionExpired) {
+        store.expireSession()
         await router.replace('/login')
         return
       }

@@ -8,12 +8,14 @@ export interface KeyLike {
   metaKey: boolean
   shiftKey: boolean
   altKey: boolean
+  /** Клавиша удерживается: автоповтор. */
+  repeat?: boolean
 }
 
 interface Focus {
-  /** Фокус в поле ввода: там Ctrl+Z, Ctrl+Y и Esc остаются браузерными. */
+  /** Фокус в текстовом поле (`isTextField`): там Ctrl+Z, Ctrl+Y и Esc остаются браузерными. */
   typing: boolean
-  /** Открыто меню целей: оно само разбирает клавиши. */
+  /** Открыто меню целей: отмена ему не нужна, Esc закрывает его. */
   menuOpen: boolean
 }
 
@@ -25,10 +27,19 @@ export function editorHotkey(e: KeyLike, focus: Focus): HotkeyAction | null {
   if (e.altKey) return null
   const mod = e.ctrlKey || e.metaKey
   if (mod && e.code === 'KeyS') return 'save'
-  if (focus.typing || focus.menuOpen) return null
+  if (focus.typing) return null
   if (e.code === 'Escape' && !mod) return 'escape'
-  if (!mod) return null
+  if (!mod || focus.menuOpen || e.repeat) return null
   if (e.code === 'KeyZ') return e.shiftKey ? 'redo' : 'undo'
   if (e.code === 'KeyY' && !e.shiftKey) return 'redo'
   return null
 }
+
+/** Элемент, где Ctrl+Z правит текст: текстовые `input`, `textarea`, `contenteditable`. Список, флажок и кнопка не в счёт. */
+export function isTextField(t: { tagName: string; type?: string; isContentEditable?: boolean } | null): boolean {
+  if (!t) return false
+  if (t.isContentEditable || t.tagName === 'TEXTAREA') return true
+  return t.tagName === 'INPUT' && !NON_TEXT_INPUTS.has((t.type ?? 'text').toLowerCase())
+}
+
+const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'file', 'range', 'color', 'hidden'])

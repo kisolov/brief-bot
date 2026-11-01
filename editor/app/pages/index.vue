@@ -20,6 +20,7 @@ const addStep = useAddStep()
 const targetMenu = useTargetMenu(view)
 const { scenario, selectedId, issues, activeVersion, conflict, notice, canUndo, canRedo } = storeToRefs(useScenarioStore())
 const router = useRouter()
+const scenarioStore = useScenarioStore()
 
 const failure = ref<string | null>(null)
 const graph = ref<{ visibleCenter: () => [number, number]; reveal: (id: string) => void; clearEdge: () => void } | null>(null)
@@ -71,13 +72,17 @@ function openTargetMenu(source: string, handle: string, at: { x: number; y: numb
 const { undo, redo } = useEditorHotkeys({
   menuOpen: () => Boolean(targetMenu.state.value),
   escape: () => {
-    targetMenu.close()
+    // закрытие меню не снимает выбор шага
+    if (targetMenu.state.value) return targetMenu.close()
     deselect()
     graph.value?.clearEdge()
   },
   restored: () => graph.value?.clearEdge(),
   notify: (text) => showHint(text),
-  sessionExpired: () => void router.replace('/login'),
+  sessionExpired: () => {
+    scenarioStore.expireSession()
+    void router.replace('/login')
+  },
 })
 
 function pickTarget(value: string) {
