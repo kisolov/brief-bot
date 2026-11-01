@@ -60,7 +60,7 @@ interface Exit {
 }
 
 /** Выходы шага: по одному на кнопку с переходом и один собственный `next`. */
-function exitsOf(step: Step): Exit[] {
+export function exitsOf(step: Step): Exit[] {
   const out: Exit[] = []
   for (const o of step.options ?? []) if (o.next !== undefined) out.push({ handle: o.id, target: o.next })
   if (step.next !== undefined) out.push({ handle: NEXT_HANDLE, target: step.next })
@@ -88,55 +88,57 @@ function reach(s: Scenario, start: string | undefined, skip: ReadonlySet<string>
 }
 
 /**
- * Шаги вида.
- * Главный граф: достижимые от `entry`, не заходя в блок (ни входом `call`, ни прямым
- * переходом на первый шаг блока). Блок: достижимые от его первого шага без `@return`,
- * не считая шагов главного графа и первых шагов других блоков. Шаг, который не показывает
- * ни один вид, попадает в главный граф: он не должен пропасть с экрана. Исключение: шаг,
- * созданный на вкладке блока (`homes`), пока он не подключён, показывается на этой вкладке.
+ * Вкладки по стрелкам, только для черновика без `tab`: главный граф это шаги, достижимые от `entry`,
+ * не заходя в блок (ни входом `call`, ни прямым переходом на первый шаг блока); блок это шаги,
+ * достижимые от его первого шага без `@return`, кроме шагов главного графа и первых шагов других блоков.
+ * Шаг, не попавший никуда, остаётся на главной: он не должен пропасть с экрана.
  */
-function stepsOf(s: Scenario, view: GraphView, homes: Homes = {}): Set<string> {
+function tabsByArrows(s: Scenario): Record<string, string> {
   const starts = new Set(Object.values(s.blocks ?? {}))
   const main = reach(s, s.entry, starts)
-  const ownBlock = (name: string): Set<string> => {
-    const first = s.blocks?.[name]
+  const tabs: Record<string, string> = {}
+  for (const [name, first] of Object.entries(s.blocks ?? {})) {
     const skip = new Set([...main, ...starts])
-    if (first) skip.delete(first)
-    return reach(s, first, skip)
+    skip.delete(first)
+    for (const id of reach(s, first, skip)) tabs[id] ??= name
   }
-  const sets = new Map<GraphView, Set<string>>([[MAIN_VIEW, new Set(main)]])
-  const owned = new Set(main)
-  for (const name of Object.keys(s.blocks ?? {})) {
-    const own = ownBlock(name)
-    sets.set(name, own)
-    for (const id of own) owned.add(id)
-  }
-  const homeOf = (id: string): GraphView => (homes[id] !== undefined && sets.has(homes[id]!) ? homes[id]! : MAIN_VIEW)
-  const skip = new Set([...owned, ...starts])
-  for (const id of Object.keys(s.steps)) {
-    if (owned.has(id)) continue
-    for (const x of reach(s, id, skip)) {
-      sets.get(homeOf(id))!.add(x)
-      owned.add(x)
-    }
-  }
-  return sets.get(view) ?? new Set()
+  return tabs
 }
 
-/** Шаг → вид, где он создан: пока шаг не подключён к схеме, он остаётся на этой вкладке. */
-export type Homes = Record<string, GraphView>
+/**
+ * Шаги с вкладками. Черновик, где `tab` нет ни у кого, получает их один раз, по стрелкам. После этого
+ * вкладка меняется только явным действием: у первого шага блока `tab` есть всегда, он и служит признаком.
+ */
+export function withTabs(s: Scenario): Record<string, Step> {
+  if (Object.values(s.steps).some((step) => step.tab !== undefined)) return s.steps
+  const tabs = tabsByArrows(s)
+  return Object.fromEntries(
+    Object.entries(s.steps).map(([id, step]) => [id, tabs[id] === undefined ? step : { ...step, tab: tabs[id] }]),
+  )
+}
+
+/** Вкладка шага; `tab` удалённого блока это главная: шаг не должен пропасть с экрана. */
+function tabOf(s: Scenario, id: string): GraphView {
+  const tab = s.steps[id]?.tab
+  return tab !== undefined && s.blocks?.[tab] !== undefined ? tab : MAIN_VIEW
+}
+
+/** Шаги вида: хранимая вкладка плюс первый шаг блока, без которого вкладка осталась бы пустой. */
+function stepsOf(s: Scenario, view: GraphView): Set<string> {
+  const ids = new Set(Object.keys(s.steps).filter((id) => tabOf(s, id) === view))
+  const first = s.blocks?.[view]
+  if (first !== undefined && s.steps[first]) ids.add(first)
+  return ids
+}
 
 /** Вид, где шаг виден: главный граф или имя общего блока. */
-export function viewOfStep(s: Scenario, id: string, homes: Homes = {}): GraphView | null {
-  for (const view of [MAIN_VIEW, ...Object.keys(s.blocks ?? {})]) {
-    if (stepsOf(s, view, homes).has(id)) return view
-  }
-  return null
+export function viewOfStep(s: Scenario, id: string): GraphView | null {
+  return s.steps[id] ? tabOf(s, id) : null
 }
 
-/** Шаги вида: «Разложить» очищает позиции именно их. */
-export function stepIdsOf(s: Scenario, view: GraphView, homes: Homes = {}): string[] {
-  const inView = stepsOf(s, view, homes)
+/** Шаги вида в порядке сценария. */
+export function stepIdsOf(s: Scenario, view: GraphView): string[] {
+  const inView = stepsOf(s, view)
   return Object.keys(s.steps).filter((id) => inView.has(id))
 }
 
@@ -204,8 +206,8 @@ export function edgeDropOutcome(
   return at.onPane ? { kind: 'detach', source: edge.source, handle } : { kind: 'none' }
 }
 
-export function toFlow(s: Scenario, view: GraphView, homes: Homes = {}): { nodes: Node[]; edges: Edge[] } {
-  const inView = stepsOf(s, view, homes)
+export function toFlow(s: Scenario, view: GraphView): { nodes: Node[]; edges: Edge[] } {
+  const inView = stepsOf(s, view)
   const nodes: Node[] = []
   const edges: Edge[] = []
   const extra = new Map<string, Node>()

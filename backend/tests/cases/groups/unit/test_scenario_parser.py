@@ -124,3 +124,26 @@ def test_unknown_type_rejected():
 def test_malformed_rejected(data):
     with pytest.raises(ScenarioMalformed):
         parse_scenario(data, 1)
+
+
+def test_tab_round_trips_and_stays_optional():
+    data = {
+        "entry": "a",
+        "blocks": {"sphere": "b"},
+        "steps": {
+            "a": {"type": "info", "text": "x", "next": "b"},
+            "b": {"type": "info", "text": "y", "tab": "sphere"},
+        },
+    }
+    parsed = parse_scenario(data, 1)
+    assert parsed.steps["a"].tab is None
+    assert parsed.steps["b"].tab == "sphere"
+    dumped = dump_scenario(parsed)
+    assert "tab" not in dumped["steps"]["a"]
+    assert dumped["steps"]["b"]["tab"] == "sphere"
+
+
+def test_tab_must_be_string():
+    bad = {"entry": "a", "blocks": {}, "steps": {"a": {"type": "info", "text": "x", "tab": 1}}}
+    with pytest.raises(ScenarioMalformed):
+        parse_scenario(bad, 1)

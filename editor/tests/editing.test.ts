@@ -106,8 +106,8 @@ describe('правка схемы', () => {
     expect(store.steps.pay).toBeUndefined()
     expect(store.steps.menu!.options![0]).not.toHaveProperty('next')
     expect(store.steps.menu!.options![1]!.next).toEqual({ call: 'sphere' })
-    expect(removeStep('pick')).toBe(true)
-    // условия, ссылки назад и блок на удалённый шаг убраны
+    // условия и ссылки назад на шаг, ушедший вместе с блоком, убраны
+    expect(store.removeBlock('late')).toBe(true)
     expect(store.steps.fin).not.toHaveProperty('when')
     expect(store.steps.fin).not.toHaveProperty('back_to')
     expect(store.steps.menu!.options![0]).not.toHaveProperty('when')
@@ -125,16 +125,14 @@ describe('правка схемы', () => {
     expect(store.steps.menu).toBeDefined()
   })
 
-  it('шаг, на который указывает блок, удаляется только с подтверждения', async () => {
+  it('первый шаг блока без следующего шага на вкладке не удаляется и вопроса не задаёт', async () => {
     const { store } = await setup()
-    const ask = vi.fn(() => false)
+    const ask = vi.fn(() => true)
     const { removeStep } = useEditStep({ confirm: ask })
     expect(removeStep('pick')).toBe(false)
-    expect(ask).toHaveBeenCalledTimes(1)
     expect(store.steps.pick).toBeDefined()
-    // шаг без блока спрашивать не заставляет
-    expect(useEditStep({ confirm: ask }).removeStep('pay')).toBe(true)
-    expect(ask).toHaveBeenCalledTimes(1)
+    expect(removeStep('pay')).toBe(true)
+    expect(ask).not.toHaveBeenCalled()
   })
 
   it('test_add_option_generates_short_id', async () => {
@@ -475,6 +473,7 @@ describe('публикация', () => {
   it('клик по ошибке ведёт на шаг и на вкладку блока; malformed без перехода', async () => {
     await setup(3)
     const s = fixture()
+    s.steps.sph!.tab = 'sphere'
     expect(locateIssue(s, issues[0]!)).toEqual({ view: 'main', stepId: 'menu' })
     expect(locateIssue(s, { ...issues[0]!, stepId: 'sph' })).toEqual({ view: 'sphere', stepId: 'sph' })
     expect(locateIssue(s, issues[2]!)).toEqual({ view: 'late', stepId: null })
@@ -489,6 +488,7 @@ describe('публикация', () => {
   it('новые коды проверки ведут на шаг с ошибкой', async () => {
     await setup(3)
     const s = fixture()
+    s.steps.sph!.tab = 'sphere'
     const codes = ['empty_text', 'empty_label', 'text_too_long', 'bad_url', 'bad_finish', 'input_on_multi', 'missing_key']
     const found = codes.map((code) => ({ code, stepId: 'pay', optionId: null, message: `текст ${code}` }))
     for (const issue of found) expect(locateIssue(s, issue)).toEqual({ view: 'main', stepId: 'pay' })
@@ -499,6 +499,7 @@ describe('публикация', () => {
   it('ошибки условий показа ведут на шаг, у кнопки тоже', async () => {
     await setup(3)
     const s = fixture()
+    s.steps.sph!.tab = 'sphere'
     const codes = [
       'when_conflict',
       'when_empty',
@@ -882,7 +883,7 @@ describe('условие показа кнопки', () => {
     const { store } = await setup()
     const edit = useEditStep({ confirm: () => true })
     edit.setCondition('pay', { step: 'pick', any: ['p1'] })
-    edit.removeStep('pick')
+    store.removeBlock('late')
     expect(store.steps.pay).not.toHaveProperty('when')
     expect(store.steps.menu!.options![0]).not.toHaveProperty('when')
   })

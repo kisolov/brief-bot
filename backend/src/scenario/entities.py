@@ -67,6 +67,8 @@ class Step:
     back_to: str | None = None
     # Координаты ноды в редакторе, движок их не читает.
     pos: tuple[float, float] | None = None
+    # Вкладка редактора: имя блока, без значения главный сценарий. Движок и валидатор не читают.
+    tab: str | None = None
 
 
 @dataclass(frozen=True)

@@ -21,7 +21,7 @@ const NEW_VALUE = '__new'
 
 const store = useScenarioStore()
 const { steps, selectedId, scenario, issues, conflict } = storeToRefs(store)
-const { updateStep, addOption, updateOption, removeOption, canRemove, removeStep, setKey, changeType } = useEditStep()
+const { updateStep, addOption, updateOption, removeOption, removeRefusal, removeStep, setKey, changeType } = useEditStep()
 const { connect, disconnect } = useConnectSteps()
 const addStep = useAddStep()
 
@@ -70,6 +70,7 @@ function checked(e: Event): boolean {
 const info = computed(() => keyInfo(scenario.value, id.value))
 const typeLocked = computed(() => (step.value ? !canChangeType(step.value) : false))
 const connected = computed(() => isConnected(scenario.value, id.value))
+const refusal = computed(() => removeRefusal(id.value))
 const usedInSteps = computed(() => info.value.usedIn.map((sid) => ({ id: sid, label: stepLabel(steps.value[sid]!) })))
 /** Текст, который человек ввёл, но правка не принята (подпись занята ботом): показывается вместе с подсказкой. */
 const keyRejected = ref<string | null>(null)
@@ -326,8 +327,8 @@ function onRemove() {
 
     </fieldset>
     <div class="foot">
-      <button type="button" class="remove" :disabled="!canRemove(id) || conflict" @click="onRemove">Удалить шаг</button>
-      <div v-if="!canRemove(id)" class="note">Это первый шаг сценария, его удалить нельзя.</div>
+      <button type="button" class="remove" :disabled="refusal !== null || conflict" @click="onRemove">Удалить шаг</button>
+      <div v-if="refusal" class="note">{{ refusal }}</div>
     </div>
   </aside>
 </template>

@@ -30,7 +30,7 @@ export function useManageBlocks(options: Options = {}) {
   /** Сколько шагов уйдёт вместе с блоком и сколько переходов в него придётся задать заново. */
   function usage(name: string): { steps: number; links: number } {
     return {
-      steps: ownBlockSteps(store.scenario, name, store.homes).length,
+      steps: ownBlockSteps(store.scenario, name).length,
       links: callsTo(store.scenario, name),
     }
   }

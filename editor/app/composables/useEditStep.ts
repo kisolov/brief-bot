@@ -1,6 +1,6 @@
 import { useScenarioStore } from '~/stores/scenario.store'
 import type { Option, Step, StepType, When } from '~/types/scenario'
-import { blockLabel } from '~/utils/scenarioGraph'
+import { removeRefusal as refusalOf } from '~/utils/blocks'
 import { isReservedKey, keyInfo } from '~/utils/stepKeys'
 import { canChangeType, convertStep } from '~/utils/stepType'
 
@@ -90,25 +90,19 @@ export function useEditStep(options: Options = {}) {
     setCondition(stepId, empty ? undefined : next, optionId)
   }
 
-  /** Начальный шаг удалять нельзя: бот не знал бы, с чего начать. */
-  function canRemove(id: string): boolean {
-    return id !== store.entry
+  /** Почему шаг нельзя удалить: подпись под кнопкой; `null`, если можно. */
+  function removeRefusal(id: string): string | null {
+    return refusalOf(store.scenario, id)
   }
 
-  /** Шаг, с которого начинается общий блок, удаляется только с подтверждения. */
+  function canRemove(id: string): boolean {
+    return removeRefusal(id) === null
+  }
+
+  /** Первый шаг блока передаёт блок следующему шагу в store; отмена возвращает всё, поэтому вопроса нет. */
   function removeStep(id: string): boolean {
-    if (!canRemove(id)) return false
-    const owners = store.blocksStartingAt(id)
-    if (owners.length) {
-      const names = owners.map((name) => `«${blockLabel(name)}»`).join(', ')
-      const ok = confirm(
-        `С этого шага начинается общий блок ${names}. Если удалить шаг, блок перестанет работать, ` +
-          'и при публикации появится ошибка. Удалить шаг?',
-      )
-      if (!ok) return false
-    }
     return store.removeStep(id)
   }
 
-  return { updateStep, moveStep, addOption, updateOption, removeOption, whenOf, setCondition, canRemove, removeStep, setKey, changeType, setAnswer }
+  return { updateStep, moveStep, addOption, updateOption, removeOption, whenOf, setCondition, canRemove, removeRefusal, removeStep, setKey, changeType, setAnswer }
 }

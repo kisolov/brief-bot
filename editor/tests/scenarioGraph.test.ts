@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { toFlow, viewTabs } from '~/utils/scenarioGraph'
+import { toFlow as flowOf, viewTabs, withTabs } from '~/utils/scenarioGraph'
 import { autoLayout, cycleEdgeIds, markBackEdges } from '~/utils/scenarioLayout'
 import type { Scenario } from '~/types/scenario'
+
+/** Схема черновика после первичной простановки вкладок: как её видит редактор. */
+const toFlow = (s: Scenario, view: string) => flowOf({ ...s, steps: withTabs(s) }, view)
 
 const scenario: Scenario = {
   entry: 'menu',

@@ -43,6 +43,8 @@ export interface Step {
   pos?: [number, number]
   finish?: boolean
   back_to?: string
+  /** Вкладка редактора: имя блока, без значения главный сценарий. Бот поле не читает. */
+  tab?: string
   /** Незнакомые поля сохраняются как есть. */
   [extra: string]: unknown
 }

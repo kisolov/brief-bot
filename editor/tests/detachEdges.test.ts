@@ -40,7 +40,7 @@ async function setup() {
 }
 
 function nodeOf(store: ReturnType<typeof useScenarioStore>, id: string) {
-  const found = toFlow(store.scenario, 'main', store.homes).nodes.find((n) => n.id === id)
+  const found = toFlow(store.scenario, 'main').nodes.find((n) => n.id === id)
   if (!found) throw new Error(`нет ноды ${id}`)
   return found
 }
@@ -99,7 +99,7 @@ describe('отсоединение стрелки', () => {
 describe('рёбра схемы', () => {
   it('у каждого ребра область попадания шире линии, тянется только конец у цели', async () => {
     const store = await setup()
-    const { edges } = toFlow(store.scenario, 'main', store.homes)
+    const { edges } = toFlow(store.scenario, 'main')
     expect(edges.length).toBeGreaterThan(4)
     expect(EDGE_HIT_WIDTH).toBeGreaterThanOrEqual(16)
     expect(EDGE_HIT_WIDTH).toBeLessThanOrEqual(20)
@@ -111,7 +111,7 @@ describe('рёбра схемы', () => {
 
   it('выделенное ребро одно, с классом и акцентной стрелкой; чужие не меняются', async () => {
     const store = await setup()
-    const { edges } = toFlow(store.scenario, 'main', store.homes)
+    const { edges } = toFlow(store.scenario, 'main')
     const out = selectEdge(edges, 'menu:a')
     expect(out.filter((e) => e.selected).map((e) => e.id)).toEqual(['menu:a'])
     const picked = out.find((e) => e.id === 'menu:a')!

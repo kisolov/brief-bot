@@ -58,7 +58,7 @@ async function setup() {
 }
 
 function nodeOf(store: ReturnType<typeof useScenarioStore>, view: string, id: string) {
-  const found = toFlow(store.scenario, view, store.homes).nodes.find((n) => n.id === id)
+  const found = toFlow(store.scenario, view).nodes.find((n) => n.id === id)
   if (!found) throw new Error(`нет ноды ${id} на виде ${view}`)
   return found
 }
@@ -231,12 +231,12 @@ describe('блоки: создание', () => {
     expect(out.name).toBe('Оплата')
     const first = store.blocks['Оплата']!
     expect(first).toMatch(/^s_[a-z0-9]{8}$/)
-    expect(store.steps[first]).toEqual({ type: 'info', text: 'Новый шаг', next: '@return' })
+    expect(store.steps[first]).toEqual({ type: 'info', text: 'Новый шаг', next: '@return', tab: 'Оплата' })
     expect(store.selectedId).toBe(first)
     expect(Object.keys(store.blocks)).toEqual(['sphere', 'two', 'Оплата'])
     expect(viewTabs(store.scenario).at(-1)).toEqual({ view: 'Оплата', label: 'Оплата' })
-    expect(stepIdsOf(store.scenario, 'Оплата', store.homes)).toEqual([first])
-    expect(viewOfStep(store.scenario, first, {})).toBe('Оплата')
+    expect(stepIdsOf(store.scenario, 'Оплата')).toEqual([first])
+    expect(viewOfStep(store.scenario, first)).toBe('Оплата')
     expect(store.dirty).toBe(true)
   })
 
@@ -278,7 +278,7 @@ describe('блоки: создание', () => {
     // после перезагрузки шаг блока всё так же на своей вкладке
     const again = useScenarioStore()
     await again.load()
-    expect(viewOfStep(again.scenario, again.blocks.Оплата!, again.homes)).toBe('Оплата')
+    expect(viewOfStep(again.scenario, again.blocks.Оплата!)).toBe('Оплата')
   })
 })
 
@@ -327,20 +327,21 @@ describe('блоки: переименование', () => {
     const { store } = await setup()
     const id = store.addStep('info', undefined, { view: 'sphere' })
     store.renameBlock('sphere', 'Новое')
-    expect(store.homes[id]).toBe('Новое')
+    expect(store.steps[id]!.tab).toBe('Новое')
   })
 })
 
 describe('блоки: удаление', () => {
-  it('убирает запись, свои шаги и все переходы в блок; общие шаги остаются', async () => {
+  it('убирает запись, шаги вкладки и все переходы в блок', async () => {
     const { store } = await setup()
     const { remove, usage } = useManageBlocks({ confirm: () => true })
-    // sph2 виден и на вкладке второго блока: общий
-    expect(usage('sphere')).toEqual({ steps: 1, links: 4 })
+    // sph2 достижим и из второго блока, но его вкладка sphere: он уходит, а ссылка из tw снимается
+    expect(usage('sphere')).toEqual({ steps: 2, links: 4 })
     expect(remove('sphere')).toBe(true)
     expect(store.blocks).toEqual({ two: 'tw' })
     expect(store.steps.sph).toBeUndefined()
-    expect(store.steps.sph2).toBeDefined()
+    expect(store.steps.sph2).toBeUndefined()
+    expect(store.steps.tw).not.toHaveProperty('next')
     expect(store.steps.menu!.options!.map((o) => o.next)).toEqual([
       'pay',
       undefined,
@@ -359,7 +360,7 @@ describe('блоки: удаление', () => {
     const { remove } = useManageBlocks({ confirm: ask })
     expect(remove('sphere')).toBe(false)
     expect(ask).toHaveBeenCalledWith(
-      'Удалить блок "Сфера деятельности"? Шаги: 1. Кнопок и шагов ведут в него: 4. Эти переходы придётся задать заново.',
+      'Удалить блок "Сфера деятельности"? Шаги: 2. Кнопок и шагов ведут в него: 4. Эти переходы придётся задать заново.',
     )
     expect(store.blocks.sphere).toBe('sph')
     expect(store.dirty).toBe(false)

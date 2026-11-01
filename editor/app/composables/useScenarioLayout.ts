@@ -16,17 +16,17 @@ export interface NodeOutcome {
 /** Сценарий «смотреть схему»: вкладка графа, раскладка dagre, выбор ноды, пометки ошибок. */
 export function useScenarioLayout() {
   const store = useScenarioStore()
-  const { scenario, selectedId, homes, issues } = storeToRefs(store)
+  const { scenario, selectedId, issues } = storeToRefs(store)
   const view = ref<GraphView>(MAIN_VIEW)
   const tabs = computed(() => viewTabs(scenario.value))
   const laidOut = shallowRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] })
 
   function build() {
-    const flow = toFlow(scenario.value, view.value, homes.value)
+    const flow = toFlow(scenario.value, view.value)
     const placed = autoLayout(flow.nodes, flow.edges, false)
     laidOut.value = { nodes: placed, edges: markBackEdges(placed, flow.edges) }
   }
-  watch([scenario, view, homes], build, { immediate: true })
+  watch([scenario, view], build, { immediate: true })
 
   // Блок исчез (отмена создания блока, возврат переименования): вкладка без блока невозможна, открывается главная
   watch(
@@ -74,7 +74,7 @@ export function useScenarioLayout() {
 
   /** Кнопка «Разложить»: позиции шагов этого вида очищаются, шаги ложатся по раскладке заново. */
   function relayout() {
-    store.clearPositions(stepIdsOf(scenario.value, view.value, homes.value))
+    store.clearPositions(stepIdsOf(scenario.value, view.value))
   }
 
   /** Клик по ноде: шаг выбирается, блок открывает вкладку, заглушка ведёт туда, куда показывает. */
@@ -93,7 +93,7 @@ export function useScenarioLayout() {
     }
     if (clicked?.data.kind === 'link') {
       const stepId: string = clicked.data.stepId
-      view.value = viewOfStep(scenario.value, stepId, homes.value) ?? MAIN_VIEW
+      view.value = viewOfStep(scenario.value, stepId) ?? MAIN_VIEW
       store.select(stepId)
       return { reveal: stepId }
     }
@@ -106,7 +106,7 @@ export function useScenarioLayout() {
 
   /** Клик по ошибке: вкладка с шагом (или блоком) и выбор шага. Ошибка разбора без перехода. */
   function jumpTo(issue: Issue) {
-    const where = locateIssue(scenario.value, issue, homes.value)
+    const where = locateIssue(scenario.value, issue)
     if (!where) return
     view.value = where.view
     store.select(where.stepId)

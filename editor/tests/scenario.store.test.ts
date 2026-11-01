@@ -54,7 +54,10 @@ describe('scenario store', () => {
     setActivePinia(createPinia())
     const store = useScenarioStore()
     await store.load()
-    expect(store.toDraftData()).toEqual(seed)
+    // первичная простановка добавляет только `tab`: остальное содержимое не меняется
+    const draft = store.toDraftData()
+    for (const step of Object.values(draft.steps)) delete step.tab
+    expect(draft).toEqual(seed)
   })
 
   it('load подтягивает активную версию бота', async () => {

@@ -74,6 +74,7 @@ def _parse_step(sid: str, raw: Any) -> Step:
         finish=bool(_optional(raw, "finish", bool, where)),
         back_to=_optional(raw, "back_to", str, where),
         pos=_parse_pos(raw.get("pos"), where),
+        tab=_optional(raw, "tab", str, where),
     )
 
 
@@ -142,6 +143,8 @@ def _dump_step(step: Step) -> dict:
         out["back_to"] = step.back_to
     if step.pos is not None:
         out["pos"] = list(step.pos)
+    if step.tab is not None:
+        out["tab"] = step.tab
     return out
 
 

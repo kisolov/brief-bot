@@ -6,7 +6,8 @@ import { CONFLICT_TEXT } from '~/errors/presentation'
 import { DraftConflict, RollbackNotRefreshed, ScenarioInvalid } from '~/errors/scenario'
 import { NEXT_HANDLE, RETURN_TARGET } from '~/types/scenario'
 import type { GraphView, Issue, Option, Scenario, Step, StepType, Target, VersionInfo, When } from '~/types/scenario'
-import { blockNameError, isCallTo, ownBlockSteps } from '~/utils/blocks'
+import { blockNameError, blocksStartingAt, isCallTo, nextStepOnTab, ownBlockSteps, removeRefusal } from '~/utils/blocks'
+import { MAIN_VIEW, withTabs } from '~/utils/scenarioGraph'
 import { convertStep } from '~/utils/stepType'
 
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -30,7 +31,6 @@ interface Snapshot {
   blocks: Record<string, string>
   steps: Record<string, Step>
   extra: Record<string, unknown>
-  homes: Record<string, GraphView>
 }
 
 /** Итог правки блока: новое имя или текст ошибки рядом с полем. */
@@ -53,8 +53,6 @@ export const useScenarioStore = defineStore('scenario', () => {
   /** Черновик известно равен активной версии: сразу после публикации или отката, до первой правки. */
   const draftMatchesActive = ref(false)
   const loaded = ref(false)
-  /** Вид, где создан шаг без входящего перехода: пока шаг не подключён, он показывается там. */
-  const homes = ref<Record<string, GraphView>>({})
   /** Счётчик правок: автосохранение следит за ним. */
   const edits = ref(0)
   const dirty = ref(false)
@@ -112,14 +110,14 @@ export const useScenarioStore = defineStore('scenario', () => {
     const { entry: e, blocks: b, steps: s, ...rest } = (draft.data ?? {}) as Partial<Scenario>
     entry.value = typeof e === 'string' ? e : ''
     blocks.value = b ?? {}
-    steps.value = s ?? {}
+    // простановка не правка: без истории и `edits`, в черновик уйдёт со следующим сохранением
+    steps.value = withTabs({ entry: entry.value, blocks: blocks.value, steps: s ?? {} })
     extra.value = rest
     revision.value = draft.revision
     if (mine === versionsRequest) applyVersions(list)
     draftMatchesActive.value = false
     selectedId.value = null
     issues.value = []
-    homes.value = {}
     resetHistory()
     edits.value = 0
     dirty.value = false
@@ -135,7 +133,6 @@ export const useScenarioStore = defineStore('scenario', () => {
       blocks: toRaw(blocks.value),
       steps: toRaw(steps.value),
       extra: toRaw(extra.value),
-      homes: toRaw(homes.value),
     }
   }
 
@@ -187,7 +184,6 @@ export const useScenarioStore = defineStore('scenario', () => {
     blocks.value = target.blocks
     steps.value = target.steps
     extra.value = target.extra
-    homes.value = target.homes
     if (selectedId.value && !steps.value[selectedId.value]) selectedId.value = null
     mergeKey = null
     // как обычная правка: будит автосохранение, но историю не трогает
@@ -258,8 +254,8 @@ export const useScenarioStore = defineStore('scenario', () => {
       step.next = after.next
     }
     if (place?.pos) step.pos = place.pos
+    if (place?.view && place.view !== MAIN_VIEW) step.tab = place.view
     steps.value = { ...steps.value, [id]: step }
-    if (place?.view && place.view !== 'main') homes.value = { ...homes.value, [id]: place.view }
     if (after && afterId) steps.value = { ...steps.value, [afterId]: { ...after, next: id } }
     selectedId.value = id
     return id
@@ -281,21 +277,22 @@ export const useScenarioStore = defineStore('scenario', () => {
     return true
   }
 
-  /** Блоки, чей первый шаг это `id`: удаление такого шага ломает блок. */
-  function blocksStartingAt(id: string): string[] {
-    return Object.entries(blocks.value)
-      .filter(([, first]) => first === id)
-      .map(([name]) => name)
-  }
-
-  /** Начальный шаг не удаляется. Возвращает, удалён ли шаг. */
+  /**
+   * Начальный шаг не удаляется. Блок без первого шага не остаётся: его получает следующий подключённый
+   * шаг, а если такого нет, удаление отклоняется. Возвращает, удалён ли шаг.
+   */
   function removeStep(id: string): boolean {
-    if (id === entry.value || !steps.value[id] || !touch()) return false
+    if (!steps.value[id] || removeRefusal(scenario.value, id) !== null || !touch()) return false
+    const owners = blocksStartingAt(scenario.value, id)
+    if (owners.length) {
+      const heir = nextStepOnTab(scenario.value, id)!
+      blocks.value = { ...blocks.value, ...Object.fromEntries(owners.map((name) => [name, heir])) }
+    }
     dropSteps([id])
     return true
   }
 
-  /** Убирает шаги и все ссылки на них: переходы, возврат, условия показа, блоки с этим первым шагом. */
+  /** Убирает шаги и все ссылки на них: переходы, возврат, условия показа. */
   function dropSteps(ids: Iterable<string>): void {
     const gone = new Set(ids)
     gone.delete(entry.value)
@@ -307,28 +304,23 @@ export const useScenarioStore = defineStore('scenario', () => {
       rest[sid] = cleaned
     }
     steps.value = rest
-    blocks.value = Object.fromEntries(Object.entries(blocks.value).filter(([, first]) => !gone.has(first)))
-    homes.value = Object.fromEntries(Object.entries(homes.value).filter(([sid]) => !gone.has(sid)))
     if (selectedId.value && gone.has(selectedId.value)) selectedId.value = null
   }
 
-  /**
-   * Новый общий блок: первый шаг «Новый шаг» сразу возвращает назад. Шаг достижим от первого шага
-   * блока, поэтому остаётся на его вкладке и после перезагрузки.
-   */
+  /** Новый общий блок: первый шаг «Новый шаг» сразу возвращает назад и стоит на вкладке блока. */
   function addBlock(raw: string): BlockOutcome {
     const error = blockNameError(scenario.value, raw)
     if (error) return { ok: false, error }
     if (!touch()) return { ok: false, error: CONFLICT_TEXT }
     const name = raw.trim()
     const stepId = freshId('s_', new Set(Object.keys(steps.value)))
-    steps.value = { ...steps.value, [stepId]: { type: 'info', text: NEW_STEP_TEXT, next: RETURN_TARGET } }
+    steps.value = { ...steps.value, [stepId]: { type: 'info', text: NEW_STEP_TEXT, next: RETURN_TARGET, tab: name } }
     blocks.value = { ...blocks.value, [name]: stepId }
     selectedId.value = stepId
     return { ok: true, name, stepId }
   }
 
-  /** Ключ `blocks` и все `call` на него меняются разом; блоки остаются в прежнем порядке. */
+  /** Ключ `blocks`, все `call` на него и `tab` шагов меняются разом; блоки остаются в прежнем порядке. */
   function renameBlock(old: string, raw: string): BlockOutcome {
     if (blocks.value[old] === undefined) return { ok: false, error: 'Такого блока нет.' }
     const error = blockNameError(scenario.value, raw, old)
@@ -339,29 +331,24 @@ export const useScenarioStore = defineStore('scenario', () => {
     if (!touch()) return { ok: false, error: CONFLICT_TEXT }
     blocks.value = Object.fromEntries(Object.entries(blocks.value).map(([k, first]) => [k === old ? name : k, first]))
     steps.value = Object.fromEntries(
-      Object.entries(steps.value).map(([sid, step]) => [
-        sid,
-        rewriteTargets(step, (t) => (isCallTo(t, old) ? { ...t, call: name } : t)),
-      ]),
+      Object.entries(steps.value).map(([sid, step]) => {
+        const moved = step.tab === old ? { ...step, tab: name } : step
+        return [sid, rewriteTargets(moved, (t) => (isCallTo(t, old) ? { ...t, call: name } : t))]
+      }),
     )
-    homes.value = Object.fromEntries(Object.entries(homes.value).map(([sid, view]) => [sid, view === old ? name : view]))
     return { ok: true, name, stepId: selectedId.value ?? undefined }
   }
 
-  /**
-   * Удаляет блок, его собственные шаги (через ту же чистку, что `removeStep`) и все переходы в него.
-   * Шаги, видимые ещё и в другом виде, остаются.
-   */
+  /** Удаляет блок, шаги его вкладки (через ту же чистку, что `removeStep`) и все переходы в него. */
   function removeBlock(name: string): boolean {
     if (blocks.value[name] === undefined || !touch()) return false
-    const own = ownBlockSteps(scenario.value, name, homes.value)
+    const own = ownBlockSteps(scenario.value, name)
     steps.value = Object.fromEntries(
       Object.entries(steps.value).map(([sid, step]) => [sid, rewriteTargets(step, (t) => (isCallTo(t, name) ? undefined : t))]),
     )
     const { [name]: _gone, ...left } = blocks.value
     blocks.value = left
     dropSteps(own)
-    homes.value = Object.fromEntries(Object.entries(homes.value).filter(([, view]) => view !== name))
     return true
   }
 
@@ -536,7 +523,6 @@ export const useScenarioStore = defineStore('scenario', () => {
     loadVersions,
     activate,
     loaded,
-    homes,
     edits,
     dirty,
     saving,
@@ -554,7 +540,6 @@ export const useScenarioStore = defineStore('scenario', () => {
     changeStepType,
     clearPositions,
     addStep,
-    blocksStartingAt,
     removeStep,
     addOption,
     updateOption,

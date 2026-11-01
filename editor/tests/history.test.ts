@@ -91,18 +91,17 @@ describe('отмена и возврат', () => {
     expect(snap(store)).toEqual(after)
   })
 
-  it('новый шаг с id, позицией и домом вида', async () => {
+  it('новый шаг с id, позицией и вкладкой', async () => {
     const { store } = await setup()
     const before = snap(store)
     const id = store.addStep('info', 'pay', { pos: [10, 20], view: 'sphere' })
     store.select(id)
-    expect(store.homes[id]).toBe('sphere')
+    expect(store.steps[id]?.tab).toBe('sphere')
     store.undo()
     expect(snap(store)).toEqual(before)
-    expect(store.homes[id]).toBeUndefined()
     store.redo()
     expect(store.steps[id]?.pos).toEqual([10, 20])
-    expect(store.homes[id]).toBe('sphere')
+    expect(store.steps[id]?.tab).toBe('sphere')
   })
 
   it('кнопка: добавить, изменить, удалить, каждое отменяется', async () => {

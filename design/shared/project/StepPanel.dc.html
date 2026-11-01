@@ -109,14 +109,19 @@ body{margin:0}
 </div>
 </sc-if>
 </fieldset>
-<button type="button" style="flex: none; font: inherit; font-weight: 500; height: 40px; border: 1px solid #D9DEE5; border-radius: 6px; background: #FFFFFF; color: #B3261E">Удалить шаг</button>
+<sc-if value="{{canRemove}}" hint-placeholder-val="{{ true }}"><button type="button" style="flex: none; font: inherit; font-weight: 500; height: 40px; border: 1px solid #D9DEE5; border-radius: 6px; background: #FFFFFF; color: #B3261E">Удалить шаг</button></sc-if>
+<sc-if value="{{removeNote}}" hint-placeholder-val="{{ false }}"><button type="button" disabled style="flex: none; font: inherit; font-weight: 500; height: 40px; border: 1px solid #D9DEE5; border-radius: 6px; background: #FFFFFF; color: #546070">Удалить шаг</button><div style="font-size: 12px; color: #546070">{{removeNote}}</div></sc-if>
 </aside>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["choice","text","name","link"],"default":"choice"},"errors":{"editor":"enum","options":["none","one"],"default":"none"},"$preview":{"width":336,"height":800}}'>
+<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["choice","text","name","link"],"default":"choice"},"errors":{"editor":"enum","options":["none","one"],"default":"none"},"removal":{"editor":"enum","options":["allowed","entry","block"],"default":"allowed"},"$preview":{"width":336,"height":800}}'>
 class Component extends DCLogic {
   renderVals() {
     const state = this.props.state ?? 'choice';
+    const notes = { entry: 'Это первый шаг сценария, его удалить нельзя.', block: 'Сначала задайте блоку другой первый шаг.' };
+    const removeNote = notes[this.props.removal ?? 'allowed'] ?? '';
     return {
+      removeNote,
+      canRemove: !removeNote,
       hasErrors: (this.props.errors ?? 'none') === 'one',
       isChoice: state === 'choice',
       isText: state === 'text',

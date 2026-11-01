@@ -1,5 +1,5 @@
 import type { GraphView, Issue, Scenario } from '~/types/scenario'
-import { type Homes, blockLabel, viewOfStep } from '~/utils/scenarioGraph'
+import { blockLabel, viewOfStep } from '~/utils/scenarioGraph'
 import { stepLabel } from '~/utils/stepTargets'
 
 /** Строка панели ошибок: номер совпадает с номером на ноде. */
@@ -20,11 +20,11 @@ export interface IssueLocation {
  * Для ошибки блока `stepId` это имя блока: ведём на его вкладку без выбора шага.
  * Ошибка разбора (`malformed`) и неизвестный шаг без перехода.
  */
-export function locateIssue(s: Scenario, issue: Issue, homes: Homes = {}): IssueLocation | null {
+export function locateIssue(s: Scenario, issue: Issue): IssueLocation | null {
   if (issue.code === 'malformed') return null
   const step = s.steps[issue.stepId]
   if (step) {
-    const view = viewOfStep(s, issue.stepId, homes)
+    const view = viewOfStep(s, issue.stepId)
     return view === null ? null : { view, stepId: issue.stepId }
   }
   if (s.blocks?.[issue.stepId] !== undefined) return { view: issue.stepId, stepId: null }
