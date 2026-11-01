@@ -14,6 +14,11 @@ const TAIL_HEIGHT = 6
 export const BLOCK_HEIGHT = 64
 
 export const MAIN_VIEW = 'main'
+/** Id карточки выхода на вкладке блока. */
+export const EXIT_NODE = `stub:${RETURN_TARGET}`
+/** Пункт левой панели: не шаг, а карточка выхода блока. */
+export const EXIT_ITEM = 'exit'
+export type PaletteItem = StepType | typeof EXIT_ITEM
 
 /** Подписи типов шага, как в артборде StepNode. */
 export const STEP_TYPE_LABELS: Record<StepType, string> = {
@@ -229,9 +234,10 @@ export function toFlow(s: Scenario, view: GraphView): { nodes: Node[]; edges: Ed
     const key = `stub:${id}`
     if (!extra.has(key)) {
       const kind = id === RETURN_TARGET ? 'return' : s.steps[id] ? 'link' : 'broken'
-      const label = kind === 'return' ? 'Возврат из блока' : kind === 'link' ? titleOf(s.steps[id]!) : id
+      const label = kind === 'return' ? 'Дальше по сценарию' : kind === 'link' ? titleOf(s.steps[id]!) : id
       const kindLabel = { return: 'Выход из блока', link: 'Переход на шаг', broken: 'Нет такого шага' }[kind]
-      extra.set(key, node(key, 'stub', { label, title: label, kind, kindLabel, stepId: id, width: NODE_WIDTH, height: BLOCK_HEIGHT }))
+      const pos = kind === 'return' ? s.exits?.[view] : undefined
+      extra.set(key, node(key, 'stub', { label, title: label, kind, kindLabel, stepId: id, width: NODE_WIDTH, height: BLOCK_HEIGHT }, pos))
     }
     return key
   }
@@ -290,6 +296,9 @@ export function toFlow(s: Scenario, view: GraphView): { nodes: Node[]; edges: Ed
       else link(id, handle, callFor(target.call, target.then, id))
     }
   }
+
+  // Выход блока есть всегда: иначе, сняв последнюю стрелку, вести новую было бы некуда
+  if (view !== MAIN_VIEW) stubFor(RETURN_TARGET)
 
   return { nodes: [...nodes, ...extra.values()], edges }
 }

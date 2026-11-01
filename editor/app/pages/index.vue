@@ -11,10 +11,12 @@ import { CONFLICT_TEXT } from '~/errors/presentation'
 import { useScenarioStore } from '~/stores/scenario.store'
 import type { Issue, StepType } from '~/types/scenario'
 import { issueItems } from '~/utils/issues'
+import { EXIT_ITEM, EXIT_NODE, MAIN_VIEW } from '~/utils/scenarioGraph'
+import type { PaletteItem } from '~/utils/scenarioGraph'
 
 const loadScenario = useLoadScenario()
 const { tabs, view, nodes, edges, setView, relayout, selectNode, deselect, jumpTo } = useScenarioLayout()
-const { moveStep } = useEditStep()
+const { moveStep, placeExit } = useEditStep()
 const { connectNodes: connectGraphNodes, detach: detachGraphEdge } = useConnectSteps()
 const addStep = useAddStep()
 const targetMenu = useTargetMenu(view)
@@ -32,13 +34,22 @@ onMounted(async () => {
 })
 
 /** Клик по палитре: шаг ложится в видимой части холста. */
-function addFromPalette(type: StepType) {
-  addStep(type, { pos: graph.value?.visibleCenter(), view: view.value })
+function addFromPalette(type: PaletteItem) {
+  const pos = graph.value?.visibleCenter()
+  if (type !== EXIT_ITEM) return void addStep(type, { pos, view: view.value })
+  if (pos) placeExit(view.value, pos)
 }
 
 /** Бросок из палитры: шаг ложится там, где отпустили. */
 function dropStep(type: string, pos: [number, number]) {
+  if (type === EXIT_ITEM) return placeExit(view.value, pos)
   addStep(type as StepType, { pos, view: view.value })
+}
+
+/** Перетаскивание карточки: шаг или выход блока. */
+function moveNode(id: string, pos: [number, number]) {
+  if (id === EXIT_NODE) return placeExit(view.value, pos)
+  moveStep(id, pos)
 }
 
 const hint = ref<string | null>(null)
@@ -127,7 +138,7 @@ function reload() {
   </p>
   <p v-if="notice" class="banner" role="alert">{{ notice }}</p>
   <div class="work">
-    <StepPalette :disabled="conflict" @add="addFromPalette" />
+    <StepPalette :disabled="conflict" :in-block="view !== MAIN_VIEW" @add="addFromPalette" />
     <div class="graph">
       <GraphHint :text="hint" />
       <ScenarioGraph
@@ -141,7 +152,7 @@ function reload() {
         @select="openNode"
         @deselect="deselect"
         @relayout="relayout"
-        @move="moveStep"
+        @move="moveNode"
         @connect="connectNodes"
         @detach="detachEdge"
         @connect-empty="openTargetMenu"

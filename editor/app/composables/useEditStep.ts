@@ -26,6 +26,10 @@ export function useEditStep(options: Options = {}) {
     store.updateStep(id, { pos: [Math.round(pos[0]), Math.round(pos[1])] })
   }
 
+  function placeExit(block: string, pos: [number, number]): void {
+    store.placeExit(block, [Math.round(pos[0]), Math.round(pos[1])])
+  }
+
   function addOption(stepId: string): string | null {
     return store.addOption(stepId)
   }
@@ -104,5 +108,5 @@ export function useEditStep(options: Options = {}) {
     return store.removeStep(id)
   }
 
-  return { updateStep, moveStep, addOption, updateOption, removeOption, whenOf, setCondition, canRemove, removeRefusal, removeStep, setKey, changeType, setAnswer }
+  return { updateStep, moveStep, placeExit, addOption, updateOption, removeOption, whenOf, setCondition, canRemove, removeRefusal, removeStep, setKey, changeType, setAnswer }
 }

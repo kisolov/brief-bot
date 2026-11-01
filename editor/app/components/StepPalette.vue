@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { StepType } from '~/types/scenario'
-import { STEP_TYPE_LABELS } from '~/utils/scenarioGraph'
+import { EXIT_ITEM, STEP_TYPE_LABELS } from '~/utils/scenarioGraph'
+import type { PaletteItem } from '~/utils/scenarioGraph'
 
-defineProps<{ disabled?: boolean }>()
-const emit = defineEmits<{ add: [type: StepType] }>()
+defineProps<{ disabled?: boolean; inBlock?: boolean }>()
+const emit = defineEmits<{ add: [type: PaletteItem] }>()
 
 const types: StepType[] = ['choice', 'multi', 'multi_input', 'text', 'file', 'info']
 
-function startDrag(event: DragEvent, type: StepType) {
+function startDrag(event: DragEvent, type: PaletteItem) {
   event.dataTransfer?.setData('application/x-step-type', type)
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy'
 }
@@ -29,6 +30,20 @@ function startDrag(event: DragEvent, type: StepType) {
     >
       {{ STEP_TYPE_LABELS[type] }}
     </button>
+    <template v-if="inBlock">
+      <div class="hint block-hint">В этом блоке</div>
+      <button
+        type="button"
+        class="item exit"
+        :draggable="!disabled"
+        :disabled="disabled"
+        title="Поставьте карточку на схему и проведите к ней стрелку: бот вернётся туда, откуда вошёл в блок"
+        @dragstart="startDrag($event, EXIT_ITEM)"
+        @click="emit('add', EXIT_ITEM)"
+      >
+        Выход из блока
+      </button>
+    </template>
   </aside>
 </template>
 
@@ -53,6 +68,9 @@ function startDrag(event: DragEvent, type: StepType) {
   color: var(--ink-2);
   line-height: 16px;
 }
+.block-hint {
+  margin-top: 8px;
+}
 .item {
   font: inherit;
   font-size: 12px;
@@ -68,6 +86,11 @@ function startDrag(event: DragEvent, type: StepType) {
 .item:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+.exit {
+  background: var(--bg-card);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
 }
 .type-choice { background: var(--step-choice-tint); color: var(--step-choice-ink); }
 .type-multi { background: var(--step-multi-tint); color: var(--step-multi-ink); }

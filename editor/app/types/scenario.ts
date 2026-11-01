@@ -54,6 +54,8 @@ export interface Scenario {
   /** Имя блока → id его первого шага. */
   blocks: Record<string, string>
   steps: Record<string, Step>
+  /** Имя блока → место карточки выхода на схеме. Боту не нужно. */
+  exits?: Record<string, [number, number]>
   /** Незнакомые поля верхнего уровня сохраняются как есть. */
   [extra: string]: unknown
 }

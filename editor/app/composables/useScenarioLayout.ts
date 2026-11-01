@@ -44,9 +44,9 @@ export function useScenarioLayout() {
       return {
         ...n,
         selected: isStep && n.id === selectedId.value,
-        // двигать можно только шаги: блоки и заглушки это отражение переходов; соединять можно все:
+        // двигать можно шаги и выход блока: остальные карточки это отражение переходов; соединять можно все:
         // стрелка на карточку или заглушку пишет переход, а от выхода карточки меняет её «вернуться на»
-        draggable: isStep,
+        draggable: isStep || n.data.kind === 'return',
         connectable: true,
         data: numbers ? { ...n.data, state: 'error', errorNumbers: numbers } : n.data,
       }

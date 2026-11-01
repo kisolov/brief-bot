@@ -8,6 +8,7 @@ import { useTargetMenu } from '~/composables/useTargetMenu'
 import { __setContainer } from '~/container'
 import { MockScenarioRepository } from '~/repositories/adapters/scenario.mock'
 import { useScenarioStore } from '~/stores/scenario.store'
+import { NEXT_HANDLE } from '~/types/scenario'
 import type { Scenario } from '~/types/scenario'
 import { stepIdsOf, toFlow, viewOfStep, viewTabs } from '~/utils/scenarioGraph'
 import { menuChoices, thenChoices } from '~/utils/stepTargets'
@@ -62,6 +63,52 @@ function nodeOf(store: ReturnType<typeof useScenarioStore>, view: string, id: st
   if (!found) throw new Error(`нет ноды ${id} на виде ${view}`)
   return found
 }
+
+describe('выход из блока', () => {
+  const EXIT = 'stub:@return'
+
+  it('на вкладке блока карточка выхода есть, даже если на неё никто не ведёт', async () => {
+    const { store } = await setup()
+    store.updateOption('sph', 'y', { next: undefined })
+    store.updateStep('sph2', { next: undefined })
+    expect(nodeOf(store, 'sphere', EXIT).data.kind).toBe('return')
+    expect(toFlow(store.scenario, 'main').nodes.some((n) => n.id === EXIT)).toBe(false)
+  })
+
+  it('стрелка на постоянную карточку выхода пишет выход из блока', async () => {
+    const { store } = await setup()
+    store.updateStep('sph2', { next: undefined })
+    const source = nodeOf(store, 'sphere', 'sph2')
+    useConnectSteps().connectNodes(source, NEXT_HANDLE, nodeOf(store, 'sphere', EXIT))
+    expect(store.steps.sph2!.next).toBe('@return')
+  })
+
+  it('из левой панели и перетаскиванием карточка встаёт в указанное место, это отменяется', async () => {
+    const { store } = await setup()
+    store.placeExit('sphere', [120, 340])
+    const card = nodeOf(store, 'sphere', EXIT)
+    expect(card.position).toEqual({ x: 120, y: 340 })
+    expect(card.data.placed).toBe(true)
+    store.undo()
+    expect(toFlow(store.scenario, 'sphere').nodes.find((n) => n.id === EXIT)!.data.placed).toBe(false)
+  })
+
+  it('место выхода у каждого блока своё и сохраняется в черновике', async () => {
+    const { store } = await setup()
+    store.placeExit('sphere', [1, 2])
+    store.placeExit('two', [3, 4])
+    expect(store.toDraftData().exits).toEqual({ sphere: [1, 2], two: [3, 4] })
+  })
+
+  it('переименование и удаление блока ведут за собой место выхода', async () => {
+    const { store } = await setup()
+    store.placeExit('sphere', [1, 2])
+    store.renameBlock('sphere', 'Оплата')
+    expect(store.toDraftData().exits).toEqual({ Оплата: [1, 2] })
+    store.removeBlock('Оплата')
+    expect(store.toDraftData().exits).toEqual({})
+  })
+})
 
 describe('стрелка на карточки', () => {
   it('карточка блока помнит, куда возвращается и из каких шагов собрана', async () => {

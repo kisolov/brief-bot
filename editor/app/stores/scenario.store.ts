@@ -342,6 +342,8 @@ export const useScenarioStore = defineStore('scenario', () => {
         return [sid, rewriteTargets(moved, (t) => (isCallTo(t, old) ? { ...t, call: name } : t))]
       }),
     )
+    const { [old]: place, ...others } = exitPlaces()
+    if (place) setExits({ ...others, [name]: place })
     return { ok: true, name, stepId: selectedId.value ?? undefined }
   }
 
@@ -355,7 +357,24 @@ export const useScenarioStore = defineStore('scenario', () => {
     const { [name]: _gone, ...left } = blocks.value
     blocks.value = left
     dropSteps(own)
+    const { [name]: _exit, ...exits } = exitPlaces()
+    setExits(exits)
     return true
+  }
+
+  function exitPlaces(): Record<string, [number, number]> {
+    return (extra.value.exits ?? {}) as Record<string, [number, number]>
+  }
+
+  function setExits(exits: Record<string, [number, number]>): void {
+    const { exits: _old, ...rest } = extra.value
+    extra.value = Object.keys(exits).length || _old ? { ...rest, exits } : rest
+  }
+
+  /** Место карточки выхода на вкладке блока: из палитры или перетаскиванием. */
+  function placeExit(block: string, pos: [number, number]): void {
+    if (blocks.value[block] === undefined || !touch()) return
+    setExits({ ...exitPlaces(), [block]: pos })
   }
 
   /**
@@ -547,6 +566,7 @@ export const useScenarioStore = defineStore('scenario', () => {
     setPositions,
     addStep,
     removeStep,
+    placeExit,
     addOption,
     updateOption,
     removeOption,
