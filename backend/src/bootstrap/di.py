@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from dependency_injector import containers, providers
 
 from src.access.adapters.asyncpg import AsyncpgAdminRepository, AsyncpgTokenRepository
@@ -64,8 +65,10 @@ def _utc_now() -> datetime:
 
 async def _init_bot(settings: TelegramSettings) -> AsyncIterator[Bot]:
     """Бот без разметки по умолчанию: тексты сценария могут содержать < и _."""
+    session = AiohttpSession(proxy=settings.proxy.get_secret_value()) if settings.proxy else None
     bot = Bot(
         token=settings.token.get_secret_value(),
+        session=session,
         default=DefaultBotProperties(parse_mode=None),
     )
     try:

@@ -49,6 +49,7 @@ chmod 600 .env
 | `TELEGRAM_MANAGER_CHAT_ID` | id тестового чата (для группы число отрицательное) |
 | `TELEGRAM_INVITE_CODE` | придуманный код для первого входа, например `openssl rand -hex 8` |
 | `TELEGRAM_POLLING_ENABLED` | `true` |
+| `TELEGRAM_PROXY` | пусто, если сервер достаёт до Telegram. Иначе (серверы в России) адрес прокси: `socks5://логин:пароль@хост:порт` или `http://...`. Проверка доступа: `curl -m 10 https://api.telegram.org` |
 | `SITE_ADDRESS` | `203-0-113-10.sslip.io` (без `https://`) |
 | `EDITOR_BASE_URL` | `https://203-0-113-10.sslip.io` |
 | `POSTGRES_PASSWORD` | `openssl rand -hex 24`: латиница и цифры, символы вроде `@` и `/` сломают строку подключения |
