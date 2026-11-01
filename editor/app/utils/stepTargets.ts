@@ -9,7 +9,7 @@ export interface TargetChoice {
 }
 
 const STEP_PREFIX = 'step:'
-const BLOCK_PREFIX = 'block:'
+export const BLOCK_PREFIX = 'block:'
 
 /** Подпись шага для списков: первая строка текста, id человеку не показываются. */
 export function stepLabel(step: Step): string {

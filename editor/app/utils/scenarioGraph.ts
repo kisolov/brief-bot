@@ -230,6 +230,10 @@ export function toFlow(s: Scenario, view: GraphView): { nodes: Node[]; edges: Ed
       updatable: 'target',
     })
 
+  const places = s.cards?.[view] ?? []
+  const placeOf = (block: string, then?: string) =>
+    places.find((p) => p.block === block && (p.then || undefined) === (then || undefined))?.pos
+
   const stubFor = (id: string): string => {
     const key = `stub:${id}`
     if (!extra.has(key)) {
@@ -248,24 +252,30 @@ export function toFlow(s: Scenario, view: GraphView): { nodes: Node[]; edges: Ed
    * Карточка общего блока одна на пару «блок, куда вернуться». `sources` это шаги этой схемы,
    * из переходов которых она собрана: стрелка от её выхода меняет `then` именно у них.
    */
-  const callFor = (block: string, then: string | undefined, from: string): string => {
+  const callFor = (block: string, then: string | undefined, from?: string): string => {
     const key = `call:${block}>${then ?? ''}`
     const existing = extra.get(key)
     if (existing) {
-      if (!existing.data.sources.includes(from)) existing.data.sources.push(from)
+      if (from && !existing.data.sources.includes(from)) existing.data.sources.push(from)
       return key
     }
     extra.set(
       key,
-      node(key, 'block', {
-        block,
-        then: then || undefined,
-        sources: [from],
-        title: blockLabel(block),
-        kindLabel: 'Общий блок',
-        width: NODE_WIDTH,
-        height: BLOCK_HEIGHT,
-      }),
+      node(
+        key,
+        'block',
+        {
+          block,
+          then: then || undefined,
+          sources: from ? [from] : [],
+          view,
+          title: blockLabel(block),
+          kindLabel: 'Общий блок',
+          width: NODE_WIDTH,
+          height: BLOCK_HEIGHT,
+        },
+        placeOf(block, then),
+      ),
     )
     if (then) link(key, 'out', resolve(then))
     return key
@@ -296,6 +306,9 @@ export function toFlow(s: Scenario, view: GraphView): { nodes: Node[]; edges: Ed
       else link(id, handle, callFor(target.call, target.then, id))
     }
   }
+
+  // Поставленная карточка стоит и без стрелок: к ней их потом и проводят
+  for (const p of places) if (s.blocks[p.block] !== undefined) callFor(p.block, p.then)
 
   // Выход блока есть всегда: иначе, сняв последнюю стрелку, вести новую было бы некуда
   if (view !== MAIN_VIEW) stubFor(RETURN_TARGET)

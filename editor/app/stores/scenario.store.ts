@@ -1,3 +1,5 @@
+import { clearThen, dropBlockCards, dropCard, isPlaced, putCard, renameCards, retargetCard } from '~/utils/cardPlaces'
+import type { CardPlaces } from '~/utils/cardPlaces'
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef, toRaw } from 'vue'
 import { useContainer } from '~/container'
@@ -307,6 +309,7 @@ export const useScenarioStore = defineStore('scenario', () => {
       rest[sid] = cleaned
     }
     steps.value = rest
+    setCards(clearThen(cardPlaces(), gone))
     if (selectedId.value && gone.has(selectedId.value)) selectedId.value = null
   }
 
@@ -344,6 +347,7 @@ export const useScenarioStore = defineStore('scenario', () => {
     )
     const { [old]: place, ...others } = exitPlaces()
     if (place) setExits({ ...others, [name]: place })
+    setCards(renameCards(cardPlaces(), old, name))
     return { ok: true, name, stepId: selectedId.value ?? undefined }
   }
 
@@ -359,6 +363,7 @@ export const useScenarioStore = defineStore('scenario', () => {
     dropSteps(own)
     const { [name]: _exit, ...exits } = exitPlaces()
     setExits(exits)
+    setCards(dropBlockCards(cardPlaces(), name))
     return true
   }
 
@@ -371,6 +376,27 @@ export const useScenarioStore = defineStore('scenario', () => {
     extra.value = Object.keys(exits).length || _old ? { ...rest, exits } : rest
   }
 
+  function cardPlaces(): CardPlaces {
+    return (extra.value.cards ?? {}) as CardPlaces
+  }
+
+  function setCards(cards: CardPlaces): void {
+    const { cards: old, ...rest } = extra.value
+    extra.value = Object.keys(cards).length || old ? { ...rest, cards } : rest
+  }
+
+  /** Карточка блока на схеме: брошена из списка блоков или передвинута. */
+  function placeCard(view: GraphView, block: string, then: string | undefined, pos: [number, number]): void {
+    if (blocks.value[block] === undefined || !touch()) return
+    setCards(putCard(cardPlaces(), view, block, then, pos))
+  }
+
+  /** Убирает поставленную карточку, на которую не ведут стрелки. */
+  function removeCard(view: GraphView, block: string, then?: string): void {
+    if (!isPlaced(cardPlaces(), view, block, then) || !touch()) return
+    setCards(dropCard(cardPlaces(), view, block, then))
+  }
+
   /** Место карточки выхода на вкладке блока: из палитры или перетаскиванием. */
   function placeExit(block: string, pos: [number, number]): void {
     if (blocks.value[block] === undefined || !touch()) return
@@ -381,7 +407,7 @@ export const useScenarioStore = defineStore('scenario', () => {
    * Стрелка от выхода карточки блока: у всех ссылок `{call: block, then}`, из которых она собрана,
    * ставится новый `then`, а без `to` он снимается. `sources` это шаги, из которых карточка собрана на своей схеме.
    */
-  function retargetCall(block: string, then: string | undefined, sources: readonly string[], to?: string): void {
+  function retargetCall(block: string, then: string | undefined, sources: readonly string[], to?: string, view?: GraphView): void {
     const next = { ...steps.value }
     let changed = false
     for (const sid of sources) {
@@ -394,7 +420,11 @@ export const useScenarioStore = defineStore('scenario', () => {
       next[sid] = rewritten
       changed = true
     }
-    if (changed && touch()) steps.value = next
+    // поставленная карточка без стрелок хранит «куда вернуться» только в своём месте
+    const moves = view !== undefined && (to || undefined) !== (then || undefined) && isPlaced(cardPlaces(), view, block, then)
+    if ((!changed && !moves) || !touch()) return
+    if (changed) steps.value = next
+    if (moves) setCards(retargetCard(cardPlaces(), view, block, then, to))
   }
 
   function addOption(stepId: string): string | null {
@@ -567,6 +597,8 @@ export const useScenarioStore = defineStore('scenario', () => {
     addStep,
     removeStep,
     placeExit,
+    placeCard,
+    removeCard,
     addOption,
     updateOption,
     removeOption,

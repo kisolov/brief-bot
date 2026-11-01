@@ -4,6 +4,7 @@ import type { GraphView } from '~/types/scenario'
 import { BLOCK_NAME_LIMIT } from '~/utils/blocks'
 import type { ViewTab } from '~/utils/scenarioGraph'
 import { MAIN_VIEW } from '~/utils/scenarioGraph'
+import { BLOCK_PREFIX } from '~/utils/stepTargets'
 
 const props = defineProps<{ tabs: ViewTab[]; view: GraphView }>()
 /** `stepId`: шаг, который открытая вкладка выбирает сразу (первый шаг нового блока). */
@@ -71,6 +72,12 @@ function onBlur() {
   if (!draft.value.trim() && !error.value) cancel()
 }
 
+/** Вкладка блока перетаскивается на схему тем же каналом, что и пункты палитры. */
+function startDrag(event: DragEvent, block: string) {
+  event.dataTransfer?.setData('application/x-step-type', `${BLOCK_PREFIX}${block}`)
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy'
+}
+
 function removeActive() {
   if (remove(props.view)) emit('select', MAIN_VIEW)
 }
@@ -114,6 +121,9 @@ watch(
         type="button"
         class="tab"
         :class="{ active: tab.view === view }"
+        :draggable="!locked"
+        title="Нажмите, чтобы открыть. Перетащите на схему, чтобы поставить блок"
+        @dragstart="startDrag($event, tab.view)"
         @click="$emit('select', tab.view)"
       >
         {{ tab.label }}

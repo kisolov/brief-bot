@@ -49,6 +49,13 @@ export interface Step {
   [extra: string]: unknown
 }
 
+/** Карточка общего блока, поставленная руками. Без стрелок тоже стоит. Боту не нужно. */
+export interface CardPlace {
+  block: string
+  then?: string
+  pos: [number, number]
+}
+
 export interface Scenario {
   entry: string
   /** Имя блока → id его первого шага. */
@@ -56,6 +63,8 @@ export interface Scenario {
   steps: Record<string, Step>
   /** Имя блока → место карточки выхода на схеме. Боту не нужно. */
   exits?: Record<string, [number, number]>
+  /** Вкладка → карточки блоков, стоящие на ней там, где их поставили. */
+  cards?: Record<string, CardPlace[]>
   /** Незнакомые поля верхнего уровня сохраняются как есть. */
   [extra: string]: unknown
 }

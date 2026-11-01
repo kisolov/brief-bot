@@ -16,7 +16,7 @@ export interface GraphNodeRef {
  */
 export type ConnectOrigin =
   | { step: string; handle: string }
-  | { block: string; then?: string; sources: readonly string[] }
+  | { block: string; then?: string; sources: readonly string[]; view?: string }
 
 export const PICK_STEP_HINT = 'Выберите шаг в панели справа.'
 const BLOCK_TO_BLOCK_HINT = 'От блока стрелка идёт на шаг или на выход из блока.'
@@ -40,7 +40,7 @@ export function useConnectSteps() {
   function originOf(node: GraphNodeRef, handle: string): ConnectOrigin | null {
     if (store.steps[node.id]) return { step: node.id, handle }
     if (node.type === 'block' && handle === 'out') {
-      return { block: node.data.block, then: node.data.then, sources: node.data.sources ?? [] }
+      return { block: node.data.block, then: node.data.then, sources: node.data.sources ?? [], view: node.data.view }
     }
     return null
   }
@@ -71,7 +71,7 @@ export function useConnectSteps() {
       return undefined
     }
     if (typeof target !== 'string') return BLOCK_TO_BLOCK_HINT
-    store.retargetCall(origin.block, origin.then, origin.sources, target)
+    store.retargetCall(origin.block, origin.then, origin.sources, target, origin.view)
     return undefined
   }
 
@@ -93,7 +93,7 @@ export function useConnectSteps() {
     if (!origin) return undefined
     if (store.conflict) return CONFLICT_TEXT
     if ('step' in origin) store.connect(origin.step, origin.handle, undefined)
-    else store.retargetCall(origin.block, origin.then, origin.sources)
+    else store.retargetCall(origin.block, origin.then, origin.sources, undefined, origin.view)
     return undefined
   }
 

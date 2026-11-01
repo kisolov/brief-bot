@@ -64,6 +64,58 @@ function nodeOf(store: ReturnType<typeof useScenarioStore>, view: string, id: st
   return found
 }
 
+describe('карточка блока на схеме', () => {
+  const CARD = 'call:two>'
+  const cards = (store: ReturnType<typeof useScenarioStore>) =>
+    toFlow(store.scenario, 'main').nodes.filter((n) => n.type === 'block')
+
+  it('брошенный блок стоит без стрелок и убирается, отмена возвращает', async () => {
+    const { store } = await setup()
+    store.placeCard('main', 'two', undefined, [100, 200])
+    expect(nodeOf(store, 'main', CARD).position).toEqual({ x: 100, y: 200 })
+    expect(nodeOf(store, 'main', CARD).data.sources).toEqual([])
+    store.removeCard('main', 'two')
+    expect(cards(store).some((n) => n.id === CARD)).toBe(false)
+    store.undo()
+    expect(nodeOf(store, 'main', CARD).data.placed).toBe(true)
+  })
+
+  it('подключённая карточка двигается, источники остаются', async () => {
+    const { store } = await setup()
+    store.placeCard('main', 'sphere', 'pay', [40, 50])
+    const card = nodeOf(store, 'main', 'call:sphere>pay')
+    expect(card.position).toEqual({ x: 40, y: 50 })
+    expect(card.data.sources).toEqual(['menu'])
+  })
+
+  it('стрелка шага на брошенную карточку пишет вход в блок, карточка не сдвигается', async () => {
+    const { store } = await setup()
+    store.placeCard('main', 'two', undefined, [100, 200])
+    useConnectSteps().connectNodes(nodeOf(store, 'main', 'menu'), 'a', nodeOf(store, 'main', CARD))
+    expect(store.steps.menu!.options![0]!.next).toEqual({ call: 'two' })
+    expect(nodeOf(store, 'main', CARD).position).toEqual({ x: 100, y: 200 })
+  })
+
+  it('стрелка от брошенной карточки запоминает возврат, снятие стрелки его убирает, место сохраняется', async () => {
+    const { store } = await setup()
+    store.placeCard('main', 'two', undefined, [100, 200])
+    useConnectSteps().connectNodes(nodeOf(store, 'main', CARD), 'out', nodeOf(store, 'main', 'pay'))
+    expect(nodeOf(store, 'main', 'call:two>pay').position).toEqual({ x: 100, y: 200 })
+    useConnectSteps().detach(nodeOf(store, 'main', 'call:two>pay'), 'out')
+    expect(nodeOf(store, 'main', CARD).position).toEqual({ x: 100, y: 200 })
+  })
+
+  it('переименование и удаление блока, удаление шага чистят места', async () => {
+    const { store } = await setup()
+    store.placeCard('main', 'two', 'pay', [1, 2])
+    store.placeCard('sphere', 'two', undefined, [3, 4])
+    store.renameBlock('two', 'новый')
+    expect(nodeOf(store, 'main', 'call:новый>pay').position).toEqual({ x: 1, y: 2 })
+    store.removeBlock('новый')
+    expect(store.scenario.cards).toEqual({})
+  })
+})
+
 describe('выход из блока', () => {
   const EXIT = 'stub:@return'
 

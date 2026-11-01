@@ -13,10 +13,11 @@ import type { Issue, StepType } from '~/types/scenario'
 import { issueItems } from '~/utils/issues'
 import { EXIT_ITEM, EXIT_NODE, MAIN_VIEW } from '~/utils/scenarioGraph'
 import type { PaletteItem } from '~/utils/scenarioGraph'
+import { BLOCK_PREFIX } from '~/utils/stepTargets'
 
 const loadScenario = useLoadScenario()
 const { tabs, view, nodes, edges, setView, relayout, selectNode, deselect, jumpTo } = useScenarioLayout()
-const { moveStep, placeExit } = useEditStep()
+const { moveStep, placeExit, placeCard } = useEditStep()
 const { connectNodes: connectGraphNodes, detach: detachGraphEdge } = useConnectSteps()
 const addStep = useAddStep()
 const targetMenu = useTargetMenu(view)
@@ -43,12 +44,21 @@ function addFromPalette(type: PaletteItem) {
 /** Бросок из палитры: шаг ложится там, где отпустили. */
 function dropStep(type: string, pos: [number, number]) {
   if (type === EXIT_ITEM) return placeExit(view.value, pos)
+  if (type.startsWith(BLOCK_PREFIX)) return dropBlock(type.slice(BLOCK_PREFIX.length), pos)
   addStep(type as StepType, { pos, view: view.value })
 }
 
-/** Перетаскивание карточки: шаг или выход блока. */
+/** Бросок вкладки блока на схему: блок встаёт карточкой, стрелки к ней проводятся потом. */
+function dropBlock(block: string, pos: [number, number]) {
+  if (block === view.value) return showHint('Блок нельзя поставить внутрь самого себя.')
+  placeCard(view.value, block, undefined, pos)
+}
+
+/** Перетаскивание карточки: шаг, блок или выход блока. */
 function moveNode(id: string, pos: [number, number]) {
   if (id === EXIT_NODE) return placeExit(view.value, pos)
+  const moved = nodeById(id)
+  if (moved?.type === 'block') return placeCard(view.value, moved.data.block, moved.data.then, pos)
   moveStep(id, pos)
 }
 
