@@ -7,13 +7,16 @@ import { DraftConflict, RollbackNotRefreshed, ScenarioInvalid } from '~/errors/s
 import { NEXT_HANDLE, RETURN_TARGET } from '~/types/scenario'
 import type { GraphView, Issue, Option, Scenario, Step, StepType, Target, VersionInfo, When } from '~/types/scenario'
 import { blockNameError, blocksStartingAt, isCallTo, nextStepOnTab, ownBlockSteps, removeRefusal } from '~/utils/blocks'
-import { MAIN_VIEW, withTabs } from '~/utils/scenarioGraph'
+import { MAIN_VIEW } from '~/utils/scenarioGraph'
+import { settleSteps } from '~/utils/scenarioLayout'
 import { convertStep } from '~/utils/stepType'
 
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
 const ID_LENGTH = 8
 /** Пустой текст бот не отправит: шаг сразу получает черновой. */
 const NEW_STEP_TEXT = 'Новый шаг'
+/** Место первого шага нового блока: вкладка пуста, ориентироваться не на что. */
+const FIRST_STEP_POS: [number, number] = [24, 24]
 /** Сколько правок помнит отмена. */
 export const HISTORY_LIMIT = 100
 /** Правки текста в одном поле, идущие чаще, чем раз в столько мс, сливаются в один шаг отмены. */
@@ -111,7 +114,7 @@ export const useScenarioStore = defineStore('scenario', () => {
     entry.value = typeof e === 'string' ? e : ''
     blocks.value = b ?? {}
     // простановка не правка: без истории и `edits`, в черновик уйдёт со следующим сохранением
-    steps.value = withTabs({ entry: entry.value, blocks: blocks.value, steps: s ?? {} })
+    steps.value = settleSteps({ entry: entry.value, blocks: blocks.value, steps: s ?? {} })
     extra.value = rest
     revision.value = draft.revision
     if (mine === versionsRequest) applyVersions(list)
@@ -232,14 +235,14 @@ export const useScenarioStore = defineStore('scenario', () => {
     steps.value = { ...steps.value, [id]: next }
   }
 
-  /** «Разложить»: шаги без `pos` ложатся по раскладке, поэтому позиции вида очищаются. */
-  function clearPositions(ids: string[]): void {
+  /** «Разложить»: новые позиции шагов одним шагом отмены; без изменений правки нет. */
+  function setPositions(places: Record<string, [number, number]>): void {
     const next = { ...steps.value }
     let changed = false
-    for (const id of ids) {
+    for (const [id, pos] of Object.entries(places)) {
       const step = next[id]
-      if (!step || step.pos === undefined) continue
-      next[id] = applyPatch(step, { pos: undefined })
+      if (!step || isSame(step.pos, pos)) continue
+      next[id] = { ...step, pos }
       changed = true
     }
     if (changed && touch()) steps.value = next
@@ -314,7 +317,10 @@ export const useScenarioStore = defineStore('scenario', () => {
     if (!touch()) return { ok: false, error: CONFLICT_TEXT }
     const name = raw.trim()
     const stepId = freshId('s_', new Set(Object.keys(steps.value)))
-    steps.value = { ...steps.value, [stepId]: { type: 'info', text: NEW_STEP_TEXT, next: RETURN_TARGET, tab: name } }
+    steps.value = {
+      ...steps.value,
+      [stepId]: { type: 'info', text: NEW_STEP_TEXT, next: RETURN_TARGET, tab: name, pos: FIRST_STEP_POS },
+    }
     blocks.value = { ...blocks.value, [name]: stepId }
     selectedId.value = stepId
     return { ok: true, name, stepId }
@@ -538,7 +544,7 @@ export const useScenarioStore = defineStore('scenario', () => {
     setNotice,
     updateStep,
     changeStepType,
-    clearPositions,
+    setPositions,
     addStep,
     removeStep,
     addOption,

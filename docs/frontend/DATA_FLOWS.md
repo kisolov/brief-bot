@@ -47,6 +47,7 @@ StepPanel "Новый шаг…" → useAddStep(info, {from: {step, handle}}) �
 стрелка между портами → ScenarioGraph connect → useConnectSteps.connect (только шаг → шаг)
 список "Куда ведёт" → useConnectSteps.connect / disconnect
 перетаскивание ноды → useEditStep.moveStep → pos
+"Разложить" → useScenarioLayout.relayout → layoutTab (dagre вкладки) → store.setPositions → pos, один шаг отмены
 ```
 
 ## Опубликовать

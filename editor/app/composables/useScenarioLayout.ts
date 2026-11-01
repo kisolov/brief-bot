@@ -4,8 +4,8 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { useScenarioStore } from '~/stores/scenario.store'
 import type { GraphView, Issue } from '~/types/scenario'
 import { errorNumbers, locateIssue } from '~/utils/issues'
-import { MAIN_VIEW, stepIdsOf, toFlow, viewOfStep, viewTabs } from '~/utils/scenarioGraph'
-import { autoLayout, markBackEdges } from '~/utils/scenarioLayout'
+import { MAIN_VIEW, toFlow, viewOfStep, viewTabs } from '~/utils/scenarioGraph'
+import { layoutTab, markBackEdges, placeCards } from '~/utils/scenarioLayout'
 
 /** Что показать после клика по ноде: прокрутить схему к шагу или вывести подсказку. */
 export interface NodeOutcome {
@@ -13,7 +13,7 @@ export interface NodeOutcome {
   hint?: string
 }
 
-/** Сценарий «смотреть схему»: вкладка графа, раскладка dagre, выбор ноды, пометки ошибок. */
+/** Сценарий «смотреть схему»: вкладка графа, места карточек, выбор ноды, пометки ошибок. */
 export function useScenarioLayout() {
   const store = useScenarioStore()
   const { scenario, selectedId, issues } = storeToRefs(store)
@@ -23,7 +23,7 @@ export function useScenarioLayout() {
 
   function build() {
     const flow = toFlow(scenario.value, view.value)
-    const placed = autoLayout(flow.nodes, flow.edges, false)
+    const placed = placeCards(flow.nodes, flow.edges)
     laidOut.value = { nodes: placed, edges: markBackEdges(placed, flow.edges) }
   }
   watch([scenario, view], build, { immediate: true })
@@ -72,9 +72,9 @@ export function useScenarioLayout() {
     store.select(stepId ?? null)
   }
 
-  /** Кнопка «Разложить»: позиции шагов этого вида очищаются, шаги ложатся по раскладке заново. */
+  /** Кнопка «Разложить»: dagre считает вкладку заново, позиции записываются одним шагом отмены. */
   function relayout() {
-    store.clearPositions(stepIdsOf(scenario.value, view.value))
+    store.setPositions(layoutTab(scenario.value, view.value))
   }
 
   /** Клик по ноде: шаг выбирается, блок открывает вкладку, заглушка ведёт туда, куда показывает. */

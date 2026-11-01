@@ -174,7 +174,7 @@ describe('правка схемы', () => {
     expect(Object.keys(store.steps)).toEqual(['menu', 'pay', 'pick', 'fin', 'sph'])
   })
 
-  it('перетаскивание пишет pos, "Разложить" очищает pos шагов вида', async () => {
+  it('перетаскивание пишет pos, "Разложить" пересчитывает pos шагов вида', async () => {
     const { store } = await setup()
     const { moveStep } = useEditStep()
     moveStep('menu', [100, 200])
@@ -183,7 +183,7 @@ describe('правка схемы', () => {
     const { relayout, nodes } = useScenarioLayout()
     relayout()
     await nextTick()
-    expect(store.steps.menu).not.toHaveProperty('pos')
+    expect(store.steps.menu!.pos).not.toEqual([100, 200])
     // шаг блока вне главного вида остаётся на месте
     expect(store.steps.sph!.pos).toEqual([5, 5])
     expect(nodes.value.length).toBeGreaterThan(0)

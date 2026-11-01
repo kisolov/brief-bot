@@ -54,9 +54,12 @@ describe('scenario store', () => {
     setActivePinia(createPinia())
     const store = useScenarioStore()
     await store.load()
-    // первичная простановка добавляет только `tab`: остальное содержимое не меняется
+    // первичная простановка добавляет только `tab` и `pos`: остальное содержимое не меняется
     const draft = store.toDraftData()
-    for (const step of Object.values(draft.steps)) delete step.tab
+    for (const step of Object.values(draft.steps)) {
+      delete step.tab
+      delete step.pos
+    }
     expect(draft).toEqual(seed)
   })
 

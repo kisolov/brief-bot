@@ -231,7 +231,7 @@ describe('блоки: создание', () => {
     expect(out.name).toBe('Оплата')
     const first = store.blocks['Оплата']!
     expect(first).toMatch(/^s_[a-z0-9]{8}$/)
-    expect(store.steps[first]).toEqual({ type: 'info', text: 'Новый шаг', next: '@return', tab: 'Оплата' })
+    expect(store.steps[first]).toEqual({ type: 'info', text: 'Новый шаг', next: '@return', tab: 'Оплата', pos: [24, 24] })
     expect(store.selectedId).toBe(first)
     expect(Object.keys(store.blocks)).toEqual(['sphere', 'two', 'Оплата'])
     expect(viewTabs(store.scenario).at(-1)).toEqual({ view: 'Оплата', label: 'Оплата' })

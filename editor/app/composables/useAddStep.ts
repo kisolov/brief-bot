@@ -2,9 +2,7 @@ import { useConnectSteps } from '~/composables/useConnectSteps'
 import type { ConnectOrigin } from '~/composables/useConnectSteps'
 import { useScenarioStore } from '~/stores/scenario.store'
 import type { GraphView, StepType } from '~/types/scenario'
-
-/** Шаг ложится правее источника, если у источника задана позиция. */
-const SHIFT_X = 260
+import { spotNear } from '~/utils/scenarioLayout'
 
 interface Place {
   /** Положение на схеме: место броска из палитры или центр видимой части. */
@@ -22,8 +20,7 @@ export function useAddStep() {
 
   return function addStep(type: StepType, place: Place = {}): string {
     const origin = place.from
-    const source = origin && 'step' in origin ? store.steps[origin.step] : undefined
-    const pos = place.pos ?? (source?.pos ? ([source.pos[0] + SHIFT_X, source.pos[1]] as [number, number]) : undefined)
+    const pos = place.pos ?? (origin && 'step' in origin ? spotNear(store.scenario, origin.step) : undefined)
     // шаг и переход к нему это одно действие, отмена возвращает оба
     return store.batch(() => {
       const id = store.addStep(type, undefined, { pos, view: place.view })
