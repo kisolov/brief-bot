@@ -53,7 +53,14 @@ body{margin:0}
 <span style="min-width: 40px; text-align: center; color: #3A4656">100%</span>
 <button type="button" aria-label="Увеличить" style="font: inherit; width: 30px; height: 30px; border: 0; background: transparent; color: #18212C">+</button>
 <button type="button" style="font: inherit; height: 30px; padding: 0 10px; border: 0; border-left: 1px solid #D9DEE5; background: transparent; color: #18212C">Разложить</button>
+<span style="display: flex; align-items: center; padding-left: 4px; border-left: 1px solid #D9DEE5">
+<button type="button" aria-label="Отменить" title="Отменить (Ctrl+Z)" style="display: grid; place-items: center; font: inherit; width: 30px; height: 30px; border: 0; background: transparent; color: #18212C"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button>
+<button type="button" aria-label="Вернуть" title="Вернуть (Ctrl+Shift+Z)" disabled style="display: grid; place-items: center; font: inherit; width: 30px; height: 30px; border: 0; background: transparent; color: #C8CFD9"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10.5 3l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M13 6H6.5a3.5 3.5 0 0 0 0 7H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button>
+</span>
 </div>
+<sc-if value="{{undoneMode}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 50%; top: 16px; transform: translateX(-50%)"><dc-import name="GraphHint" text="Отменено"></dc-import></div>
+</sc-if>
 <div role="img" aria-label="Миникарта схемы" style="position: absolute; right: 16px; bottom: 16px; width: 150px; height: 96px; box-sizing: border-box; background: #FFFFFF; border: 1px solid #C8CFD9; border-radius: 6px; overflow: hidden">
 <div style="position: absolute; left: 8px; top: 10px; width: 16px; height: 22px; background: #C5D3F2"></div>
 <div style="position: absolute; left: 30px; top: 16px; width: 16px; height: 18px; background: #C5D3F2"></div>
@@ -68,7 +75,7 @@ body{margin:0}
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["selected","errors","edge"],"default":"selected"},"$preview":{"width":960,"height":800}}'>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["selected","errors","edge","undone"],"default":"selected"},"$preview":{"width":960,"height":800}}'>
 class Component extends DCLogic {
   renderVals() {
     const mode = this.props.mode ?? 'selected';
@@ -76,6 +83,8 @@ class Component extends DCLogic {
     return {
       // режим edge: выделена стрелка (толще, цвета accent, "×" в середине); шаг не выбран, панель шага не меняется
       edgeMode: mode === 'edge',
+      // режим undone: после отмены вверху подсказка "Отменено" (после возврата "Возвращено")
+      undoneMode: mode === 'undone',
       payState: mode === 'selected' ? 'selected' : 'normal',
       priorityState: errors ? 'error' : 'normal',
       priorityError: errors ? '1' : '',

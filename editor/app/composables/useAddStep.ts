@@ -24,8 +24,11 @@ export function useAddStep() {
     const origin = place.from
     const source = origin && 'step' in origin ? store.steps[origin.step] : undefined
     const pos = place.pos ?? (source?.pos ? ([source.pos[0] + SHIFT_X, source.pos[1]] as [number, number]) : undefined)
-    const id = store.addStep(type, undefined, { pos, view: place.view })
-    if (origin) connectTo(origin, id)
-    return id
+    // шаг и переход к нему это одно действие, отмена возвращает оба
+    return store.batch(() => {
+      const id = store.addStep(type, undefined, { pos, view: place.view })
+      if (origin) connectTo(origin, id)
+      return id
+    })
   }
 }

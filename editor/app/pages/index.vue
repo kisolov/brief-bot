@@ -2,6 +2,7 @@
 import { storeToRefs } from 'pinia'
 import { useAddStep } from '~/composables/useAddStep'
 import { useConnectSteps } from '~/composables/useConnectSteps'
+import { useEditorHotkeys } from '~/composables/useEditorHotkeys'
 import { useEditStep } from '~/composables/useEditStep'
 import { useLoadScenario } from '~/composables/useLoadScenario'
 import { useScenarioLayout } from '~/composables/useScenarioLayout'
@@ -17,10 +18,11 @@ const { moveStep } = useEditStep()
 const { connectNodes: connectGraphNodes, detach: detachGraphEdge } = useConnectSteps()
 const addStep = useAddStep()
 const targetMenu = useTargetMenu(view)
-const { scenario, selectedId, issues, activeVersion, conflict, notice } = storeToRefs(useScenarioStore())
+const { scenario, selectedId, issues, activeVersion, conflict, notice, canUndo, canRedo } = storeToRefs(useScenarioStore())
+const router = useRouter()
 
 const failure = ref<string | null>(null)
-const graph = ref<{ visibleCenter: () => [number, number]; reveal: (id: string) => void } | null>(null)
+const graph = ref<{ visibleCenter: () => [number, number]; reveal: (id: string) => void; clearEdge: () => void } | null>(null)
 
 const items = computed(() => issueItems(scenario.value, issues.value))
 
@@ -65,6 +67,18 @@ function openTargetMenu(source: string, handle: string, at: { x: number; y: numb
   const from = nodeById(source)
   if (from) targetMenu.open(from, handle, at, pos)
 }
+
+const { undo, redo } = useEditorHotkeys({
+  menuOpen: () => Boolean(targetMenu.state.value),
+  escape: () => {
+    targetMenu.close()
+    deselect()
+    graph.value?.clearEdge()
+  },
+  restored: () => graph.value?.clearEdge(),
+  notify: (text) => showHint(text),
+  sessionExpired: () => void router.replace('/login'),
+})
 
 function pickTarget(value: string) {
   const text = targetMenu.pick(value)
@@ -117,6 +131,8 @@ function reload() {
         :edges="edges"
         :view="view"
         :locked="conflict"
+        :can-undo="canUndo"
+        :can-redo="canRedo"
         @select="openNode"
         @deselect="deselect"
         @relayout="relayout"
@@ -125,6 +141,8 @@ function reload() {
         @detach="detachEdge"
         @connect-empty="openTargetMenu"
         @drop="dropStep"
+        @undo="undo"
+        @redo="redo"
       />
       <TargetMenu
         v-if="targetMenu.state.value"

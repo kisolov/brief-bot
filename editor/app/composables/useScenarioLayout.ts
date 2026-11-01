@@ -28,6 +28,14 @@ export function useScenarioLayout() {
   }
   watch([scenario, view, homes], build, { immediate: true })
 
+  // Блок исчез (отмена создания блока, возврат переименования): вкладка без блока невозможна, открывается главная
+  watch(
+    () => scenario.value.blocks,
+    (blocks) => {
+      if (view.value !== MAIN_VIEW && blocks[view.value] === undefined) view.value = MAIN_VIEW
+    },
+  )
+
   const marks = computed(() => errorNumbers(issues.value))
   const nodes = computed(() =>
     laidOut.value.nodes.map((n) => {

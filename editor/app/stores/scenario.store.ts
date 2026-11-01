@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef, toRaw } from 'vue'
 import { useContainer } from '~/container'
 import { SessionExpired } from '~/errors/base'
 import { CONFLICT_TEXT } from '~/errors/presentation'
@@ -13,6 +13,25 @@ const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
 const ID_LENGTH = 8
 /** Пустой текст бот не отправит: шаг сразу получает черновой. */
 const NEW_STEP_TEXT = 'Новый шаг'
+/** Сколько правок помнит отмена. */
+export const HISTORY_LIMIT = 100
+/** Правки текста в одном поле, идущие чаще, чем раз в столько мс, сливаются в один шаг отмены. */
+export const MERGE_WINDOW_MS = 800
+/** Поля, где правка это набор текста: только они сливаются в один шаг отмены. */
+const TYPED_STEP_FIELDS = ['text', 'key', 'done_label']
+const TYPED_OPTION_FIELDS = ['label', 'url', 'input']
+
+/**
+ * Состояние, которое возвращает отмена. Объекты внутри не копируются: store только заменяет их целиком
+ * и никогда не правит на месте, поэтому снимок в стеке остаётся таким, каким был.
+ */
+interface Snapshot {
+  entry: string
+  blocks: Record<string, string>
+  steps: Record<string, Step>
+  extra: Record<string, unknown>
+  homes: Record<string, GraphView>
+}
 
 /** Итог правки блока: новое имя или текст ошибки рядом с полем. */
 export type BlockOutcome = { ok: true; name: string; stepId?: string } | { ok: false; error: string }
@@ -55,6 +74,18 @@ export const useScenarioStore = defineStore('scenario', () => {
     steps: steps.value,
   }))
 
+  /** Стеки отмены и возврата; в памяти страницы, после перезагрузки истории нет. */
+  const past = shallowRef<Snapshot[]>([])
+  const future = shallowRef<Snapshot[]>([])
+  const canUndo = computed(() => !conflict.value && past.value.length > 0)
+  const canRedo = computed(() => !conflict.value && future.value.length > 0)
+  // слияние набора текста: ключ поля последней записанной правки и время правки
+  let mergeKey: string | null = null
+  let mergeAt = 0
+  // внутри `batch` записывается только первая правка
+  let batchDepth = 0
+  let batchRecorded = false
+
   /** Откат заменит черновик: подтверждение нужно, если есть правки или совпадение с версией неизвестно. */
   const needsRollbackConfirm = computed(() => dirty.value || saving.value || !draftMatchesActive.value)
 
@@ -89,6 +120,7 @@ export const useScenarioStore = defineStore('scenario', () => {
     selectedId.value = null
     issues.value = []
     homes.value = {}
+    resetHistory()
     edits.value = 0
     dirty.value = false
     saveFailed.value = false
@@ -97,9 +129,86 @@ export const useScenarioStore = defineStore('scenario', () => {
     loaded.value = true
   }
 
+  function snapshot(): Snapshot {
+    return {
+      entry: entry.value,
+      blocks: toRaw(blocks.value),
+      steps: toRaw(steps.value),
+      extra: toRaw(extra.value),
+      homes: toRaw(homes.value),
+    }
+  }
+
+  function resetHistory(): void {
+    past.value = []
+    future.value = []
+    mergeKey = null
+  }
+
+  /** Кладёт состояние до правки в стек отмены. `merge` называет поле, набор текста в котором сливается. */
+  function record(merge?: string): void {
+    if (future.value.length) future.value = []
+    const now = Date.now()
+    if (batchDepth > 0) {
+      mergeKey = null
+      if (batchRecorded) return
+      batchRecorded = true
+    } else if (merge && merge === mergeKey && now - mergeAt <= MERGE_WINDOW_MS) {
+      mergeAt = now
+      return
+    } else {
+      mergeKey = merge ?? null
+      mergeAt = now
+    }
+    past.value = [...past.value, snapshot()].slice(-HISTORY_LIMIT)
+  }
+
+  /** Составное действие (несколько вызовов store) это один шаг отмены. */
+  function batch<T>(fn: () => T): T {
+    batchDepth++
+    try {
+      return fn()
+    } finally {
+      batchDepth--
+      if (batchDepth === 0) {
+        batchRecorded = false
+        mergeKey = null
+      }
+    }
+  }
+
+  /** Переносит состояние из одного стека в другой; после конфликта и при пустом стеке ничего не делает. */
+  function travel(from: typeof past, to: typeof past): boolean {
+    const target = from.value.at(-1)
+    if (conflict.value || !target) return false
+    to.value = [...to.value, snapshot()].slice(-HISTORY_LIMIT)
+    from.value = from.value.slice(0, -1)
+    entry.value = target.entry
+    blocks.value = target.blocks
+    steps.value = target.steps
+    extra.value = target.extra
+    homes.value = target.homes
+    if (selectedId.value && !steps.value[selectedId.value]) selectedId.value = null
+    mergeKey = null
+    // как обычная правка: будит автосохранение, но историю не трогает
+    edits.value++
+    dirty.value = true
+    draftMatchesActive.value = false
+    return true
+  }
+
+  function undo(): boolean {
+    return travel(past, future)
+  }
+
+  function redo(): boolean {
+    return travel(future, past)
+  }
+
   /** Правка принята: счётчик будит автосохранение. После конфликта правки не принимаются. */
-  function touch(): boolean {
+  function touch(merge?: string): boolean {
     if (conflict.value) return false
+    record(merge)
     edits.value++
     dirty.value = true
     draftMatchesActive.value = false
@@ -120,7 +229,7 @@ export const useScenarioStore = defineStore('scenario', () => {
 
   function updateStep(id: string, patch: Partial<Step>): void {
     const step = steps.value[id]
-    if (!step || !touch()) return
+    if (!step || !touch(typedKey(`step:${id}`, patch, TYPED_STEP_FIELDS))) return
     steps.value = { ...steps.value, [id]: applyPatch(step, patch) }
   }
 
@@ -282,7 +391,7 @@ export const useScenarioStore = defineStore('scenario', () => {
   /** Ссылка на сайт и переход на шаг взаимоисключают друг друга: побеждает то, что задано сейчас. */
   function updateOption(stepId: string, optionId: string, patch: Partial<Option>): void {
     const step = steps.value[stepId]
-    if (!step || !touch()) return
+    if (!step || !touch(typedKey(`option:${stepId}:${optionId}`, patch, TYPED_OPTION_FIELDS))) return
     const options = (step.options ?? []).map((o) => {
       if (o.id !== optionId) return o
       const rule: Partial<Option> = { ...patch }
@@ -440,11 +549,24 @@ export const useScenarioStore = defineStore('scenario', () => {
     renameBlock,
     removeBlock,
     retargetCall,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+    batch,
     flush,
     publish,
     toDraftData,
   }
 })
+
+/** Ключ слияния: правка одного текстового поля. Остальные правки не сливаются. */
+function typedKey(scope: string, patch: object, fields: readonly string[]): string | undefined {
+  const keys = Object.keys(patch)
+  const field = keys[0]
+  if (keys.length !== 1 || field === undefined || !fields.includes(field)) return undefined
+  return typeof (patch as Record<string, unknown>)[field] === 'string' ? `${scope}:${field}` : undefined
+}
 
 /** Случайный id из латиницы и цифр, которого ещё нет среди занятых. */
 function freshId(prefix: string, taken: ReadonlySet<string>): string {

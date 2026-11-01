@@ -14,6 +14,9 @@ const props = defineProps<{
   view: string
   /** Правки заблокированы (конфликт версий): ноды не двигаются и не соединяются. */
   locked?: boolean
+  /** Есть что отменять и что возвращать: от этого зависят кнопки. */
+  canUndo?: boolean
+  canRedo?: boolean
 }>()
 const emit = defineEmits<{
   select: [id: string]
@@ -26,6 +29,8 @@ const emit = defineEmits<{
   drop: [type: string, pos: [number, number]]
   /** Стрелку от порта `handle` ноды `source` нужно отсоединить: кнопка "×", Delete или конец отпущен в пустом месте. */
   detach: [source: string, handle: string]
+  undo: []
+  redo: []
 }>()
 
 const { zoomIn, zoomOut, fitView, viewport, dimensions, screenToFlowCoordinate, onNodesInitialized } = useVueFlow()
@@ -92,7 +97,6 @@ function visibleCenter(): [number, number] {
     Math.round((dimensions.value.height / 2 - y) / zoom - NODE_HALF_HEIGHT),
   ]
 }
-defineExpose({ visibleCenter, reveal })
 
 // Выделенная стрелка: id вида `источник:порт`, переживает пересборку схемы. Состояние только на экране.
 const selectedEdge = ref<string | null>(null)
@@ -113,6 +117,12 @@ watch(
     if (selectedEdge.value && !all.some((e) => e.id === selectedEdge.value)) selectedEdge.value = null
   },
 )
+
+/** Снять выделение стрелки: Esc и отмена. */
+function clearEdge() {
+  selectedEdge.value = null
+}
+defineExpose({ visibleCenter, reveal, clearEdge })
 
 function detachSelected() {
   const edge = props.edges.find((e) => e.id === selectedEdge.value)
@@ -267,6 +277,20 @@ function relayout() {
       <span>{{ zoomPercent }}</span>
       <button type="button" aria-label="Увеличить" @click="zoomIn()">+</button>
       <button type="button" class="relayout" @click="relayout">Разложить</button>
+      <span class="history">
+        <button type="button" aria-label="Отменить" title="Отменить (Ctrl+Z)" :disabled="!canUndo" @click="emit('undo')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M5.5 3 2.5 6l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+        </button>
+        <button type="button" aria-label="Вернуть" title="Вернуть (Ctrl+Shift+Z)" :disabled="!canRedo" @click="emit('redo')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10.5 3l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M13 6H6.5a3.5 3.5 0 0 0 0 7H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+        </button>
+      </span>
     </div>
   </div>
 </template>
@@ -306,7 +330,7 @@ function relayout() {
   color: var(--ink);
   cursor: pointer;
 }
-.zoom span {
+.zoom > span:not(.history) {
   min-width: 40px;
   text-align: center;
   color: var(--ink-2);
@@ -315,6 +339,20 @@ function relayout() {
   width: auto;
   padding: 0 10px;
   border-left: 1px solid var(--line);
+}
+.zoom .history {
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+  border-left: 1px solid var(--line);
+}
+.zoom .history button {
+  display: grid;
+  place-items: center;
+}
+.zoom .history button:disabled {
+  color: var(--line-strong);
+  cursor: default;
 }
 </style>
 
